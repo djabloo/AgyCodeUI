@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0d1117">
+    <title>Antigravity Code UI (agycodeui)</title>
+
+    <!-- Favicon & App Icons -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+
+    <!-- Markdown, Code Highlighting & Sanitizer -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.1/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- Google Fonts: Plus Jakarta Sans, Outfit, JetBrains Mono, Space Grotesk -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- Ambient Glow Background -->
+    <div class="ambient-glow-layer">
+        <div class="glow-orb-indigo"></div>
+        <div class="glow-orb-cyan"></div>
+        <div class="glow-orb-purple"></div>
+    </div>
+
+    <!-- PIN Authentication Modal -->
+    <div id="auth-modal" class="modal hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <i data-lucide="shield-check"></i>
+                <h2>Autenticazione Richiesta</h2>
+            </div>
+            <p>Inserisci il PIN di sicurezza configurato per accedere ad Antigravity CLI:</p>
+            <form id="auth-form" onsubmit="event.preventDefault(); window.agyApp.handleAuthSubmit();">
+                <input type="password" id="pin-input" placeholder="Inserisci PIN" inputmode="numeric" autocomplete="current-password" autofocus />
+                <button type="submit" class="btn btn-primary btn-block">Accedi</button>
+            </form>
+            <p id="auth-error" class="error-text hidden">PIN errato. Riprova.</p>
+        </div>
+    </div>
+
+    <!-- Add MCP Server Modal -->
+    <div id="add-mcp-modal" class="modal hidden">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <i data-lucide="server"></i>
+                <h2>Configura Server MCP</h2>
+                <button class="icon-btn close-modal-btn" onclick="window.agySettings.closeAddMcpModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <p>Aggiungi un server Model Context Protocol per integrare strumenti esterni ad Antigravity.</p>
+            
+            <div class="form-group">
+                <label>Nome Server (Identificatore univoco)</label>
+                <input type="text" id="mcp-name-input" placeholder="es. filesystem, github, postgres" />
+            </div>
+
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label>Tipo Server</label>
+                    <select id="mcp-type-select" class="form-select">
+                        <option value="stdio">stdio (Comando CLI locale)</option>
+                        <option value="http">http / SSE (Endpoint remoto)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Comando o URL</label>
+                <input type="text" id="mcp-cmd-input" placeholder="es. npx -y @modelcontextprotocol/server-filesystem /path/to/dir" />
+            </div>
+
+            <div class="form-group">
+                <label>Argomenti Aggiuntivi (opzionali)</label>
+                <input type="text" id="mcp-args-input" placeholder="es. --verbose" />
+            </div>
+
+            <div class="form-group">
+                <label>Variabili d'Ambiente (KEY=value, una per riga)</label>
+                <textarea id="mcp-envs-input" rows="2" placeholder="GITHUB_TOKEN=ghp_xxx&#10;DATABASE_URL=postgres://..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Header HTTP (Key: Value, per server http)</label>
+                <textarea id="mcp-headers-input" rows="2" placeholder="Authorization: Bearer xxx"></textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="window.agySettings.closeAddMcpModal()">Annulla</button>
+                <button class="btn btn-primary" onclick="window.agySettings.submitAddMcp()">Salva Server MCP</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skill View/Edit Modal -->
+    <div id="skill-content-modal" class="modal hidden">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <i data-lucide="sparkles"></i>
+                <h2 id="skill-modal-title">SKILL.md</h2>
+                <button class="icon-btn close-modal-btn" onclick="window.agySettings.closeSkillModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <pre class="skill-code-pre"><code id="skill-modal-code"></code></pre>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="window.agySettings.closeSkillModal()">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Skill Modal -->
+    <div id="create-skill-modal" class="modal hidden">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <i data-lucide="plus-circle"></i>
+                <h2>Crea Nuova Skill Personalizzata</h2>
+                <button class="icon-btn close-modal-btn" onclick="window.agySettings.closeCreateSkillModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="form-group">
+                <label>Nome Skill (slug univoco)</label>
+                <input type="text" id="new-skill-name-input" placeholder="es. vue-specialist, prisma-migrations" />
+            </div>
+            <div class="form-group">
+                <label>Descrizione breve (quando l'agente deve attivarla)</label>
+                <input type="text" id="new-skill-desc-input" placeholder="es. Guida e procedure per migrazioni database con Prisma" />
+            </div>
+            <div class="form-group">
+                <label>Contenuto Markdown SKILL.md (Istruzioni dettagliate)</label>
+                <textarea id="new-skill-content-input" rows="8" placeholder="Scrivi qui le istruzioni operative per l'agente..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="window.agySettings.closeCreateSkillModal()">Annulla</button>
+                <button class="btn btn-primary" onclick="window.agySettings.submitCreateSkill()">Crea Skill</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div class="app-layout">
+
+        <!-- Sidebar Backdrop (for mobile) -->
+        <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="window.agyChat.closeSidebar()"></div>
+
+        <!-- Sessions Sidebar / Drawer (Accordion Organized) -->
+        <aside id="sessions-sidebar" class="sessions-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">
+                    <div class="brand-logo-box">
+                        <div class="brand-logo-box-inner">
+                            <span class="brand-planet-emoji">🪐</span>
+                        </div>
+                    </div>
+                    <span>AGY<span class="gradient-brand-text">UI</span><span class="logo-badge">.ai</span></span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <button class="btn btn-sm btn-primary new-session-btn" onclick="window.agyChat.createNewSession()" title="Nuova Chat">
+                        <i data-lucide="plus"></i> <span data-i18n="newChatBtn">Nuova Chat</span>
+                    </button>
+                    <button class="icon-btn sidebar-close-btn" onclick="window.agyChat.closeSidebar()" title="Chiudi Menu">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Accordion 1: 📁 Progetti & Workspace -->
+            <div class="sidebar-accordion-section" id="accordion-projects">
+                <div class="sidebar-accordion-header">
+                    <div class="accordion-header-left">
+                        <i data-lucide="folder-git-2" class="accordion-icon"></i>
+                        <span data-i18n="sectionProjects">Progetti & Workspace</span>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="accordion-badge" id="active-workspace-pill">~</span>
+                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                    </div>
+                </div>
+                <div class="sidebar-accordion-body" id="sidebar-projects-list">
+                    <!-- Popolato dinamicamente da sidebarModules.js -->
+                </div>
+            </div>
+
+            <!-- Accordion 2: 🤖 Agenti & Personas -->
+            <div class="sidebar-accordion-section" id="accordion-agents">
+                <div class="sidebar-accordion-header">
+                    <div class="accordion-header-left">
+                        <i data-lucide="bot" class="accordion-icon"></i>
+                        <span data-i18n="sectionAgents">Agenti & Subagenti</span>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="accordion-badge" id="active-agent-pill">Master</span>
+                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                    </div>
+                </div>
+                <div class="sidebar-accordion-body" id="sidebar-agents-list">
+                    <!-- Popolato dinamicamente da sidebarModules.js -->
+                </div>
+            </div>
+
+            <!-- Accordion 3: ⚡ Flussi di Lavoro & Automazioni -->
+            <div class="sidebar-accordion-section" id="accordion-workflows">
+                <div class="sidebar-accordion-header">
+                    <div class="accordion-header-left">
+                        <i data-lucide="workflow" class="accordion-icon"></i>
+                        <span data-i18n="sectionWorkflows">Flussi di Lavoro</span>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="accordion-badge">6</span>
+                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                    </div>
+                </div>
+                <div class="sidebar-accordion-body" id="sidebar-workflows-list">
+                    <!-- Popolato dinamicamente da sidebarModules.js -->
+                </div>
+            </div>
+
+            <!-- Accordion 4: 💬 Sessioni & Cronologia (Aperto di default) -->
+            <div class="sidebar-accordion-section expanded" id="accordion-sessions">
+                <div class="sidebar-accordion-header">
+                    <div class="accordion-header-left">
+                        <i data-lucide="history" class="accordion-icon"></i>
+                        <span data-i18n="sectionSessions">Sessioni Recenti</span>
+                    </div>
+                    <div class="accordion-header-right">
+                        <i data-lucide="chevron-down" class="accordion-chevron" style="transform: rotate(180deg);"></i>
+                    </div>
+                </div>
+                <div class="sidebar-accordion-body">
+                    <!-- Search Sessions -->
+                    <div class="sidebar-search">
+                        <div class="search-input-wrapper">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="session-search-input" placeholder="Cerca sessione..." data-i18n-placeholder="searchSessionsPlaceholder" />
+                        </div>
+                    </div>
+
+                    <!-- Sessions List Container -->
+                    <div class="sessions-list" id="sessions-list">
+                        <!-- Popolato dinamicamente da chat.js -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content Area with Header -->
+        <div class="app-body">
+            <!-- Header -->
+            <header class="app-header">
+                <div class="header-left">
+                    <button class="icon-btn sidebar-toggle-btn" title="Elenco Sessioni" onclick="window.agyChat.toggleSidebar()">
+                        <i data-lucide="panel-left"></i>
+                    </button>
+                    <div class="logo" onclick="window.agyApp.switchTab('chat-tab')">
+                        <div class="brand-logo-box">
+                            <div class="brand-logo-box-inner">
+                                <span class="brand-planet-emoji">🪐</span>
+                            </div>
+                        </div>
+                        <span class="logo-text">AGY<span class="gradient-brand-text">UI</span><span class="logo-badge">.ai</span></span>
+                    </div>
+                    <div class="status-badge" id="status-badge">
+                        <span class="status-dot"></span>
+                        <span class="status-text" data-i18n="connected">Connessione...</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="nav-tabs">
+                    <button class="nav-tab active" data-tab="chat-tab" onclick="window.agyApp.switchTab('chat-tab')">
+                        <i data-lucide="message-square"></i>
+                        <span data-i18n="navChat">Chat</span>
+                    </button>
+                    <button class="nav-tab" data-tab="terminal-tab" onclick="window.agyApp.switchTab('terminal-tab')">
+                        <i data-lucide="terminal"></i>
+                        <span data-i18n="navTerminal">Terminale</span>
+                    </button>
+                    <button class="nav-tab" data-tab="files-tab" onclick="window.agyApp.switchTab('files-tab')">
+                        <i data-lucide="folder-git-2"></i>
+                        <span data-i18n="navFiles">File</span>
+                    </button>
+                    <button class="nav-tab" data-tab="prompts-tab" onclick="window.agyApp.switchTab('prompts-tab')">
+                        <i data-lucide="sparkles"></i>
+                        <span data-i18n="navPrompts">Prompt</span>
+                    </button>
+                    <button class="nav-tab" data-tab="settings-tab" onclick="window.agyApp.switchTab('settings-tab')">
+                        <i data-lucide="settings"></i>
+                        <span data-i18n="navSettings">Impostazioni</span>
+                    </button>
+                </nav>
+
+                <div class="header-right">
+                    <!-- Language Switcher Button -->
+                    <button class="lang-switch-btn" id="lang-switch-btn" title="Cambia Lingua / Switch Language" data-i18n-title="langSwitchTitle" onclick="window.agyI18n.toggleLanguage()">
+                        <span id="lang-switch-badge">🇮🇹 <b>IT</b></span>
+                    </button>
+                    <button class="icon-btn" title="Riavvia Sessione CLI" data-i18n-title="restartBtnTitle" onclick="window.agyApp.restartSession()">
+                        <i data-lucide="refresh-cw"></i>
+                    </button>
+                    <button class="icon-btn" title="Impostazioni" data-i18n-title="settingsBtnTitle" onclick="window.agyApp.switchTab('settings-tab')">
+                        <i data-lucide="settings"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Tab Panes -->
+            <main class="main-content">
+                
+                <!-- 💬 Chat Tab Pane (Default) -->
+                <section id="chat-tab" class="tab-pane active">
+                    <div class="chat-header-bar">
+                        <div class="chat-title-info">
+                            <span class="active-session-title" id="active-session-title">Nuova Sessione</span>
+                        </div>
+                        <div class="chat-header-actions">
+                            <span class="active-model-pill" id="chat-header-model-pill" title="Modello AI attivo (tocca per configurare)" onclick="window.agyApp.switchTab('settings-tab')" style="cursor: pointer;">
+                                <span class="model-pulse-dot"></span>
+                                <span class="model-pill-name">Gemini 3.7 Flash Thinking</span>
+                            </span>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.switchTab('terminal-tab')" title="Visualizza terminale interattivo">
+                                <i data-lucide="terminal"></i> Passa a Terminale
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages List -->
+                    <div class="chat-messages-container" id="chat-messages">
+                        <!-- Popolato dinamicamente da chat.js -->
+                    </div>
+
+                    <!-- Floating Scroll-to-bottom button -->
+                    <button id="scroll-to-bottom-btn" class="scroll-to-bottom-btn hidden" onclick="window.agyChat.scrollToBottom()">
+                        <i data-lucide="arrow-down"></i> Nuovi messaggi
+                    </button>
+
+                    <!-- Quick Chips & Action Toolbar for Chat -->
+                    <div class="chat-action-chips">
+                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Ottimizza le performance del backend e aggiungi una cache Redis distribuita con TTL di 5 minuti.')">
+                            <span>⚡</span> Redis Cache
+                        </button>
+                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Esegui una verifica di sicurezza completa contro Path Traversal, Injection e CSWSH.')">
+                            <span>🛡️</span> Security Audit
+                        </button>
+                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Spawna 3 subagenti paralleli per orchestrare ricerca documentazione, schema database e frontend UI.')">
+                            <span>🤖</span> Swarm Subagenti
+                        </button>
+                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Crea un file Docker Compose con PostgreSQL, Redis e Node.js.')">
+                            <span>🐳</span> Docker Stack
+                        </button>
+                        <button class="chip-btn" onclick="window.agyChat.insertPrompt('/goal ')">
+                            <span>🎯</span> /goal
+                        </button>
+                        <button class="chip-btn" onclick="window.agyChat.insertPrompt('/plan ')">
+                            <span>📋</span> /plan
+                        </button>
+                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Mostra lo stato git e gli ultimi commit.')">
+                            <span>🌿</span> Git Status
+                        </button>
+                        <button class="chip-btn" onclick="window.agyApp.switchTab('settings-tab')">
+                            <span>⚙️</span> Modelli AI
+                        </button>
+                    </div>
+
+                    <!-- Chat Input Panel -->
+                    <footer class="input-panel">
+                        <form class="input-form" onsubmit="event.preventDefault(); window.agyChat.submitPrompt();">
+                            <button type="button" id="voice-btn-chat" class="icon-btn btn-voice" title="Dettatura vocale (Web Speech)" data-i18n-title="voiceTitle" onclick="window.agySpeech.toggleForChat()">
+                                <span style="font-size: 1.1rem;">🎙️</span>
+                            </button>
+                            <textarea 
+                                id="chat-prompt-input" 
+                                rows="1" 
+                                placeholder="Chiedi ad AGY di scrivere codice, eseguire test o orchestrare subagenti... (Invio per inviare, Shift+Invio per a capo)"
+                                data-i18n-placeholder="chatInputPlaceholder" 
+                                onkeydown="window.agyChat.handleChatKeydown(event)"
+                            ></textarea>
+                            <button type="submit" id="chat-send-btn" class="btn btn-send" title="Invia Prompt (Invio)" data-i18n-title="sendPromptTitle">
+                                <span>Invia</span>
+                                <span style="font-size: 0.85rem;">↵</span>
+                            </button>
+                        </form>
+                    </footer>
+                </section>
+
+                <!-- 💻 Terminal Tab Content -->
+                <section id="terminal-tab" class="tab-pane">
+                    <div id="terminal-wrapper">
+                        <div id="terminal-container"></div>
+                    </div>
+
+                    <!-- Mobile Quick Action Toolbar -->
+                    <div class="quick-toolbar">
+                        <div class="toolbar-scroll">
+                            <button class="btn btn-sm btn-action" onclick="window.agyTerminal.send('y\r')">
+                                <i data-lucide="check"></i> <span data-i18n="btnYes">Sì (y)</span>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="window.agyTerminal.send('n\r')">
+                                <i data-lucide="x"></i> <span data-i18n="btnNo">No (n)</span>
+                            </button>
+                            <button class="btn btn-sm" onclick="window.agyTerminal.send('\r')">
+                                <i data-lucide="corner-down-left"></i> <span data-i18n="btnEnter">Invio</span>
+                            </button>
+                            <button class="btn btn-sm btn-warning" onclick="window.agyTerminal.send('\x03')">
+                                <i data-lucide="octagon-alert"></i> Ctrl+C
+                            </button>
+                            <button class="btn btn-sm" onclick="window.agyTerminal.send('\t')">Tab</button>
+                            <button class="btn btn-sm" onclick="window.agyTerminal.send('\x1b')">Esc</button>
+                            <button class="btn btn-sm" onclick="window.agyTerminal.send('\x1b[A')" title="Freccia Su">↑</button>
+                            <button class="btn btn-sm" onclick="window.agyTerminal.send('\x1b[B')" title="Freccia Giù">↓</button>
+                            <span class="toolbar-divider"></span>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/model\r')">/model</button>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/goal ')">/goal</button>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/plan ')">/plan</button>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/schedule ')">/schedule</button>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/browser ')">/browser</button>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/help\r')">/help</button>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/learn ')">/learn</button>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/agents\r')">/agents</button>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/mcp\r')">/mcp</button>
+                        </div>
+                    </div>
+
+                    <!-- Prompt Input Bar for Terminal -->
+                    <footer class="input-panel">
+                        <form class="input-form" onsubmit="event.preventDefault(); window.agyApp.submitPrompt();">
+                            <button type="button" id="voice-btn" class="icon-btn btn-voice" title="Dettatura vocale" onclick="window.agySpeech.toggle()">
+                                <i data-lucide="mic"></i>
+                            </button>
+                            <textarea 
+                                id="prompt-input" 
+                                rows="1" 
+                                placeholder="Invia al terminale interattivo..." 
+                                onkeydown="window.agyApp.handleInputKeydown(event)"
+                            ></textarea>
+                            <button type="submit" id="send-btn" class="icon-btn btn-send" title="Invia Prompt">
+                                <i data-lucide="send"></i>
+                            </button>
+                        </form>
+                    </footer>
+                </section>
+
+                <!-- 📂 File Explorer Tab Content -->
+                <section id="files-tab" class="tab-pane">
+                    <div class="files-header">
+                        <div class="breadcrumbs" id="file-breadcrumbs">
+                            <span class="crumb" onclick="window.agyFiles.loadDir('')">/</span>
+                        </div>
+                        <button class="icon-btn" onclick="window.agyFiles.refresh()" title="Aggiorna File">
+                            <i data-lucide="refresh-cw"></i>
+                        </button>
+                    </div>
+                    <div class="files-body">
+                        <div class="file-list" id="file-list">
+                            <!-- Popolato dinamicamente da fileExplorer.js -->
+                        </div>
+                        <div class="file-viewer hidden" id="file-viewer">
+                            <div class="viewer-header">
+                                <span id="viewer-filename">filename.ext</span>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <button class="btn btn-sm" onclick="window.agyFiles.insertCurrentPathToPrompt()" title="Incolla percorso nel prompt">
+                                        <i data-lucide="corner-down-left"></i> Usa nel Prompt
+                                    </button>
+                                    <button class="btn btn-sm" onclick="window.agyFiles.copyCurrentPath()" title="Copia percorso">
+                                        <i data-lucide="copy"></i> Copia
+                                    </button>
+                                    <button class="icon-btn" onclick="window.agyFiles.closeViewer()" title="Chiudi">
+                                        <i data-lucide="x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <pre><code id="viewer-code"></code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ✨ Quick Prompts Tab Content -->
+                <section id="prompts-tab" class="tab-pane">
+                    <div class="prompts-container">
+                        <h3>Template e Istruzioni Rapide</h3>
+                        <p class="subtitle">Tocca una card per inviare subito il comando ad Antigravity:</p>
+                        <div class="prompt-grid">
+                            <div class="prompt-card" onclick="window.agyChat.sendPrompt('Controlla lo stato del repository git e mostra gli ultimi commit e modifiche pendenti.'); window.agyApp.switchTab('chat-tab');">
+                                <h4><i data-lucide="git-branch"></i> Git Status & History</h4>
+                                <p>Verifica le modifiche non committate e il log dei commit recenti.</p>
+                            </div>
+                            <div class="prompt-card" onclick="window.agyChat.sendPrompt('Esegui i test del progetto e risolvi eventuali errori riscontrati.'); window.agyApp.switchTab('chat-tab');">
+                                <h4><i data-lucide="play"></i> Run Tests & Fix</h4>
+                                <p>Lancia i test di unità/integrazione e propone i fix.</p>
+                            </div>
+                            <div class="prompt-card" onclick="window.agyChat.sendPrompt('/goal '); window.agyApp.switchTab('chat-tab');">
+                                <h4><i data-lucide="target"></i> /goal (Autonomous Mode)</h4>
+                                <p>Avvia la modalità autonoma approfondita senza fermarsi fino al completamento.</p>
+                            </div>
+                            <div class="prompt-card" onclick="window.agyChat.sendPrompt('/plan '); window.agyApp.switchTab('chat-tab');">
+                                <h4><i data-lucide="list-ordered"></i> /plan (Step-by-step Planning)</h4>
+                                <p>Pianifica un'attività complessa creando uno schema dettagliato prima dell'esecuzione.</p>
+                            </div>
+                            <div class="prompt-card" onclick="window.agyChat.sendPrompt('Fai un code review degli ultimi file modificati per identificare bug o ottimizzazioni.'); window.agyApp.switchTab('chat-tab');">
+                                <h4><i data-lucide="code-2"></i> Code Review</h4>
+                                <p>Analisi approfondita della qualità del codice e suggerimenti di refactoring.</p>
+                            </div>
+                            <div class="prompt-card" onclick="window.agyChat.sendPrompt('/browser '); window.agyApp.switchTab('chat-tab');">
+                                <h4><i data-lucide="globe"></i> /browser (Web Interaction)</h4>
+                                <p>Cerca informazioni online o interagisci con pagine web e documentazione.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ⚙️ Settings Tab Content -->
+                <section id="settings-tab" class="tab-pane">
+                    <div class="settings-layout">
+                        <!-- Settings Sub-Navigation -->
+                        <aside class="settings-nav">
+                            <button class="settings-sub-tab active" data-subtab="account" onclick="window.agySettings.switchSubTab('account')">
+                                <i data-lucide="user-check"></i>
+                                <span>Account & Modelli</span>
+                            </button>
+                            <button class="settings-sub-tab" data-subtab="mcp" onclick="window.agySettings.switchSubTab('mcp')">
+                                <i data-lucide="server"></i>
+                                <span>Server MCP</span>
+                            </button>
+                            <button class="settings-sub-tab" data-subtab="permissions" onclick="window.agySettings.switchSubTab('permissions')">
+                                <i data-lucide="shield-alert"></i>
+                                <span>Permessi & Sicurezza</span>
+                            </button>
+                            <button class="settings-sub-tab" data-subtab="skills" onclick="window.agySettings.switchSubTab('skills')">
+                                <i data-lucide="sparkles"></i>
+                                <span>Skills</span>
+                            </button>
+                            <button class="settings-sub-tab" data-subtab="plugins" onclick="window.agySettings.switchSubTab('plugins')">
+                                <i data-lucide="package"></i>
+                                <span>Plugin</span>
+                            </button>
+                        </aside>
+
+                        <!-- Settings Main View -->
+                        <div class="settings-content">
+
+                            <!-- Section 1: Account & Models -->
+                            <div class="settings-section active" id="settings-section-account">
+                                <div class="section-header">
+                                    <h3 data-i18n="settingsAccountTitle">🤖 Account & Modelli Antigravity</h3>
+                                    <p data-i18n="settingsAccountSubtitle">Scegli il modello di intelligenza artificiale attivo e il livello di ragionamento (Thinking Effort).</p>
+                                </div>
+
+                                <div class="settings-card">
+                                    <h4 data-i18n="settingsLanguage">Lingua Interfaccia / UI Language</h4>
+                                    <p class="card-desc">Scegli la lingua preferita per l'interfaccia utente, i pulsanti e i prompt rapidi.</p>
+                                    <div class="effort-control-row">
+                                        <select id="language-select" class="form-select" onchange="window.agyI18n.setLanguage(this.value)">
+                                            <option value="it">🇮🇹 Italiano (Italian)</option>
+                                            <option value="en">🇬🇧 English (Inglese)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="settings-card">
+                                    <h4 data-i18n="reasoningEffortTitle">Livello di Ragionamento (Reasoning Effort)</h4>
+                                    <p class="card-desc" data-i18n="reasoningEffortDesc">Controlla la profondità del pensiero analitico per la risoluzione dei problemi complessi.</p>
+                                    <div class="effort-control-row">
+                                        <select id="effort-select" class="form-select" onchange="window.agySettings.saveEffort()">
+                                            <option value="high" data-i18n="effortHigh">High (Massima accuratezza e ragionamento profondo)</option>
+                                            <option value="medium" data-i18n="effortMedium">Medium (Bilanciato per task ordinari)</option>
+                                            <option value="low" data-i18n="effortLow">Low (Più veloce per operazioni semplici)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="settings-card">
+                                    <h4 data-i18n="availableModelsTitle">Modelli Disponibili</h4>
+                                    <p class="card-desc" data-i18n="availableModelsDesc">Tocca un modello per impostarlo come predefinito per la CLI:</p>
+                                    <div class="models-grid" id="models-list-container">
+                                        <!-- Popolato dinamicamente da settings.js -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 2: MCP Servers -->
+                            <div class="settings-section" id="settings-section-mcp">
+                                <div class="section-header">
+                                    <div class="section-header-title">
+                                        <h3>🔌 Server MCP (Model Context Protocol)</h3>
+                                        <p>Connetti server MCP locali o remoti per estendere le capacità dell'agente con tool dedicati.</p>
+                                    </div>
+                                    <button class="btn btn-primary" onclick="window.agySettings.openAddMcpModal()">
+                                        <i data-lucide="plus"></i> Aggiungi Server MCP
+                                    </button>
+                                </div>
+
+                                <!-- Popular MCP Quick Install Templates -->
+                                <div class="mcp-templates-container">
+                                    <h4>Template Rapidi MCP Popolari</h4>
+                                    <div class="mcp-templates-chips">
+                                        <button class="chip-template" onclick="window.agySettings.applyMcpTemplate('memory', 'npx', '-y @modelcontextprotocol/server-memory')">
+                                            <i data-lucide="brain"></i> Memory (Memoria persistente)
+                                        </button>
+                                        <button class="chip-template" onclick="window.agySettings.applyMcpTemplate('filesystem', 'npx', '-y @modelcontextprotocol/server-filesystem .')">
+                                            <i data-lucide="folder"></i> Filesystem
+                                        </button>
+                                        <button class="chip-template" onclick="window.agySettings.applyMcpTemplate('github', 'npx', '-y @modelcontextprotocol/server-github')">
+                                            <i data-lucide="github"></i> GitHub MCP
+                                        </button>
+                                        <button class="chip-template" onclick="window.agySettings.applyMcpTemplate('fetch', 'npx', '-y @modelcontextprotocol/server-fetch')">
+                                            <i data-lucide="globe"></i> Fetch (Web & API)
+                                        </button>
+                                        <button class="chip-template" onclick="window.agySettings.applyMcpTemplate('postgres', 'npx', '-y @modelcontextprotocol/server-postgres postgresql://localhost/mydb')">
+                                            <i data-lucide="database"></i> PostgreSQL
+                                        </button>
+                                        <button class="chip-template" onclick="window.agySettings.applyMcpTemplate('sqlite', 'npx', '-y @modelcontextprotocol/server-sqlite --db-path ./db.sqlite')">
+                                            <i data-lucide="database"></i> SQLite
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Configured MCP Servers List -->
+                                <div class="mcp-list" id="mcp-list">
+                                    <!-- Popolato dinamicamente da settings.js -->
+                                </div>
+                            </div>
+
+                            <!-- Section 3: Permissions & Security -->
+                            <div class="settings-section" id="settings-section-permissions">
+                                <div class="section-header">
+                                    <h3>🛡️ Permessi & Sicurezza</h3>
+                                    <p>Configura i permessi di esecuzione per la CLI Antigravity e l'autenticazione dell'interfaccia web.</p>
+                                </div>
+
+                                <div class="settings-card">
+                                    <h4>PIN di Accesso Web UI</h4>
+                                    <p class="card-desc">Protegge agycodeui dall'accesso non autorizzato da smartphone o browser remoto.</p>
+                                    <div class="form-group" style="max-width: 320px;">
+                                        <input type="password" id="perm-pin-input" placeholder="Inserisci PIN (opzionale)" />
+                                    </div>
+                                </div>
+
+                                <div class="settings-card">
+                                    <h4>Cartella di Lavoro Iniziale (WORKSPACE_DIR)</h4>
+                                    <p class="card-desc">Directory root in cui Antigravity CLI e il file explorer operano.</p>
+                                    <div class="form-group" style="max-width: 480px;">
+                                        <input type="text" id="perm-workspace-input" placeholder="/path/to/workspace" />
+                                    </div>
+                                </div>
+
+                                <div class="settings-card">
+                                    <h4>Modalità Esecuzione e Permessi CLI</h4>
+                                    
+                                    <div class="toggle-row">
+                                        <div class="toggle-info">
+                                            <span class="toggle-label">Auto-approva tutti i permessi degli strumenti (--dangerously-skip-permissions)</span>
+                                            <span class="toggle-desc">Consente all'agente di eseguire comandi bash, creare ed editare file senza chiedere conferma interattiva (y/n).</span>
+                                        </div>
+                                        <label class="switch">
+                                            <input type="checkbox" id="perm-skip-permissions-toggle" />
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="toggle-row" style="margin-top: 14px;">
+                                        <div class="toggle-info">
+                                            <span class="toggle-label">Modalità Sandbox (--sandbox)</span>
+                                            <span class="toggle-desc">Esegue l'agente all'interno di un ambiente ristretto con limitazioni sul terminale.</span>
+                                        </div>
+                                        <label class="switch">
+                                            <input type="checkbox" id="perm-sandbox-toggle" />
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div style="margin-top: 18px;">
+                                    <button class="btn btn-primary" onclick="window.agySettings.savePermissions()">
+                                        <i data-lucide="save"></i> Salva Impostazioni Permessi
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Section 4: Skills -->
+                            <div class="settings-section" id="settings-section-skills">
+                                <div class="section-header">
+                                    <div class="section-header-title">
+                                        <h3>🧠 Skills Antigravity</h3>
+                                        <p>Le skill estendono le capacità dell'agente con procedure, linee guida e playbook di sviluppo specializzati.</p>
+                                    </div>
+                                    <button class="btn btn-primary" onclick="window.agySettings.openCreateSkillModal()">
+                                        <i data-lucide="plus"></i> Crea Nuova Skill
+                                    </button>
+                                </div>
+
+                                <div class="skills-list" id="skills-list">
+                                    <!-- Popolato dinamicamente da settings.js -->
+                                </div>
+                            </div>
+
+                            <!-- Section 5: Plugins -->
+                            <div class="settings-section" id="settings-section-plugins">
+                                <div class="section-header">
+                                    <div class="section-header-title">
+                                        <h3>🧩 Plugin Antigravity</h3>
+                                        <p>Importa o installa plugin da marketplace o da configurazioni Gemini/Claude esistenti.</p>
+                                    </div>
+                                    <div style="display:flex; gap:8px;">
+                                        <button class="btn btn-outline" onclick="window.agySettings.importPlugins('gemini')">
+                                            <i data-lucide="download"></i> Importa da Gemini
+                                        </button>
+                                        <button class="btn btn-primary" onclick="window.agySettings.installPluginPrompt()">
+                                            <i data-lucide="plus"></i> Installa Plugin
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="plugins-list" id="plugins-list">
+                                    <!-- Popolato dinamicamente da settings.js -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+
+            <!-- Mobile Bottom Navigation Bar -->
+            <nav class="mobile-bottom-nav">
+                <button class="mobile-nav-tab active" data-tab="chat-tab" onclick="window.agyApp.switchTab('chat-tab')">
+                    <i data-lucide="message-square"></i>
+                    <span>Chat</span>
+                </button>
+                <button class="mobile-nav-tab" data-tab="terminal-tab" onclick="window.agyApp.switchTab('terminal-tab')">
+                    <i data-lucide="terminal"></i>
+                    <span>Terminale</span>
+                </button>
+                <button class="mobile-nav-tab" data-tab="files-tab" onclick="window.agyApp.switchTab('files-tab')">
+                    <i data-lucide="folder-git-2"></i>
+                    <span>File</span>
+                </button>
+                <button class="mobile-nav-tab" data-tab="prompts-tab" onclick="window.agyApp.switchTab('prompts-tab')">
+                    <i data-lucide="sparkles"></i>
+                    <span>Prompt</span>
+                </button>
+                <button class="mobile-nav-tab" data-tab="settings-tab" onclick="window.agyApp.switchTab('settings-tab')">
+                    <i data-lucide="settings"></i>
+                    <span>Impostazioni</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/i18n.js"></script>
+    <script src="js/terminal.js"></script>
+    <script src="js/speech.js"></script>
+    <script src="js/fileExplorer.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/sidebarModules.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

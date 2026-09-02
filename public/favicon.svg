@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <!-- Background atmospheric glow -->
+    <radialGradient id="spaceGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.28"/>
+      <stop offset="60%" stop-color="#818cf8" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Planet base gradient (Jupiter warm amber/gold/terracotta) -->
+    <linearGradient id="planetBase" x1="20%" y1="10%" x2="80%" y2="90%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="25%" stop-color="#f59e0b"/>
+      <stop offset="55%" stop-color="#ea580c"/>
+      <stop offset="80%" stop-color="#9a3412"/>
+      <stop offset="100%" stop-color="#451a03"/>
+    </linearGradient>
+
+    <!-- Planet 3D sphere lighting (specular highlight + deep shadow) -->
+    <radialGradient id="sphereLight" cx="32%" cy="28%" r="68%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="25%" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="55%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="85%" stop-color="#050811" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#020617" stop-opacity="0.92"/>
+    </radialGradient>
+
+    <!-- Clip to planet sphere -->
+    <clipPath id="planetClip">
+      <circle cx="32" cy="32" r="16.5"/>
+    </clipPath>
+
+    <!-- Ring gradient -->
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.9"/>
+      <stop offset="25%" stop-color="#e0f2fe" stop-opacity="0.95"/>
+      <stop offset="50%" stop-color="#fde047" stop-opacity="0.9"/>
+      <stop offset="75%" stop-color="#fb923c" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.9"/>
+    </linearGradient>
+
+    <!-- Secondary inner ring gradient -->
+    <linearGradient id="innerRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.6"/>
+      <stop offset="50%" stop-color="#fef08a" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#f97316" stop-opacity="0.6"/>
+    </linearGradient>
+
+    <!-- Clip for Back Ring (Y <= 0 in ring local space) -->
+    <clipPath id="backRingClip">
+      <rect x="-40" y="-30" width="80" height="30"/>
+    </clipPath>
+
+    <!-- Clip for Front Ring (Y >= 0 in ring local space) -->
+    <clipPath id="frontRingClip">
+      <rect x="-40" y="0" width="80" height="30"/>
+    </clipPath>
+  </defs>
+
+  <!-- Ambient outer cosmic glow -->
+  <circle cx="32" cy="32" r="30" fill="url(#spaceGlow)"/>
+
+  <!-- Back part of ring (drawn behind planet) -->
+  <g transform="translate(32, 32) rotate(-22)">
+    <g clip-path="url(#backRingClip)">
+      <!-- Main outer ring -->
+      <path d="M -29,0 A 29 9 0 1 1 29,0 A 29 9 0 1 1 -29,0 M -21.5,0 A 21.5 6.5 0 1 1 21.5,0 A 21.5 6.5 0 1 1 -21.5,0" 
+            fill="url(#ringGrad)" fill-rule="evenodd" opacity="0.85"/>
+      <!-- Inner delicate ring -->
+      <path d="M -20,0 A 20 6 0 1 1 20,0 A 20 6 0 1 1 -20,0 M -18.5,0 A 18.5 5.2 0 1 1 18.5,0 A 18.5 5.2 0 1 1 -18.5,0" 
+            fill="url(#innerRingGrad)" fill-rule="evenodd" opacity="0.5"/>
+    </g>
+  </g>
+
+  <!-- Planet Body -->
+  <g clip-path="url(#planetClip)">
+    <!-- Base surface -->
+    <circle cx="32" cy="32" r="16.5" fill="url(#planetBase)"/>
+
+    <!-- Jupiter bands / stripes -->
+    <path d="M 12,21 Q 32,23 52,21 L 52,24 Q 32,26 12,24 Z" fill="#fef08a" opacity="0.45"/>
+    <path d="M 12,24.5 Q 32,27 52,24.5 L 52,28.5 Q 32,31 12,28.5 Z" fill="#7c2d12" opacity="0.4"/>
+    <path d="M 12,29 Q 32,31.5 52,29 L 52,32.5 Q 32,35 12,32.5 Z" fill="#ffedd5" opacity="0.35"/>
+    <path d="M 12,33 Q 32,35.5 52,33 L 52,37.5 Q 32,40 12,37.5 Z" fill="#9a3412" opacity="0.45"/>
+    <path d="M 12,38 Q 32,40 52,38 L 52,41 Q 32,43 12,41 Z" fill="#fed7aa" opacity="0.3"/>
+    <path d="M 12,41.5 Q 32,43.5 52,41.5 L 52,44.5 Q 32,46.5 12,44.5 Z" fill="#451a03" opacity="0.4"/>
+
+    <!-- Great Red Spot / Jovian storm oval -->
+    <ellipse cx="38" cy="36" rx="3.2" ry="2" fill="#c2410c" opacity="0.9"/>
+    <ellipse cx="38" cy="36" rx="1.8" ry="1.1" fill="#f97316" opacity="0.95"/>
+
+    <!-- Ring shadow cast onto the planet surface -->
+    <path d="M 14,29.5 Q 32,36 50,33.5 L 50,36 Q 32,38.5 14,32 Z" fill="#000000" opacity="0.4"/>
+
+    <!-- 3D spherical lighting & shadow overlay -->
+    <circle cx="32" cy="32" r="16.5" fill="url(#sphereLight)"/>
+
+    <!-- Atmospheric cyan rim glow (Antigravity accent) -->
+    <circle cx="32" cy="32" r="16" fill="none" stroke="#38bdf8" stroke-width="0.75" opacity="0.5"/>
+  </g>
+
+  <!-- Front part of ring (drawn in front of planet) -->
+  <g transform="translate(32, 32) rotate(-22)">
+    <g clip-path="url(#frontRingClip)">
+      <!-- Main outer ring -->
+      <path d="M -29,0 A 29 9 0 1 1 29,0 A 29 9 0 1 1 -29,0 M -21.5,0 A 21.5 6.5 0 1 1 21.5,0 A 21.5 6.5 0 1 1 -21.5,0" 
+            fill="url(#ringGrad)" fill-rule="evenodd"/>
+      <!-- Cassini division highlight line -->
+      <path d="M -22.5,0 A 22.5 6.8 0 1 1 22.5,0" fill="none" stroke="#ffffff" stroke-width="0.6" opacity="0.8"/>
+      <!-- Inner delicate ring -->
+      <path d="M -20,0 A 20 6 0 1 1 20,0 A 20 6 0 1 1 -20,0 M -18.5,0 A 18.5 5.2 0 1 1 18.5,0 A 18.5 5.2 0 1 1 -18.5,0" 
+            fill="url(#innerRingGrad)" fill-rule="evenodd" opacity="0.75"/>
+    </g>
+  </g>
+</svg>
