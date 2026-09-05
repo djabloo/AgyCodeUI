@@ -48,11 +48,267 @@ class AgySettings {
             if (res.ok) {
                 this.config = await res.json();
                 this.models = this.config.models || [];
+                this.renderUserProfile();
+                this.loadAgyAuthStatus();
                 this.renderAccountSection();
                 this.renderPermissionsSection();
+                this.loadAgyPermissions();
             }
         } catch (e) {
             console.error('[Settings] Errore caricamento info:', e);
+        }
+    }
+
+    renderUserProfile(userOverride, subOverride) {
+        let user = userOverride;
+        let sub = subOverride;
+
+        if (!user) {
+            try {
+                const stored = localStorage.getItem('agy_user');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    user = parsed;
+                    sub = parsed.subscription || null;
+                }
+            } catch (e) {}
+        }
+
+        const nameEl = document.getElementById('user-display-name');
+        const emailEl = document.getElementById('user-display-email');
+        const roleEl = document.getElementById('user-role-badge');
+        const providerEl = document.getElementById('user-provider-badge');
+        const planEl = document.getElementById('user-plan-tag');
+        const creditsEl = document.getElementById('user-credits-tag');
+        const avatarImg = document.getElementById('user-avatar-img');
+        const avatarFallback = document.getElementById('user-avatar-fallback');
+        const permsChipsContainer = document.getElementById('user-perms-chips');
+
+        if (!user) {
+            if (nameEl) nameEl.textContent = 'Admin Locale / Self-Hosted';
+            if (emailEl) emailEl.textContent = 'Autenticato tramite PIN di sicurezza';
+            if (roleEl) {
+                roleEl.textContent = 'Admin';
+                roleEl.className = 'badge-role badge-admin';
+            }
+            if (providerEl) {
+                providerEl.textContent = 'Local Host';
+                providerEl.className = 'badge-provider';
+            }
+            if (planEl) planEl.textContent = 'Self-Hosted';
+            if (creditsEl) creditsEl.textContent = 'Illimitati';
+            if (avatarFallback) avatarFallback.textContent = 'A';
+            return;
+        }
+
+        const displayName = user.full_name || user.email.split('@')[0];
+        if (nameEl) nameEl.textContent = displayName;
+        if (emailEl) emailEl.textContent = user.email || '';
+
+        // Avatar
+        if (user.avatar_url && avatarImg) {
+            avatarImg.src = user.avatar_url;
+            avatarImg.classList.remove('hidden');
+            if (avatarFallback) avatarFallback.classList.add('hidden');
+        } else if (avatarFallback) {
+            avatarFallback.textContent = displayName.charAt(0).toUpperCase() || 'U';
+            avatarFallback.classList.remove('hidden');
+            if (avatarImg) avatarImg.classList.add('hidden');
+        }
+
+        // Role Badge
+        if (roleEl) {
+            const role = (user.role || 'developer').toLowerCase();
+            roleEl.textContent = role.toUpperCase();
+            roleEl.className = `badge-role badge-${role}`;
+        }
+
+        // Provider Badge
+        if (providerEl) {
+            const provider = (user.auth_provider || 'email').toLowerCase();
+            if (provider === 'google') {
+                providerEl.innerHTML = '🔵 Google';
+            } else if (provider === 'github') {
+                providerEl.innerHTML = '⚫ GitHub';
+            } else {
+                providerEl.innerHTML = '✉️ Email';
+            }
+        }
+
+        // Subscription & Credits
+        const userSub = sub || user.subscription;
+        if (userSub) {
+            if (planEl) planEl.textContent = `Piano ${(userSub.plan_tier || 'starter').toUpperCase()}`;
+            if (creditsEl) creditsEl.textContent = `${userSub.credits_remaining ?? 100} Crediti Residui`;
+        }
+
+        // Permissions List
+        if (permsChipsContainer) {
+            const role = (user.role || 'developer').toLowerCase();
+            const isAdmin = role === 'admin';
+            const isViewer = role === 'viewer';
+
+            let chipsHtml = '';
+            if (isAdmin) {
+                chipsHtml = `
+                    <span class="perm-chip active"><i data-lucide="shield-check"></i> Controllo Amministrativo Completo</span>
+                    <span class="perm-chip active"><i data-lucide="terminal"></i> Shell & Terminale Illimitato</span>
+                    <span class="perm-chip active"><i data-lucide="file-code"></i> Modifica & Scrittura File</span>
+                    <span class="perm-chip active"><i data-lucide="server"></i> Gestione Server MCP & Skills</span>
+                    <span class="perm-chip active"><i data-lucide="users"></i> Gestione Permessi & Utenti</span>
+                `;
+            } else if (isViewer) {
+                chipsHtml = `
+                    <span class="perm-chip active"><i data-lucide="eye"></i> Sola Lettura Conversazioni</span>
+                    <span class="perm-chip active"><i data-lucide="file-search"></i> Visualizzazione File Progetto</span>
+                    <span class="perm-chip disabled"><i data-lucide="lock"></i> Shell & Terminale Bloccato</span>
+                    <span class="perm-chip disabled"><i data-lucide="lock"></i> Modifica File Non Autorizzata</span>
+                `;
+            } else {
+                chipsHtml = `
+                    <span class="perm-chip active"><i data-lucide="terminal"></i> Shell & Terminale di Progetto</span>
+                    <span class="perm-chip active"><i data-lucide="file-code"></i> Modifica & Scrittura File Workspace</span>
+                    <span class="perm-chip active"><i data-lucide="server"></i> Server MCP & Skills</span>
+                    <span class="perm-chip active"><i data-lucide="folder-check"></i> Workspace Isolato</span>
+                `;
+            }
+            permsChipsContainer.innerHTML = chipsHtml;
+            if (window.lucide) window.lucide.createIcons();
+        }
+    }
+
+    // Gestione Autenticazione Antigravity CLI (agy)
+    async loadAgyAuthStatus() {
+        const token = localStorage.getItem('agy_pin') || '';
+        const badgeEl = document.getElementById('agy-conn-badge');
+        const methodEl = document.getElementById('agy-method-val');
+        const fileEl = document.getElementById('agy-token-file-val');
+        const execEl = document.getElementById('agy-cli-exec-val');
+        const logoutBtn = document.getElementById('btn-agy-logout');
+
+        if (badgeEl) {
+            badgeEl.className = 'badge-status-pill status-checking';
+            badgeEl.innerHTML = '<span class="pulse-indicator"></span> Verifica in corso...';
+        }
+
+        try {
+            const res = await fetch('/api/settings/agy-auth/status', {
+                headers: { 'Authorization': token }
+            });
+            if (res.ok) {
+                const data = await res.json();
+
+                if (data.cliConnected) {
+                    if (badgeEl) {
+                        badgeEl.className = 'badge-status-pill status-connected';
+                        badgeEl.innerHTML = '<span class="pulse-indicator"></span> 🟢 Connesso ad agy';
+                    }
+                    if (execEl) execEl.innerHTML = '<span style="color:#3fb950; font-weight:600;">Funzionante (Modelli disponibili)</span>';
+                    if (logoutBtn) logoutBtn.classList.remove('hidden');
+                } else if (data.hasTokenFile) {
+                    if (badgeEl) {
+                        badgeEl.className = 'badge-status-pill status-warning';
+                        badgeEl.innerHTML = '<span class="pulse-indicator"></span> 🟡 Token Presente (Verifica CLI...)';
+                    }
+                    if (execEl) execEl.innerHTML = '<span style="color:#d29922;">Token trovato, verifica CLI in attesa</span>';
+                    if (logoutBtn) logoutBtn.classList.remove('hidden');
+                } else {
+                    if (badgeEl) {
+                        badgeEl.className = 'badge-status-pill status-disconnected';
+                        badgeEl.innerHTML = '<span class="pulse-indicator"></span> 🔴 Non Autenticato';
+                    }
+                    if (execEl) execEl.innerHTML = '<span style="color:#f85149;">Autenticazione richiesta</span>';
+                    if (logoutBtn) logoutBtn.classList.add('hidden');
+                }
+
+                if (methodEl) {
+                    methodEl.textContent = data.authMethod === 'consumer' ? 'Google Account Consumer (OAuth)' : (data.authMethod || 'Non configurato');
+                }
+                if (fileEl) {
+                    fileEl.textContent = data.hasTokenFile ? `Presente (${data.tokenPreview || 'attivo'})` : 'Non trovato (antigravity-oauth-token)';
+                }
+            }
+        } catch (e) {
+            if (badgeEl) {
+                badgeEl.className = 'badge-status-pill status-disconnected';
+                badgeEl.innerHTML = 'Errore verifica';
+            }
+        }
+    }
+
+    async startAgyLogin() {
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            const res = await fetch('/api/settings/agy-auth/start-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token }
+            });
+            const data = await res.json();
+            alert(data.message || 'Comando agy inviato al terminale.');
+            if (window.agyApp && typeof window.agyApp.switchTab === 'function') {
+                window.agyApp.switchTab('chat-tab');
+            }
+        } catch (e) {
+            alert('Errore avvio login: ' + e.message);
+        }
+    }
+
+    openManualTokenModal() {
+        const modal = document.getElementById('manual-agy-token-modal');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    closeManualTokenModal() {
+        const modal = document.getElementById('manual-agy-token-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async saveManualAgyToken() {
+        const tokenInput = document.getElementById('manual-agy-token-input');
+        const methodSelect = document.getElementById('manual-agy-method-select');
+        const token = tokenInput ? tokenInput.value.trim() : '';
+        const authMethod = methodSelect ? methodSelect.value : 'consumer';
+
+        if (!token) {
+            alert('Inserisci un token valido prima di salvare.');
+            return;
+        }
+
+        const authToken = localStorage.getItem('agy_pin') || '';
+        try {
+            const res = await fetch('/api/settings/agy-auth/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                body: JSON.stringify({ token, authMethod })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message || 'Token Antigravity salvato!');
+                this.closeManualTokenModal();
+                if (tokenInput) tokenInput.value = '';
+                this.loadAgyAuthStatus();
+            } else {
+                alert(data.error || 'Errore salvataggio token');
+            }
+        } catch (e) {
+            alert('Errore salvataggio token: ' + e.message);
+        }
+    }
+
+    async logoutAgy() {
+        if (!confirm('Sei sicuro di voler disconnettere Antigravity CLI? Il file del token verrà archiviato.')) return;
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            const res = await fetch('/api/settings/agy-auth/logout', {
+                method: 'POST',
+                headers: { 'Authorization': token }
+            });
+            if (res.ok) {
+                alert('Sessione Antigravity disconnessa con successo.');
+                this.loadAgyAuthStatus();
+            }
+        } catch (e) {
+            alert('Errore disconnessione: ' + e.message);
         }
     }
 
@@ -332,11 +588,108 @@ class AgySettings {
         if (sandboxCheck) sandboxCheck.checked = currentArgs.includes('--sandbox');
     }
 
+    async loadAgyPermissions() {
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            const res = await fetch('/api/settings/agy-permissions', {
+                headers: { 'Authorization': token }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const nonWsCheck = document.getElementById('perm-non-workspace-toggle');
+                if (nonWsCheck) nonWsCheck.checked = !!data.allowNonWorkspaceAccess;
+
+                const skipPermsCheck = document.getElementById('perm-skip-permissions-toggle');
+                if (skipPermsCheck && typeof data.dangerouslySkipPermissions === 'boolean') {
+                    skipPermsCheck.checked = data.dangerouslySkipPermissions;
+                }
+
+                const sandboxCheck = document.getElementById('perm-sandbox-toggle');
+                if (sandboxCheck && typeof data.sandboxMode === 'boolean') {
+                    sandboxCheck.checked = data.sandboxMode;
+                }
+
+                this.renderWhitelistChips(data.allowedCommands || []);
+            }
+        } catch (e) {
+            console.error('[Settings] Errore caricamento permessi agy:', e);
+        }
+    }
+
+    renderWhitelistChips(commands) {
+        const container = document.getElementById('whitelist-chips-container');
+        if (!container) return;
+
+        if (!commands || commands.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem; padding:8px 0;">Nessun comando in whitelist. Aggiungine uno con il form sopra.</p>';
+            return;
+        }
+
+        let html = '';
+        for (const cmd of commands) {
+            html += `
+                <div class="whitelist-chip">
+                    <span class="cmd-text"><code>${this.escapeHtml(cmd)}</code></span>
+                    <button type="button" class="btn-remove-cmd" onclick="window.agySettings.removeWhitelistCommand('${this.escapeHtml(cmd)}')" title="Rimuovi comando">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    async addWhitelistCommand() {
+        const input = document.getElementById('whitelist-cmd-input');
+        const cmd = input ? input.value.trim() : '';
+        if (!cmd) {
+            alert('Inserisci un comando bash (es. git, npm test)');
+            return;
+        }
+
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            const res = await fetch('/api/settings/agy-permissions/whitelist/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({ command: cmd })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                if (input) input.value = '';
+                this.loadAgyPermissions();
+            } else {
+                alert(data.error || 'Errore aggiunta comando');
+            }
+        } catch (e) {
+            alert('Errore: ' + e.message);
+        }
+    }
+
+    async removeWhitelistCommand(cmd) {
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            const res = await fetch('/api/settings/agy-permissions/whitelist/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({ command: cmd })
+            });
+            if (res.ok) {
+                this.loadAgyPermissions();
+            }
+        } catch (e) {
+            alert('Errore rimozione comando: ' + e.message);
+        }
+    }
+
     async savePermissions() {
         const pin = document.getElementById('perm-pin-input').value.trim();
         const workspace = document.getElementById('perm-workspace-input').value.trim();
         const skipPerms = document.getElementById('perm-skip-permissions-toggle').checked;
         const sandbox = document.getElementById('perm-sandbox-toggle').checked;
+        const nonWsCheck = document.getElementById('perm-non-workspace-toggle');
+        const allowNonWorkspace = nonWsCheck ? nonWsCheck.checked : false;
 
         const token = localStorage.getItem('agy_pin') || '';
         const bodyPayload = {
@@ -350,17 +703,29 @@ class AgySettings {
         }
 
         try {
-            const res = await fetch('/api/settings/permissions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                body: JSON.stringify(bodyPayload)
-            });
-            if (res.ok) {
+            const [res1, res2] = await Promise.all([
+                fetch('/api/settings/permissions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                    body: JSON.stringify(bodyPayload)
+                }),
+                fetch('/api/settings/agy-permissions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                    body: JSON.stringify({
+                        allowNonWorkspaceAccess: allowNonWorkspace,
+                        dangerouslySkipPermissions: skipPerms,
+                        sandboxMode: sandbox
+                    })
+                })
+            ]);
+
+            if (res1.ok && res2.ok) {
                 if (pin) localStorage.setItem('agy_pin', pin);
-                alert('Impostazioni di sicurezza e permessi salvate con successo.');
+                alert('Impostazioni di sicurezza e permessi Antigravity salvate con successo.');
                 this.loadInfo();
             } else {
-                const err = await res.json();
+                const err = await res1.json().catch(() => ({}));
                 alert(err.error || 'Errore salvataggio permessi');
             }
         } catch (e) {

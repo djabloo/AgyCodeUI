@@ -47,21 +47,111 @@
         <div class="glow-orb-purple"></div>
     </div>
 
-    <!-- PIN Authentication Modal -->
+    <!-- PIN & SaaS Authentication Modal -->
     <div id="auth-modal" class="modal hidden">
         <div class="modal-card">
             <div class="modal-header">
-                <i data-lucide="shield-check"></i>
-                <h2>Autenticazione Richiesta</h2>
+                <i data-lucide="shield-check" id="auth-icon"></i>
+                <h2 id="auth-modal-title">Autenticazione Richiesta</h2>
             </div>
-            <p>Inserisci il PIN di sicurezza configurato per accedere ad Antigravity CLI:</p>
-            <form id="auth-form" onsubmit="event.preventDefault(); window.agyApp.handleAuthSubmit();">
-                <input type="password" id="pin-input" placeholder="Inserisci PIN" inputmode="numeric" autocomplete="current-password" autofocus />
-                <button type="submit" class="btn btn-primary btn-block">Accedi</button>
-            </form>
-            <p id="auth-error" class="error-text hidden">PIN errato. Riprova.</p>
+            
+            <!-- SaaS Login/Register Form -->
+            <div id="saas-auth-section" class="hidden">
+                <p id="saas-auth-desc" style="margin-bottom: 16px; color: var(--text-secondary, #8b949e); font-size: 0.9rem;">
+                    Accedi o registrati per avviare il tuo ambiente Antigravity dedicato.
+                </p>
+
+                <!-- Social OAuth Buttons (Google & GitHub) -->
+                <div class="social-login-group">
+                    <button type="button" class="btn-social btn-google" onclick="window.agyApp.loginWithGoogle()">
+                        <svg class="social-icon" width="18" height="18" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                        </svg>
+                        <span id="google-btn-label">Continua con Google</span>
+                    </button>
+                    <button type="button" class="btn-social btn-github" onclick="window.agyApp.loginWithGithub()">
+                        <svg class="social-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                        </svg>
+                        <span id="github-btn-label">Continua con GitHub</span>
+                    </button>
+                </div>
+
+                <div class="auth-divider">
+                    <span>oppure con email</span>
+                </div>
+
+                <form id="saas-auth-form" onsubmit="event.preventDefault(); window.agyApp.handleSaasAuthSubmit();">
+                    <div id="saas-name-group" class="form-group hidden" style="margin-bottom: 12px; text-align: left;">
+                        <label style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: #8b949e;">Nome Completo</label>
+                        <input type="text" id="saas-fullname-input" placeholder="es. Mario Rossi" autocomplete="name" />
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px; text-align: left;">
+                        <label style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: #8b949e;">Email</label>
+                        <input type="email" id="saas-email-input" placeholder="mario@example.com" autocomplete="email" required />
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px; text-align: left;">
+                        <label style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: #8b949e;">Password</label>
+                        <input type="password" id="saas-password-input" placeholder="••••••••" autocomplete="current-password" required />
+                    </div>
+                    <button type="submit" id="saas-submit-btn" class="btn btn-primary btn-block">Accedi</button>
+                    <div style="margin-top: 14px; font-size: 0.85rem; text-align: center;">
+                        <span id="saas-toggle-label" style="color: #8b949e;">Non hai ancora un account?</span>
+                        <a href="#" id="saas-toggle-link" style="color: #58a6ff; margin-left: 6px; font-weight: 500;" onclick="event.preventDefault(); window.agyApp.toggleSaasMode();">Registrati</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- PIN Form (Self-hosted) -->
+            <div id="pin-auth-section">
+                <p>Inserisci il PIN di sicurezza configurato per accedere ad Antigravity CLI:</p>
+                <form id="auth-form" onsubmit="event.preventDefault(); window.agyApp.handleAuthSubmit();">
+                    <input type="password" id="pin-input" placeholder="Inserisci PIN" inputmode="numeric" autocomplete="current-password" autofocus />
+                    <button type="submit" class="btn btn-primary btn-block">Accedi</button>
+                </form>
+            </div>
+
+            <p id="auth-error" class="error-text hidden" style="margin-top: 12px;">PIN errato. Riprova.</p>
         </div>
     </div>
+
+    <!-- Manual Antigravity Token Modal -->
+    <div id="manual-agy-token-modal" class="modal hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <i data-lucide="key"></i>
+                <h2>Token Antigravity CLI (agy)</h2>
+                <button class="icon-btn close-modal-btn" onclick="window.agySettings.closeManualTokenModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <p style="font-size: 0.85rem; color: #8b949e; margin-bottom: 14px;">
+                Inserisci o incolla il tuo token di accesso Google o Antigravity. Verrà salvato nel file di autenticazione locale (<code>antigravity-oauth-token</code>).
+            </p>
+            <div class="form-group" style="margin-bottom: 12px; text-align: left;">
+                <label style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: #8b949e;">Metodo di Autenticazione</label>
+                <select id="manual-agy-method-select" class="form-select">
+                    <option value="consumer">Google Consumer (Account Personale)</option>
+                    <option value="oauth">OAuth 2.0</option>
+                    <option value="api_key">API Key</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 16px; text-align: left;">
+                <label style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: #8b949e;">Token / Credenziale</label>
+                <textarea id="manual-agy-token-input" rows="4" placeholder="Incolla qui il token o codice..." style="width: 100%; font-family: monospace; font-size: 0.8rem; border-radius: 6px; padding: 8px;"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn btn-outline" onclick="window.agySettings.closeManualTokenModal()">Annulla</button>
+                <button type="button" class="btn btn-primary" onclick="window.agySettings.saveManualAgyToken()">
+                    <i data-lucide="save"></i> Salva e Connetti
+                </button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Add MCP Server Modal -->
     <div id="add-mcp-modal" class="modal hidden">
@@ -169,10 +259,10 @@
         <!-- Sidebar Backdrop (for mobile) -->
         <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="window.agyChat.closeSidebar()"></div>
 
-        <!-- Sessions Sidebar / Drawer (Accordion Organized) -->
+        <!-- Sessions Sidebar / Drawer -->
         <aside id="sessions-sidebar" class="sessions-sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-title">
+                <div class="sidebar-title" onclick="window.agyEnvironments.switchView('environments')">
                     <div class="brand-logo-box">
                         <div class="brand-logo-box-inner">
                             <span class="brand-planet-emoji">🪐</span>
@@ -180,9 +270,12 @@
                     </div>
                     <span>AGY<span class="gradient-brand-text">UI</span><span class="logo-badge">.ai</span></span>
                 </div>
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <button class="btn btn-sm btn-primary new-session-btn" onclick="window.agyChat.createNewSession()" title="Nuova Chat">
-                        <i data-lucide="plus"></i> <span data-i18n="newChatBtn">Nuova Chat</span>
+                <div class="sidebar-header-right">
+                    <button class="icon-btn" onclick="window.agySidebar.loadWorkspaces()" title="Aggiorna Progetti">
+                        <i data-lucide="refresh-cw"></i>
+                    </button>
+                    <button class="icon-btn btn-new-env" onclick="window.agyEnvironments.openCreateModal()" title="Crea Nuovo Ambiente">
+                        <i data-lucide="folder-plus"></i>
                     </button>
                     <button class="icon-btn sidebar-close-btn" onclick="window.agyChat.closeSidebar()" title="Chiudi Menu">
                         <i data-lucide="x"></i>
@@ -190,223 +283,292 @@
                 </div>
             </div>
 
-            <!-- Accordion 1: 📁 Progetti & Workspace -->
-            <div class="sidebar-accordion-section" id="accordion-projects">
-                <div class="sidebar-accordion-header">
-                    <div class="accordion-header-left">
-                        <i data-lucide="folder-git-2" class="accordion-icon"></i>
-                        <span data-i18n="sectionProjects">Progetti & Workspace</span>
-                    </div>
-                    <div class="accordion-header-right">
-                        <span class="accordion-badge" id="active-workspace-pill">~</span>
-                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
-                    </div>
-                </div>
-                <div class="sidebar-accordion-body" id="sidebar-projects-list">
-                    <!-- Popolato dinamicamente da sidebarModules.js -->
-                </div>
+            <!-- Prominent New Chat / Session CTA -->
+            <div class="sidebar-new-chat-container">
+                <button class="btn btn-primary btn-new-chat-main" onclick="window.agyChat.createNewSession()" title="Nuova Conversazione">
+                    <i data-lucide="plus"></i>
+                    <span data-i18n="newChatBtn">+ Nuova Conversazione</span>
+                </button>
             </div>
 
-            <!-- Accordion 2: 🤖 Agenti & Personas -->
-            <div class="sidebar-accordion-section" id="accordion-agents">
-                <div class="sidebar-accordion-header">
-                    <div class="accordion-header-left">
-                        <i data-lucide="bot" class="accordion-icon"></i>
-                        <span data-i18n="sectionAgents">Agenti & Subagenti</span>
-                    </div>
-                    <div class="accordion-header-right">
-                        <span class="accordion-badge" id="active-agent-pill">Master</span>
-                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
-                    </div>
-                </div>
-                <div class="sidebar-accordion-body" id="sidebar-agents-list">
-                    <!-- Popolato dinamicamente da sidebarModules.js -->
-                </div>
+            <!-- Segmented Navigation Tabs in Drawer -->
+            <div class="drawer-tabs-nav">
+                <button class="drawer-nav-tab active" data-drawer-tab="conversations" title="Tutte le Conversazioni">
+                    <i data-lucide="message-square"></i>
+                    <span>Chat</span>
+                </button>
+                <button class="drawer-nav-tab" data-drawer-tab="projects" title="Progetti & Workspace">
+                    <i data-lucide="folder"></i>
+                    <span>Progetti</span>
+                </button>
+                <button class="drawer-nav-tab" data-drawer-tab="metrics" title="Metriche di Sistema">
+                    <i data-lucide="activity"></i>
+                    <span>Metriche</span>
+                </button>
+                <button class="drawer-nav-tab" data-drawer-tab="storage" title="Spazio Disco & Storage">
+                    <i data-lucide="hard-drive"></i>
+                    <span>Storage</span>
+                </button>
             </div>
 
-            <!-- Accordion 3: ⚡ Flussi di Lavoro & Automazioni -->
-            <div class="sidebar-accordion-section" id="accordion-workflows">
-                <div class="sidebar-accordion-header">
-                    <div class="accordion-header-left">
-                        <i data-lucide="workflow" class="accordion-icon"></i>
-                        <span data-i18n="sectionWorkflows">Flussi di Lavoro</span>
-                    </div>
-                    <div class="accordion-header-right">
-                        <span class="accordion-badge">6</span>
-                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
-                    </div>
-                </div>
-                <div class="sidebar-accordion-body" id="sidebar-workflows-list">
-                    <!-- Popolato dinamicamente da sidebarModules.js -->
-                </div>
+            <!-- Search Bar in Drawer -->
+            <div class="drawer-search-bar">
+                <i data-lucide="search"></i>
+                <input type="text" id="drawer-search-input" placeholder="Cerca cronologia..." />
             </div>
 
-            <!-- Accordion 4: 💬 Sessioni & Cronologia (Aperto di default) -->
-            <div class="sidebar-accordion-section expanded" id="accordion-sessions">
-                <div class="sidebar-accordion-header">
-                    <div class="accordion-header-left">
-                        <i data-lucide="history" class="accordion-icon"></i>
-                        <span data-i18n="sectionSessions">Sessioni Recenti</span>
-                    </div>
-                    <div class="accordion-header-right">
-                        <i data-lucide="chevron-down" class="accordion-chevron" style="transform: rotate(180deg);"></i>
-                    </div>
-                </div>
-                <div class="sidebar-accordion-body">
-                    <!-- Search Sessions -->
-                    <div class="sidebar-search">
-                        <div class="search-input-wrapper">
-                            <i data-lucide="search"></i>
-                            <input type="text" id="session-search-input" placeholder="Cerca sessione..." data-i18n-placeholder="searchSessionsPlaceholder" />
-                        </div>
-                    </div>
-
-                    <!-- Sessions List Container -->
-                    <div class="sessions-list" id="sessions-list">
-                        <!-- Popolato dinamicamente da chat.js -->
-                    </div>
-                </div>
+            <!-- Drawer Dynamic Tab Content -->
+            <div id="drawer-tab-content" class="drawer-tab-content custom-scrollbar">
+                <!-- Popolato dinamicamente da sidebarModules.js -->
             </div>
+
+            <!-- Drawer Bottom Links -->
+            <div class="drawer-footer-links">
+                <button class="drawer-footer-btn" onclick="window.agySidebar.openReportIssueModal()">
+                    <i data-lucide="bug"></i>
+                    <span>Report Issue</span>
+                </button>
+                <button class="drawer-footer-btn" onclick="window.agySidebar.openCommunityLink()">
+                    <i data-lucide="message-circle"></i>
+                    <span>Join Community</span>
+                </button>
+                <button class="drawer-footer-btn" onclick="window.agyEnvironments.switchView('environments')">
+                    <i data-lucide="cloud"></i>
+                    <span>Environments Dashboard</span>
+                </button>
+                <button class="drawer-footer-btn" onclick="window.agyApp.switchTab('settings-tab')">
+                    <i data-lucide="settings"></i>
+                    <span>Settings</span>
+                </button>
+            </div>
+
+            <!-- Draggable Sidebar Resizer Handle -->
+            <div id="sidebar-resizer" class="sidebar-resizer" title="Trascina per ridimensionare la barra laterale"></div>
         </aside>
         
         <!-- Main Content Area with Header -->
         <div class="app-body">
-            <!-- Header -->
-            <header class="app-header">
-                <div class="header-left">
-                    <button class="icon-btn sidebar-toggle-btn" title="Elenco Sessioni" onclick="window.agyChat.toggleSidebar()">
-                        <i data-lucide="panel-left"></i>
-                    </button>
-                    <div class="logo" onclick="window.agyApp.switchTab('chat-tab')">
-                        <div class="brand-logo-box">
-                            <div class="brand-logo-box-inner">
-                                <span class="brand-planet-emoji">🪐</span>
+            
+            <!-- VIEW: ENVIRONMENTS DASHBOARD (CloudCLI Environments Style) -->
+            <div id="view-environments" class="environments-view-container hidden">
+                <header class="env-dashboard-header">
+                    <div class="env-dashboard-title-group">
+                        <button class="icon-btn sidebar-toggle-btn" title="Menu Laterale" onclick="window.agyChat.toggleSidebar()">
+                            <i data-lucide="panel-left"></i>
+                        </button>
+                        <h1 class="env-dashboard-main-title font-display">Environments</h1>
+                    </div>
+                    <div class="env-dashboard-right">
+                        <div class="env-quota-box">
+                            <span id="dashboard-quota-text" class="quota-text font-mono">0 of 10 env</span>
+                            <button class="upgrade-link-btn font-mono" onclick="alert('Piano Pro Attivo!')">Upgrade &rarr;</button>
+                        </div>
+                        <button class="btn btn-primary btn-new-environment" onclick="window.agyEnvironments.openCreateModal()">
+                            <i data-lucide="plus"></i> New
+                        </button>
+                    </div>
+                </header>
+
+                <div class="env-dashboard-body custom-scrollbar">
+                    <!-- Shared Setup Card (Template Layer) -->
+                    <div class="shared-setup-banner">
+                        <div class="shared-setup-left">
+                            <div class="shared-setup-icon-box">
+                                <i data-lucide="sliders"></i>
+                            </div>
+                            <div class="shared-setup-info">
+                                <div class="shared-setup-title-row">
+                                    <h3 class="shared-setup-title font-display">Shared Setup</h3>
+                                    <span class="badge-template font-mono">Template layer</span>
+                                </div>
+                                <p class="shared-setup-desc">Configure shared skills and MCP servers for users or the whole organization.</p>
+                                <div class="shared-setup-tags-row">
+                                    <span class="setup-tag-pill font-mono"><i data-lucide="sparkles"></i> Skills</span>
+                                    <span class="setup-tag-pill font-mono"><i data-lucide="network"></i> MCP</span>
+                                </div>
                             </div>
                         </div>
-                        <span class="logo-text">AGY<span class="gradient-brand-text">UI</span><span class="logo-badge">.ai</span></span>
-                    </div>
-                    <div class="status-badge" id="status-badge">
-                        <span class="status-dot"></span>
-                        <span class="status-text" data-i18n="connected">Connessione...</span>
-                    </div>
-                </div>
-
-                <!-- Navigation Tabs -->
-                <nav class="nav-tabs">
-                    <button class="nav-tab active" data-tab="chat-tab" onclick="window.agyApp.switchTab('chat-tab')">
-                        <i data-lucide="message-square"></i>
-                        <span data-i18n="navChat">Chat</span>
-                    </button>
-                    <button class="nav-tab" data-tab="terminal-tab" onclick="window.agyApp.switchTab('terminal-tab')">
-                        <i data-lucide="terminal"></i>
-                        <span data-i18n="navTerminal">Terminale</span>
-                    </button>
-                    <button class="nav-tab" data-tab="files-tab" onclick="window.agyApp.switchTab('files-tab')">
-                        <i data-lucide="folder-git-2"></i>
-                        <span data-i18n="navFiles">File</span>
-                    </button>
-                    <button class="nav-tab" data-tab="prompts-tab" onclick="window.agyApp.switchTab('prompts-tab')">
-                        <i data-lucide="sparkles"></i>
-                        <span data-i18n="navPrompts">Prompt</span>
-                    </button>
-                    <button class="nav-tab" data-tab="settings-tab" onclick="window.agyApp.switchTab('settings-tab')">
-                        <i data-lucide="settings"></i>
-                        <span data-i18n="navSettings">Impostazioni</span>
-                    </button>
-                </nav>
-
-                <div class="header-right">
-                    <!-- Language Switcher Button -->
-                    <button class="lang-switch-btn" id="lang-switch-btn" title="Cambia Lingua / Switch Language" data-i18n-title="langSwitchTitle" onclick="window.agyI18n.toggleLanguage()">
-                        <span id="lang-switch-badge">🇮🇹 <b>IT</b></span>
-                    </button>
-                    <button class="icon-btn" title="Riavvia Sessione CLI" data-i18n-title="restartBtnTitle" onclick="window.agyApp.restartSession()">
-                        <i data-lucide="refresh-cw"></i>
-                    </button>
-                    <button class="icon-btn" title="Impostazioni" data-i18n-title="settingsBtnTitle" onclick="window.agyApp.switchTab('settings-tab')">
-                        <i data-lucide="settings"></i>
-                    </button>
-                </div>
-            </header>
-
-            <!-- Main Tab Panes -->
-            <main class="main-content">
-                
-                <!-- 💬 Chat Tab Pane (Default) -->
-                <section id="chat-tab" class="tab-pane active">
-                    <div class="chat-header-bar">
-                        <div class="chat-title-info">
-                            <span class="active-session-title" id="active-session-title">Nuova Sessione</span>
-                        </div>
-                        <div class="chat-header-actions">
-                            <span class="active-model-pill" id="chat-header-model-pill" title="Modello AI attivo (tocca per configurare)" onclick="window.agyApp.switchTab('settings-tab')" style="cursor: pointer;">
-                                <span class="model-pulse-dot"></span>
-                                <span class="model-pill-name">Gemini 3.7 Flash Thinking</span>
-                            </span>
-                            <button class="btn btn-sm btn-outline" onclick="window.agyApp.switchTab('terminal-tab')" title="Visualizza terminale interattivo">
-                                <i data-lucide="terminal"></i> Passa a Terminale
+                        <div class="shared-setup-right">
+                            <button class="btn btn-configure-pill" onclick="window.agyEnvironments.openSharedSetupModal()">
+                                Configure
                             </button>
                         </div>
                     </div>
 
-                    <!-- Chat Messages List -->
-                    <div class="chat-messages-container" id="chat-messages">
-                        <!-- Popolato dinamicamente da chat.js -->
+                    <!-- Environments List Grid -->
+                    <div id="environments-cards-list" class="environments-grid">
+                        <!-- Popolato dinamicamente da environments.js -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: WORKSPACE & IDE VIEW -->
+            <div id="view-workspace" class="workspace-view-container">
+                <!-- Header -->
+                <header class="app-header">
+                    <div class="header-left">
+                        <button class="icon-btn sidebar-toggle-btn" title="Elenco Sessioni" onclick="window.agyChat.toggleSidebar()">
+                            <i data-lucide="panel-left"></i>
+                        </button>
+                        <div class="header-session-title-group" onclick="window.agyChat.toggleSidebar()">
+                            <span class="header-session-name font-display" id="active-session-title">New Session</span>
+                            <span class="header-session-sub font-mono text-xs text-muted" id="header-workspace-name">workspace</span>
+                        </div>
                     </div>
 
-                    <!-- Floating Scroll-to-bottom button -->
-                    <button id="scroll-to-bottom-btn" class="scroll-to-bottom-btn hidden" onclick="window.agyChat.scrollToBottom()">
-                        <i data-lucide="arrow-down"></i> Nuovi messaggi
-                    </button>
+                    <!-- Navigation Mode Pills in Top Right -->
+                    <nav class="nav-tabs">
+                        <button class="nav-tab active" data-tab="chat-tab" onclick="window.agyApp.switchTab('chat-tab')">
+                            <i data-lucide="message-square"></i>
+                            <span data-i18n="navChat">Chat</span>
+                        </button>
+                        <button class="nav-tab" data-tab="terminal-tab" onclick="window.agyApp.switchTab('terminal-tab')">
+                            <i data-lucide="terminal"></i>
+                            <span data-i18n="navTerminal">Terminale</span>
+                        </button>
+                        <button class="nav-tab" data-tab="files-tab" onclick="window.agyApp.switchTab('files-tab')">
+                            <i data-lucide="folder-git-2"></i>
+                            <span data-i18n="navFiles">File</span>
+                        </button>
+                        <button class="nav-tab" data-tab="prompts-tab" onclick="window.agyApp.switchTab('prompts-tab')">
+                            <i data-lucide="sparkles"></i>
+                            <span data-i18n="navPrompts">Prompt</span>
+                        </button>
+                        <button class="nav-tab" data-tab="settings-tab" onclick="window.agyApp.switchTab('settings-tab')">
+                            <i data-lucide="settings"></i>
+                            <span data-i18n="navSettings">Impostazioni</span>
+                        </button>
+                    </nav>
 
-                    <!-- Quick Chips & Action Toolbar for Chat -->
-                    <div class="chat-action-chips">
-                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Ottimizza le performance del backend e aggiungi una cache Redis distribuita con TTL di 5 minuti.')">
-                            <span>⚡</span> Redis Cache
+                    <div class="header-right">
+                        <button class="icon-btn nav-env-btn" title="Dashboard Ambienti" onclick="window.agyEnvironments.switchView('environments')">
+                            <i data-lucide="cloud"></i>
                         </button>
-                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Esegui una verifica di sicurezza completa contro Path Traversal, Injection e CSWSH.')">
-                            <span>🛡️</span> Security Audit
+                        <button class="lang-switch-btn" id="lang-switch-btn" title="Cambia Lingua" onclick="window.agyI18n.toggleLanguage()">
+                            <span id="lang-switch-badge">🇮🇹 <b>IT</b></span>
                         </button>
-                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Spawna 3 subagenti paralleli per orchestrare ricerca documentazione, schema database e frontend UI.')">
-                            <span>🤖</span> Swarm Subagenti
-                        </button>
-                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Crea un file Docker Compose con PostgreSQL, Redis e Node.js.')">
-                            <span>🐳</span> Docker Stack
-                        </button>
-                        <button class="chip-btn" onclick="window.agyChat.insertPrompt('/goal ')">
-                            <span>🎯</span> /goal
-                        </button>
-                        <button class="chip-btn" onclick="window.agyChat.insertPrompt('/plan ')">
-                            <span>📋</span> /plan
-                        </button>
-                        <button class="chip-btn" onclick="window.agyChat.sendPrompt('Mostra lo stato git e gli ultimi commit.')">
-                            <span>🌿</span> Git Status
-                        </button>
-                        <button class="chip-btn" onclick="window.agyApp.switchTab('settings-tab')">
-                            <span>⚙️</span> Modelli AI
+                        <button class="icon-btn" title="Riavvia Sessione CLI" onclick="window.agyApp.restartSession()">
+                            <i data-lucide="refresh-cw"></i>
                         </button>
                     </div>
+                </header>
 
-                    <!-- Chat Input Panel -->
-                    <footer class="input-panel">
-                        <form class="input-form" onsubmit="event.preventDefault(); window.agyChat.submitPrompt();">
-                            <button type="button" id="voice-btn-chat" class="icon-btn btn-voice" title="Dettatura vocale (Web Speech)" data-i18n-title="voiceTitle" onclick="window.agySpeech.toggleForChat()">
-                                <span style="font-size: 1.1rem;">🎙️</span>
+                <!-- Main Tab Panes -->
+                <main class="main-content">
+                    
+                    <!-- 💬 Chat Tab Pane (Default) -->
+                    <section id="chat-tab" class="tab-pane active">
+                        <!-- Chat Messages Container -->
+                        <div class="chat-messages-container custom-scrollbar" id="chat-messages">
+                            <!-- Popolato dinamicamente da chat.js -->
+                        </div>
+
+                        <!-- Floating Scroll-to-bottom button -->
+                        <button id="scroll-to-bottom-btn" class="scroll-to-bottom-btn hidden" onclick="window.agyChat.scrollToBottom()">
+                            <i data-lucide="arrow-down"></i> Nuovi messaggi
+                        </button>
+
+                        <!-- Quick Slash Commands & Action Chips Bar -->
+                        <div class="chat-action-chips" id="chat-action-chips">
+                            <button class="chip-btn" onclick="window.agyChat.insertPrompt('/goal ')">
+                                <span>🎯</span> /goal
                             </button>
-                            <textarea 
-                                id="chat-prompt-input" 
-                                rows="1" 
-                                placeholder="Chiedi ad AGY di scrivere codice, eseguire test o orchestrare subagenti... (Invio per inviare, Shift+Invio per a capo)"
-                                data-i18n-placeholder="chatInputPlaceholder" 
-                                onkeydown="window.agyChat.handleChatKeydown(event)"
-                            ></textarea>
-                            <button type="submit" id="chat-send-btn" class="btn btn-send" title="Invia Prompt (Invio)" data-i18n-title="sendPromptTitle">
-                                <span>Invia</span>
-                                <span style="font-size: 0.85rem;">↵</span>
+                            <button class="chip-btn" onclick="window.agyChat.insertPrompt('/plan ')">
+                                <span>📋</span> /plan
                             </button>
-                        </form>
-                    </footer>
-                </section>
+                            <button class="chip-btn" onclick="window.agyChat.insertPrompt('/schedule ')">
+                                <span>⏱️</span> /schedule
+                            </button>
+                            <button class="chip-btn" onclick="window.agyChat.insertPrompt('/browser ')">
+                                <span>🌐</span> /browser
+                            </button>
+                            <button class="chip-btn" onclick="window.agyChat.insertPrompt('/model ')">
+                                <span>🤖</span> /model
+                            </button>
+                            <button class="chip-btn" onclick="window.agyChat.insertPrompt('/learn ')">
+                                <span>🧠</span> /learn
+                            </button>
+                            <button class="chip-btn" onclick="window.agyChat.insertPrompt('/agents')">
+                                <span>👥</span> /agents
+                            </button>
+                            <button class="chip-btn" onclick="window.agyChat.insertPrompt('/mcp')">
+                                <span>🔌</span> /mcp
+                            </button>
+                            <button class="chip-btn" onclick="window.agyChat.insertPrompt('/help')">
+                                <span>❓</span> /help
+                            </button>
+                            <button class="chip-btn" onclick="window.agyChat.sendPrompt('Esegui una verifica di sicurezza completa contro Path Traversal, Injection e CSWSH.')">
+                                <span>🛡️</span> Security Audit
+                            </button>
+                            <button class="chip-btn" onclick="window.agyChat.sendPrompt('Spawna 3 subagenti paralleli per orchestrare ricerca documentazione, schema database e frontend UI.')">
+                                <span>🤖</span> Multi-Agent Swarm
+                            </button>
+                            <button class="chip-btn" onclick="window.agyChat.sendPrompt('Mostra lo stato git e gli ultimi commit.')">
+                                <span>🌿</span> Git Status
+                            </button>
+                        </div>
+
+                        <!-- Chat Input Composer Panel (CloudCLI Inspired) -->
+                        <footer class="input-panel-modern">
+                            <!-- Slash Commands Popover Autocomplete -->
+                            <div id="slash-commands-popup" class="slash-commands-popup hidden"></div>
+
+                            <div id="chat-attachments-bar" class="attachments-bar hidden"></div>
+                            <form class="input-form-modern" onsubmit="event.preventDefault(); window.agyChat.submitPrompt();">
+                                <input type="file" id="chat-attach-input" multiple hidden>
+                                
+                                <div class="composer-textarea-row">
+                                    <textarea
+                                        id="chat-prompt-input"
+                                        rows="1"
+                                        placeholder="Type / for commands, @ for files, or ask anything..."
+                                        data-i18n-placeholder="chatInputPlaceholder"
+                                        onkeydown="window.agyChat.handleChatKeydown(event)"
+                                    ></textarea>
+                                </div>
+
+                                <div class="composer-toolbar-row">
+                                    <div class="toolbar-left-actions">
+                                        <button type="button" id="chat-attach-btn" class="toolbar-icon-btn" title="Allega file" onclick="document.getElementById('chat-attach-input').click()">
+                                            <i data-lucide="paperclip"></i>
+                                        </button>
+                                        <button type="button" id="chat-screenshot-btn" class="toolbar-icon-btn" title="Cattura screenshot schermo" onclick="window.agyChat.captureScreenshot()">
+                                            <i data-lucide="camera"></i>
+                                        </button>
+                                        <button type="button" id="chat-slash-menu-btn" class="toolbar-icon-btn" title="Elenco comandi /" onclick="window.agyChat.toggleSlashMenu()">
+                                            <span class="font-mono font-bold text-xs" style="font-size: 0.95rem; color: #60a5fa;">/</span>
+                                        </button>
+                                        <span class="toolbar-stat-badge font-mono" title="Attività & Crediti">
+                                            <i data-lucide="zap"></i>
+                                            <span id="chat-token-count-badge">0</span>
+                                        </span>
+                                        <span class="toolbar-stat-badge font-mono" title="Messaggi nel contesto">
+                                            <i data-lucide="message-square"></i>
+                                            <span id="chat-msg-count-badge">0</span>
+                                        </span>
+                                        <button type="button" class="toolbar-icon-btn" title="Cronologia sessioni" onclick="window.agyChat.toggleSidebar()">
+                                            <i data-lucide="clock"></i>
+                                        </button>
+                                        <button type="button" id="chat-toolbar-model-pill" class="toolbar-model-pill font-mono" onclick="window.agyApp.switchTab('settings-tab')" title="Cambia Modello AI">
+                                            Default (recommended)
+                                        </button>
+                                    </div>
+
+                                    <div class="toolbar-right-actions">
+                                        <button type="button" id="voice-btn-chat" class="toolbar-icon-btn btn-voice" title="Dettatura vocale (Web Speech)" onclick="window.agySpeech.toggleForChat()">
+                                            <span>🎙️</span>
+                                        </button>
+                                        <button type="button" id="btn-autonomous-toggle" class="toolbar-mode-btn" onclick="window.agyChat.toggleAutonomousMode()" title="Modalità Sicura (Richiede approvazione)">
+                                            <span>✋</span>
+                                        </button>
+                                        <button type="submit" id="chat-send-btn" class="btn-send-circle" title="Invia Prompt (Invio)">
+                                            <i data-lucide="send"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </footer>
+                    </section>
 
                 <!-- 💻 Terminal Tab Content -->
                 <section id="terminal-tab" class="tab-pane">
@@ -567,7 +729,92 @@
                             <div class="settings-section active" id="settings-section-account">
                                 <div class="section-header">
                                     <h3 data-i18n="settingsAccountTitle">🤖 Account & Modelli Antigravity</h3>
-                                    <p data-i18n="settingsAccountSubtitle">Scegli il modello di intelligenza artificiale attivo e il livello di ragionamento (Thinking Effort).</p>
+                                    <p data-i18n="settingsAccountSubtitle">Gestisci il profilo utente, l'accesso ad Antigravity CLI e la configurazione dei modelli AI.</p>
+                                </div>
+
+                                <!-- Card 1: Profilo Utente & Permessi Account -->
+                                <div class="settings-card user-profile-card" id="user-profile-card">
+                                    <div class="user-profile-layout">
+                                        <div class="user-avatar-box">
+                                            <img id="user-avatar-img" class="user-avatar-img hidden" src="" alt="Avatar" />
+                                            <div id="user-avatar-fallback" class="user-avatar-fallback">U</div>
+                                        </div>
+                                        <div class="user-info-box">
+                                            <div class="user-headline">
+                                                <h4 id="user-display-name">Utente AgyCodeUI</h4>
+                                                <span id="user-role-badge" class="badge-role badge-developer">Developer</span>
+                                                <span id="user-provider-badge" class="badge-provider">Local</span>
+                                            </div>
+                                            <p id="user-display-email" class="user-email-text">Inizializzazione...</p>
+                                            <div class="user-sub-info" id="user-sub-info">
+                                                <span class="sub-tier-tag" id="user-plan-tag">Piano Starter</span>
+                                                <span class="credits-tag" id="user-credits-tag">100 Crediti</span>
+                                            </div>
+                                        </div>
+                                        <div class="user-actions-box">
+                                            <button type="button" class="btn btn-sm btn-outline btn-logout" onclick="window.agyApp.logout()" title="Disconnetti sessione">
+                                                <i data-lucide="log-out"></i> Disconnetti
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Permessi Account Utente -->
+                                    <div class="user-permissions-section">
+                                        <div class="perm-title-row">
+                                            <span>🛡️ Permessi Operativi dell'Account:</span>
+                                        </div>
+                                        <div class="permissions-chips-wrap" id="user-perms-chips">
+                                            <span class="perm-chip active"><i data-lucide="terminal"></i> Shell & Terminale</span>
+                                            <span class="perm-chip active"><i data-lucide="file-code"></i> Modifica & Scrittura File</span>
+                                            <span class="perm-chip active"><i data-lucide="server"></i> Server MCP</span>
+                                            <span class="perm-chip active"><i data-lucide="folder-check"></i> Gestione Workspace</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Card 2: Login ad Antigravity CLI (agy) -->
+                                <div class="settings-card agy-login-card">
+                                    <div class="card-header-flex">
+                                        <div>
+                                            <h4 style="display: flex; align-items: center; gap: 8px;">
+                                                <i data-lucide="orbit"></i> Login ad Antigravity CLI (agy)
+                                            </h4>
+                                            <p class="card-desc">Collega e verifica l'accesso di Antigravity CLI all'ecosistema Google AI.</p>
+                                        </div>
+                                        <span id="agy-conn-badge" class="badge-status-pill status-checking">
+                                            <span class="pulse-indicator"></span> In verifica...
+                                        </span>
+                                    </div>
+
+                                    <div class="agy-auth-grid">
+                                        <div class="agy-info-item">
+                                            <span class="agy-item-lbl">Metodo Autenticazione:</span>
+                                            <span class="agy-item-val" id="agy-method-val">In caricamento...</span>
+                                        </div>
+                                        <div class="agy-info-item">
+                                            <span class="agy-item-lbl">File Token (antigravity-oauth-token):</span>
+                                            <span class="agy-item-val" id="agy-token-file-val">-</span>
+                                        </div>
+                                        <div class="agy-info-item">
+                                            <span class="agy-item-lbl">Stato Esecuzione CLI:</span>
+                                            <span class="agy-item-val" id="agy-cli-exec-val">-</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="agy-auth-btn-toolbar">
+                                        <button type="button" class="btn btn-primary btn-sm" id="btn-start-agy-login" onclick="window.agySettings.startAgyLogin()">
+                                            <i data-lucide="log-in"></i> Accedi ad agy (Login Terminale)
+                                        </button>
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="window.agySettings.openManualTokenModal()">
+                                            <i data-lucide="key"></i> Inserisci Token Manuale
+                                        </button>
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="window.agySettings.loadAgyAuthStatus()">
+                                            <i data-lucide="refresh-cw"></i> Verifica Connessione
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-sm hidden" id="btn-agy-logout" onclick="window.agySettings.logoutAgy()">
+                                            <i data-lucide="power"></i> Disconnetti agy
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div class="settings-card">
@@ -648,24 +895,8 @@
                             <!-- Section 3: Permissions & Security -->
                             <div class="settings-section" id="settings-section-permissions">
                                 <div class="section-header">
-                                    <h3>🛡️ Permessi & Sicurezza</h3>
-                                    <p>Configura i permessi di esecuzione per la CLI Antigravity e l'autenticazione dell'interfaccia web.</p>
-                                </div>
-
-                                <div class="settings-card">
-                                    <h4>PIN di Accesso Web UI</h4>
-                                    <p class="card-desc">Protegge agycodeui dall'accesso non autorizzato da smartphone o browser remoto.</p>
-                                    <div class="form-group" style="max-width: 320px;">
-                                        <input type="password" id="perm-pin-input" placeholder="Inserisci PIN (opzionale)" />
-                                    </div>
-                                </div>
-
-                                <div class="settings-card">
-                                    <h4>Cartella di Lavoro Iniziale (WORKSPACE_DIR)</h4>
-                                    <p class="card-desc">Directory root in cui Antigravity CLI e il file explorer operano.</p>
-                                    <div class="form-group" style="max-width: 480px;">
-                                        <input type="text" id="perm-workspace-input" placeholder="/path/to/workspace" />
-                                    </div>
+                                    <h3>🛡️ Permessi & Sicurezza Antigravity</h3>
+                                    <p>Configura i permessi di esecuzione per la CLI Antigravity, la whitelist dei comandi approvati e la sicurezza di rete.</p>
                                 </div>
 
                                 <div class="settings-card">
@@ -685,12 +916,60 @@
                                     <div class="toggle-row" style="margin-top: 14px;">
                                         <div class="toggle-info">
                                             <span class="toggle-label">Modalità Sandbox (--sandbox)</span>
-                                            <span class="toggle-desc">Esegue l'agente all'interno di un ambiente ristretto con limitazioni sul terminale.</span>
+                                            <span class="toggle-desc">Esegue l'agente all'interno di un ambiente isolato con restrizioni sui comandi di sistema.</span>
                                         </div>
                                         <label class="switch">
                                             <input type="checkbox" id="perm-sandbox-toggle" />
                                             <span class="slider"></span>
                                         </label>
+                                    </div>
+
+                                    <div class="toggle-row" style="margin-top: 14px;">
+                                        <div class="toggle-info">
+                                            <span class="toggle-label">Consenti Accesso Fuori Workspace (allowNonWorkspaceAccess)</span>
+                                            <span class="toggle-desc">Permette ad Antigravity di leggere e referenziare file di configurazione situati all'esterno del workspace corrente.</span>
+                                        </div>
+                                        <label class="switch">
+                                            <input type="checkbox" id="perm-non-workspace-toggle" />
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Whitelist Comandi Shell Approvati -->
+                                <div class="settings-card">
+                                    <div class="card-header-flex">
+                                        <div>
+                                            <h4>⚡ Comandi Shell Autorizzati (Whitelist)</h4>
+                                            <p class="card-desc">Comandi bash che Antigravity può eseguire direttamente senza richiedere autorizzazione manuale ad ogni turn.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="whitelist-input-row" style="display: flex; gap: 8px; margin-top: 10px; margin-bottom: 14px;">
+                                        <input type="text" id="whitelist-cmd-input" placeholder="es. git, npm test, docker ps, cargo..." style="flex: 1;" />
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="window.agySettings.addWhitelistCommand()">
+                                            <i data-lucide="plus"></i> Aggiungi Comando
+                                        </button>
+                                    </div>
+
+                                    <div class="whitelist-chips-container" id="whitelist-chips-container">
+                                        <!-- Popolato dinamicamente da settings.js -->
+                                    </div>
+                                </div>
+
+                                <div class="settings-card">
+                                    <h4>PIN di Protezione Web UI</h4>
+                                    <p class="card-desc">Protegge l'interfaccia da accessi non autorizzati da smartphone o browser remoto.</p>
+                                    <div class="form-group" style="max-width: 320px;">
+                                        <input type="password" id="perm-pin-input" placeholder="Inserisci PIN (opzionale)" />
+                                    </div>
+                                </div>
+
+                                <div class="settings-card">
+                                    <h4>Cartella di Lavoro Iniziale (WORKSPACE_DIR)</h4>
+                                    <p class="card-desc">Directory root in cui Antigravity CLI e il file explorer operano.</p>
+                                    <div class="form-group" style="max-width: 480px;">
+                                        <input type="text" id="perm-workspace-input" placeholder="/path/to/workspace" />
                                     </div>
                                 </div>
 
@@ -745,30 +1024,6 @@
                 </section>
 
             </main>
-
-            <!-- Mobile Bottom Navigation Bar -->
-            <nav class="mobile-bottom-nav">
-                <button class="mobile-nav-tab active" data-tab="chat-tab" onclick="window.agyApp.switchTab('chat-tab')">
-                    <i data-lucide="message-square"></i>
-                    <span>Chat</span>
-                </button>
-                <button class="mobile-nav-tab" data-tab="terminal-tab" onclick="window.agyApp.switchTab('terminal-tab')">
-                    <i data-lucide="terminal"></i>
-                    <span>Terminale</span>
-                </button>
-                <button class="mobile-nav-tab" data-tab="files-tab" onclick="window.agyApp.switchTab('files-tab')">
-                    <i data-lucide="folder-git-2"></i>
-                    <span>File</span>
-                </button>
-                <button class="mobile-nav-tab" data-tab="prompts-tab" onclick="window.agyApp.switchTab('prompts-tab')">
-                    <i data-lucide="sparkles"></i>
-                    <span>Prompt</span>
-                </button>
-                <button class="mobile-nav-tab" data-tab="settings-tab" onclick="window.agyApp.switchTab('settings-tab')">
-                    <i data-lucide="settings"></i>
-                    <span>Impostazioni</span>
-                </button>
-            </nav>
         </div>
     </div>
 
@@ -779,6 +1034,7 @@
     <script src="js/fileExplorer.js"></script>
     <script src="js/chat.js"></script>
     <script src="js/settings.js"></script>
+    <script src="js/environments.js"></script>
     <script src="js/sidebarModules.js"></script>
     <script src="js/app.js"></script>
 </body>

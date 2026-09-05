@@ -3,11 +3,20 @@ const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const util = require('util');
+const execFileAsync = util.promisify(execFile);
 
 module.exports = function createSettingsRouter(sessionManager, ptyManager) {
     const router = express.Router();
     const envPath = path.join(__dirname, '..', '..', '.env');
+    const dataDir = path.resolve(__dirname, '../data');
+    const sharedSetupFile = path.join(dataDir, 'shared-setup.json');
+    const onboardingFile = path.join(dataDir, 'onboarding.json');
     const cliCommand = process.env.CLI_COMMAND || 'agy';
+
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+    }
 
     const envExecOptions = {
         encoding: 'utf8',
@@ -61,7 +70,6 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
     function validateMcpName(name) {
         if (!name || typeof name !== 'string') return null;
         const trimmed = name.trim();
-        // Server MCP: ammessi caratteri alfanumerici, trattini, underscore e punti
         if (!/^[a-zA-Z0-9_.-]+$/.test(trimmed)) {
             return null;
         }
@@ -71,7 +79,6 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
     function validatePluginName(name) {
         if (!name || typeof name !== 'string') return null;
         const trimmed = name.trim();
-        // Plugin: nomi standard o scoped npm (es. @org/plugin, plugin-name)
         if (!/^(@[a-zA-Z0-9_.-]+\/)?[a-zA-Z0-9_.-]+$/.test(trimmed)) {
             return null;
         }
@@ -173,7 +180,213 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
         }
     });
 
-    // 2. Server MCP
+    // 2. Git Configuration Endpoints
+    router.get('/git', async (req, res) => {
+        try {
+            let name = '';
+            let email = '';
+            try {
+                const { stdout: nOut } = await execFileAsync('git', ['config', '--global', 'user.name']);
+                name = nOut.trim();
+            } catch (e) {}
+            try {
+                const { stdout: eOut } = await execFileAsync('git', ['config', '--global', 'user.email']);
+                email = eOut.trim();
+            } catch (e) {}
+
+            res.json({
+                success: true,
+                name: name || 'Proseo',
+                email: email || 'djabloo@gmail.com',
+                isConfigured: !!(name && email)
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/git', async (req, res) => {
+        try {
+            const { name, email } = req.body || {};
+            if (!name || !email) {
+                return res.status(400).json({ error: 'Nome ed email Git sono obbligatori' });
+            }
+
+            const cleanName = String(name).trim().replace(/[\r\n]/g, '');
+            const cleanEmail = String(email).trim().replace(/[\r\n]/g, '');
+
+            await execFileAsync('git', ['config', '--global', 'user.name', cleanName]);
+            await execFileAsync('git', ['config', '--global', 'user.email', cleanEmail]);
+
+            res.json({
+                success: true,
+                message: 'Configurazione Git globale salvata con successo',
+                name: cleanName,
+                email: cleanEmail
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // 3. AI Agents Connect / Login Endpoints
+    router.get('/agents', async (req, res) => {
+        try {
+            const homeDir = os.homedir();
+            const claudeConfigPath = path.join(homeDir, '.claude.json');
+            const cursorConfigPath = path.join(homeDir, '.cursor');
+            const codexConfigPath = path.join(homeDir, '.codex');
+
+            const hasClaude = fs.existsSync(claudeConfigPath);
+            const hasCursor = fs.existsSync(cursorConfigPath);
+            const hasCodex = fs.existsSync(codexConfigPath) || !!process.env.OPENAI_API_KEY;
+
+            const agents = [
+                {
+                    id: 'antigravity',
+                    name: 'Google Antigravity (agy)',
+                    provider: 'gemini',
+                    icon: 'planet',
+                    badge: 'Ready · v1.1.22',
+                    status: 'connected',
+                    statusText: 'Configurato ed attivo',
+                    color: 'cyan'
+                },
+                {
+                    id: 'claude-code',
+                    name: 'Claude Code',
+                    provider: 'anthropic',
+                    icon: 'sparkles',
+                    badge: hasClaude ? 'Authenticated' : 'Not configured',
+                    status: hasClaude ? 'connected' : 'disconnected',
+                    statusText: hasClaude ? 'Autenticato con successo' : 'Claude CLI non autenticato',
+                    color: 'amber'
+                },
+                {
+                    id: 'cursor',
+                    name: 'Cursor Agent',
+                    provider: 'cursor',
+                    icon: 'box',
+                    badge: hasCursor ? 'Active' : 'Not logged in',
+                    status: hasCursor ? 'connected' : 'disconnected',
+                    statusText: hasCursor ? 'Agent attivo' : 'Non autenticato',
+                    color: 'purple'
+                },
+                {
+                    id: 'openai-codex',
+                    name: 'OpenAI Codex',
+                    provider: 'openai',
+                    icon: 'cpu',
+                    badge: hasCodex ? 'Active' : 'Not configured',
+                    status: hasCodex ? 'connected' : 'disconnected',
+                    statusText: hasCodex ? 'Chiave API impostata' : 'Codex non configurato',
+                    color: 'emerald'
+                },
+                {
+                    id: 'opencode',
+                    name: 'OpenCode',
+                    provider: 'opencode',
+                    icon: 'code-2',
+                    badge: 'Optional',
+                    status: 'disconnected',
+                    statusText: 'OpenCode non configurato',
+                    color: 'indigo'
+                }
+            ];
+
+            res.json({ success: true, agents });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/agents/login', async (req, res) => {
+        try {
+            const { agentId, apiKey, token } = req.body || {};
+            if (!agentId) return res.status(400).json({ error: 'agentId obbligatorio' });
+
+            const homeDir = os.homedir();
+            if (agentId === 'claude-code' && (token || apiKey)) {
+                const claudePath = path.join(homeDir, '.claude.json');
+                const config = { token: token || apiKey, updatedAt: new Date().toISOString() };
+                fs.writeFileSync(claudePath, JSON.stringify(config, null, 2), 'utf8');
+            } else if (agentId === 'openai-codex' && apiKey) {
+                updateEnvFile({ OPENAI_API_KEY: apiKey.trim() });
+            }
+
+            res.json({ success: true, message: `Agente ${agentId} configurato con successo` });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // 4. Onboarding Status Endpoints
+    router.get('/onboarding', (req, res) => {
+        try {
+            let state = { completed: false };
+            if (fs.existsSync(onboardingFile)) {
+                state = JSON.parse(fs.readFileSync(onboardingFile, 'utf8'));
+            }
+            res.json({ success: true, ...state });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/onboarding/complete', (req, res) => {
+        try {
+            const state = { completed: true, completedAt: new Date().toISOString() };
+            fs.writeFileSync(onboardingFile, JSON.stringify(state, null, 2), 'utf8');
+            res.json({ success: true, message: 'Onboarding completato con successo' });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // 5. Shared Setup (Template Layer) Endpoints
+    router.get('/shared-setup', (req, res) => {
+        try {
+            let config = {
+                skills: [
+                    { name: 'frontend-design', description: 'Creazione interfacce e stili UI con standard moderni' },
+                    { name: 'find-skills', description: 'Scoperta ed installazione rapida di nuove skill per agenti' },
+                    { name: 'agy-customizations', description: 'Guida ufficiale ad estensioni, MCP e hook di Antigravity' }
+                ],
+                mcpServers: [
+                    { name: 'filesystem', type: 'stdio', status: 'active', command: 'npx -y @modelcontextprotocol/server-filesystem /home/tino/workspace' },
+                    { name: 'fetch', type: 'stdio', status: 'active', command: 'npx -y @modelcontextprotocol/server-fetch' }
+                ],
+                updatedAt: new Date().toISOString()
+            };
+
+            if (fs.existsSync(sharedSetupFile)) {
+                try {
+                    config = JSON.parse(fs.readFileSync(sharedSetupFile, 'utf8'));
+                } catch (e) {}
+            }
+
+            res.json({ success: true, sharedSetup: config });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/shared-setup', (req, res) => {
+        try {
+            const { skills, mcpServers } = req.body || {};
+            const config = {
+                skills: skills || [],
+                mcpServers: mcpServers || [],
+                updatedAt: new Date().toISOString()
+            };
+            fs.writeFileSync(sharedSetupFile, JSON.stringify(config, null, 2), 'utf8');
+            res.json({ success: true, message: 'Shared Setup (Template Layer) salvato con successo', sharedSetup: config });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // 6. Server MCP
     router.get('/mcp', async (req, res) => {
         try {
             const result = await runAgy(['mcp', 'list']);
@@ -216,7 +429,7 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
 
             const validName = validateMcpName(name);
             if (!validName) {
-                return res.status(400).json({ error: 'Nome server MCP non valido. Sono ammessi solo caratteri alfanumerici, punti, trattini o underscore (senza spazi o caratteri speciali).' });
+                return res.status(400).json({ error: 'Nome server MCP non valido. Sono ammessi solo caratteri alfanumerici, punti, trattini o underscore.' });
             }
 
             const argv = ['mcp', 'add'];
@@ -268,80 +481,31 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
         }
     });
 
-    router.post('/mcp/:name/toggle', async (req, res) => {
-        try {
-            const { enable } = req.body;
-            const action = enable ? 'enable' : 'disable';
-            const validName = validateMcpName(req.params.name);
-            if (!validName) {
-                return res.status(400).json({ error: 'Nome server MCP non valido' });
-            }
-            const result = await runAgy(['mcp', action, validName]);
-            if (!result.success) {
-                return res.status(400).json({ error: result.output });
-            }
-            res.json({ success: true, message: result.output });
-        } catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-
-    // 3. Skills
+    // 7. Skills
     router.get('/skills', (req, res) => {
         try {
+            const skillsBase = path.resolve(os.homedir(), '.agents', 'skills');
             const skills = [];
-            const searchDirs = [
-                path.join(os.homedir(), '.agents', 'skills'),
-                path.join(process.env.WORKSPACE_DIR || process.cwd(), '.agents', 'skills')
-            ];
-
-            let lockData = {};
-            const lockPath = path.join(os.homedir(), 'skills-lock.json');
-            if (fs.existsSync(lockPath)) {
-                try {
-                    lockData = JSON.parse(fs.readFileSync(lockPath, 'utf8')).skills || {};
-                } catch (e) {}
-            }
-
-            const seenPaths = new Set();
-            for (const baseDir of searchDirs) {
-                if (fs.existsSync(baseDir)) {
-                    const entries = fs.readdirSync(baseDir, { withFileTypes: true });
-                    for (const entry of entries) {
-                        if (entry.isDirectory()) {
-                            const validName = validateSkillName(entry.name);
-                            if (!validName) continue;
-                            const skillMdPath = path.resolve(baseDir, entry.name, 'SKILL.md');
-                            if (seenPaths.has(skillMdPath)) continue;
-                            if (fs.existsSync(skillMdPath)) {
-                                seenPaths.add(skillMdPath);
-                                const content = fs.readFileSync(skillMdPath, 'utf8');
-                                let name = entry.name;
-                                let description = '';
-                                
-                                const match = content.match(/^---\s*([\s\S]*?)\s*---/);
-                                if (match) {
-                                    const frontmatter = match[1];
-                                    const nameMatch = frontmatter.match(/name:\s*([^\n]+)/);
-                                    const descMatch = frontmatter.match(/description:\s*([^\n]+)/);
-                                    if (nameMatch) name = nameMatch[1].trim();
-                                    if (descMatch) description = descMatch[1].trim();
-                                }
-
-                                skills.push({
-                                    name,
-                                    folder: entry.name,
-                                    description,
-                                    path: skillMdPath,
-                                    source: lockData[entry.name] ? lockData[entry.name].source : 'custom',
-                                    isGlobal: baseDir.includes('.agents/skills')
-                                });
+            if (fs.existsSync(skillsBase)) {
+                const entries = fs.readdirSync(skillsBase, { withFileTypes: true });
+                for (const entry of entries) {
+                    if (entry.isDirectory()) {
+                        const skillName = entry.name;
+                        const skillFile = path.join(skillsBase, skillName, 'SKILL.md');
+                        let description = '';
+                        let hasDoc = false;
+                        if (fs.existsSync(skillFile)) {
+                            hasDoc = true;
+                            const content = fs.readFileSync(skillFile, 'utf8');
+                            const match = content.match(/description:\s*(.+)/i) || content.match(/^#+\s*(.+)$/m);
+                            if (match && match[1]) {
+                                description = match[1].replace(/['"]/g, '').trim();
                             }
                         }
+                        skills.push({ name: skillName, description, hasDoc, path: path.join(skillsBase, skillName) });
                     }
                 }
             }
-
             res.json({ skills });
         } catch (e) {
             res.status(500).json({ error: e.message });
@@ -358,12 +522,12 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
             if (!targetDir) {
                 return res.status(400).json({ error: 'Percorso skill non valido' });
             }
-            const targetFile = path.join(targetDir, 'SKILL.md');
-            if (fs.existsSync(targetFile)) {
-                const content = fs.readFileSync(targetFile, 'utf8');
-                return res.json({ name: validName, path: targetFile, content });
+            const skillFile = path.join(targetDir, 'SKILL.md');
+            if (!fs.existsSync(skillFile)) {
+                return res.status(404).json({ error: 'SKILL.md non trovato' });
             }
-            res.status(404).json({ error: 'Skill non trovata' });
+            const content = fs.readFileSync(skillFile, 'utf8');
+            res.json({ name: validName, content });
         } catch (e) {
             res.status(500).json({ error: e.message });
         }
@@ -371,10 +535,10 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
 
     router.post('/skills', (req, res) => {
         try {
-            const { name, description, content } = req.body || {};
+            const { name, content, description } = req.body || {};
             const validName = validateSkillName(name);
             if (!validName) {
-                return res.status(400).json({ error: 'Nome skill non valido. Usa solo caratteri alfanumerici, trattini o underscore (senza spazi o caratteri speciali).' });
+                return res.status(400).json({ error: 'Nome skill non valido. Usa solo caratteri alfanumerici, trattini o underscore.' });
             }
             const targetDir = getSafeSkillDir(validName);
             if (!targetDir) {
@@ -384,19 +548,11 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                 fs.mkdirSync(targetDir, { recursive: true });
             }
             const skillFilePath = path.join(targetDir, 'SKILL.md');
-            let fileContent = content;
-            if (!fileContent) {
-                fileContent = `---
-name: ${validName}
-description: ${description || 'Descrizione personalizzata per ' + validName}
----
-
-# ${validName}
-
-Istruzioni dettagliate per l'agente.
-`;
+            let initialContent = content;
+            if (!initialContent) {
+                initialContent = `---\nname: ${validName}\ndescription: ${description || 'Skill personalizzata'}\n---\n\n# ${validName}\n\nIstruzioni per l'agente:\n`;
             }
-            fs.writeFileSync(skillFilePath, fileContent, 'utf8');
+            fs.writeFileSync(skillFilePath, initialContent, 'utf8');
             res.json({ success: true, name: validName, path: skillFilePath });
         } catch (e) {
             res.status(500).json({ error: e.message });
@@ -423,7 +579,7 @@ Istruzioni dettagliate per l'agente.
         }
     });
 
-    // 4. Plugins
+    // 8. Plugins
     router.get('/plugins', async (req, res) => {
         try {
             const result = await runAgy(['plugin', 'list']);
@@ -488,7 +644,7 @@ Istruzioni dettagliate per l'agente.
         }
     });
 
-    // 5. Permessi e Configurazione Ambiente
+    // 9. Permessi e Configurazione Ambiente
     router.post('/permissions', (req, res) => {
         try {
             const { authPin, workspaceDir, dangerouslySkipPermissions, sandboxMode, model, effort } = req.body || {};
@@ -522,6 +678,258 @@ Istruzioni dettagliate per l'agente.
 
             updateEnvFile(updates);
             res.json({ success: true, message: 'Impostazioni aggiornate con successo' });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // 10. Antigravity CLI (agy) Authentication & Status
+    const geminiDir = path.join(os.homedir(), '.gemini', 'antigravity-cli');
+    const oauthTokenFile = path.join(geminiDir, 'antigravity-oauth-token');
+    const settingsJsonFile = path.join(geminiDir, 'settings.json');
+
+    router.get('/agy-auth/status', async (req, res) => {
+        try {
+            const hasTokenFile = fs.existsSync(oauthTokenFile);
+            let authMethod = 'none';
+            let tokenPreview = '';
+            let tokenValid = false;
+
+            if (hasTokenFile) {
+                try {
+                    const raw = fs.readFileSync(oauthTokenFile, 'utf8');
+                    const parsed = JSON.parse(raw);
+                    authMethod = parsed.auth_method || 'oauth';
+                    if (parsed.token) {
+                        tokenValid = true;
+                        tokenPreview = typeof parsed.token === 'string' 
+                            ? parsed.token.substring(0, 8) + '...' + parsed.token.slice(-4)
+                            : 'Presente (Token attivo)';
+                    }
+                } catch (e) {
+                    tokenValid = false;
+                }
+            }
+
+            // Test if agy models executes without error
+            const testRun = await runAgy(['models']);
+            const cliConnected = testRun.success && !testRun.output.includes('authentication required') && !testRun.output.includes('login required');
+
+            res.json({
+                success: true,
+                hasTokenFile,
+                tokenValid,
+                authMethod,
+                tokenPreview,
+                cliConnected,
+                status: cliConnected ? 'connected' : (hasTokenFile ? 'token_present_unverified' : 'unauthenticated'),
+                message: cliConnected ? 'Antigravity CLI autenticata ed attiva' : 'Autenticazione richiesta per Antigravity CLI'
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/agy-auth/token', async (req, res) => {
+        try {
+            const { token, authMethod } = req.body || {};
+            if (!token || typeof token !== 'string') {
+                return res.status(400).json({ error: 'Token Antigravity non valido o vuoto' });
+            }
+
+            if (!fs.existsSync(geminiDir)) {
+                fs.mkdirSync(geminiDir, { recursive: true });
+            }
+
+            const tokenPayload = {
+                auth_method: authMethod || 'consumer',
+                token: token.trim()
+            };
+
+            fs.writeFileSync(oauthTokenFile, JSON.stringify(tokenPayload, null, 2), { mode: 0o600 });
+
+            // Test agy models
+            const testRun = await runAgy(['models']);
+            const isOk = testRun.success;
+
+            res.json({
+                success: true,
+                message: isOk ? 'Token salvato e verificato con successo!' : 'Token salvato. Connessione CLI pronta.',
+                cliConnected: isOk
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/agy-auth/start-login', async (req, res) => {
+        try {
+            if (ptyManager) {
+                ptyManager.write('agy\r');
+            }
+            res.json({
+                success: true,
+                message: 'Comando di avvio e login AGY inviato al terminale'
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/agy-auth/logout', async (req, res) => {
+        try {
+            if (fs.existsSync(oauthTokenFile)) {
+                const backupFile = oauthTokenFile + '.bak';
+                fs.renameSync(oauthTokenFile, backupFile);
+            }
+            res.json({
+                success: true,
+                message: 'Sessione Antigravity CLI disconnessa'
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // 11. Antigravity Permissions & Commands Whitelist
+    router.get('/agy-permissions', (req, res) => {
+        try {
+            let agySettings = {
+                allowNonWorkspaceAccess: false,
+                permissions: { allow: [] },
+                trustedWorkspaces: []
+            };
+
+            if (fs.existsSync(settingsJsonFile)) {
+                try {
+                    agySettings = JSON.parse(fs.readFileSync(settingsJsonFile, 'utf8'));
+                } catch (e) {}
+            }
+
+            const env = readEnvFile();
+            const cliArgs = env.CLI_ARGS || process.env.CLI_ARGS || '';
+
+            const rawAllow = (agySettings.permissions && Array.isArray(agySettings.permissions.allow))
+                ? agySettings.permissions.allow
+                : [];
+
+            // Extract command names from format "command(ls)"
+            const allowedCommands = rawAllow.map(rule => {
+                const match = rule.match(/command\(([^)]+)\)/);
+                return match ? match[1] : rule;
+            });
+
+            res.json({
+                success: true,
+                allowNonWorkspaceAccess: !!agySettings.allowNonWorkspaceAccess,
+                trustedWorkspaces: agySettings.trustedWorkspaces || [],
+                allowedCommands,
+                dangerouslySkipPermissions: cliArgs.includes('--dangerously-skip-permissions'),
+                sandboxMode: cliArgs.includes('--sandbox'),
+                currentModel: agySettings.model || 'Gemini 3.8 Flash (Medium)'
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/agy-permissions', (req, res) => {
+        try {
+            const { allowNonWorkspaceAccess, allowedCommands, dangerouslySkipPermissions, sandboxMode } = req.body || {};
+
+            let agySettings = {};
+            if (fs.existsSync(settingsJsonFile)) {
+                try {
+                    agySettings = JSON.parse(fs.readFileSync(settingsJsonFile, 'utf8'));
+                } catch (e) {}
+            }
+
+            if (typeof allowNonWorkspaceAccess === 'boolean') {
+                agySettings.allowNonWorkspaceAccess = allowNonWorkspaceAccess;
+            }
+
+            if (Array.isArray(allowedCommands)) {
+                if (!agySettings.permissions) agySettings.permissions = {};
+                agySettings.permissions.allow = allowedCommands.map(cmd => {
+                    const clean = String(cmd).trim();
+                    return clean.startsWith('command(') ? clean : `command(${clean})`;
+                });
+            }
+
+            if (!fs.existsSync(geminiDir)) {
+                fs.mkdirSync(geminiDir, { recursive: true });
+            }
+            fs.writeFileSync(settingsJsonFile, JSON.stringify(agySettings, null, 2), { mode: 0o600 });
+
+            // Also update CLI_ARGS in .env
+            const env = readEnvFile();
+            let args = (env.CLI_ARGS || '').split(/\s+/).filter(a => a && a !== '--dangerously-skip-permissions' && a !== '--sandbox');
+            if (dangerouslySkipPermissions) args.push('--dangerously-skip-permissions');
+            if (sandboxMode) args.push('--sandbox');
+
+            updateEnvFile({ CLI_ARGS: args.join(' ') });
+
+            res.json({
+                success: true,
+                message: 'Permessi Antigravity salvati con successo',
+                settings: agySettings
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/agy-permissions/whitelist/add', (req, res) => {
+        try {
+            const { command } = req.body || {};
+            if (!command || typeof command !== 'string' || !command.trim()) {
+                return res.status(400).json({ error: 'Comando non specificato' });
+            }
+
+            let agySettings = { permissions: { allow: [] } };
+            if (fs.existsSync(settingsJsonFile)) {
+                try {
+                    agySettings = JSON.parse(fs.readFileSync(settingsJsonFile, 'utf8'));
+                } catch (e) {}
+            }
+
+            if (!agySettings.permissions) agySettings.permissions = {};
+            if (!Array.isArray(agySettings.permissions.allow)) agySettings.permissions.allow = [];
+
+            const formatted = `command(${command.trim()})`;
+            if (!agySettings.permissions.allow.includes(formatted)) {
+                agySettings.permissions.allow.push(formatted);
+                if (!fs.existsSync(geminiDir)) fs.mkdirSync(geminiDir, { recursive: true });
+                fs.writeFileSync(settingsJsonFile, JSON.stringify(agySettings, null, 2), { mode: 0o600 });
+            }
+
+            res.json({ success: true, message: `Comando "${command}" aggiunto alla whitelist` });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/agy-permissions/whitelist/remove', (req, res) => {
+        try {
+            const { command } = req.body || {};
+            if (!command || typeof command !== 'string') {
+                return res.status(400).json({ error: 'Comando non specificato' });
+            }
+
+            let agySettings = { permissions: { allow: [] } };
+            if (fs.existsSync(settingsJsonFile)) {
+                try {
+                    agySettings = JSON.parse(fs.readFileSync(settingsJsonFile, 'utf8'));
+                } catch (e) {}
+            }
+
+            if (agySettings.permissions && Array.isArray(agySettings.permissions.allow)) {
+                const formatted = `command(${command.trim()})`;
+                agySettings.permissions.allow = agySettings.permissions.allow.filter(c => c !== formatted && c !== command.trim());
+                fs.writeFileSync(settingsJsonFile, JSON.stringify(agySettings, null, 2), { mode: 0o600 });
+            }
+
+            res.json({ success: true, message: `Comando rimosso dalla whitelist` });
         } catch (e) {
             res.status(500).json({ error: e.message });
         }

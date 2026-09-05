@@ -25,3 +25,9 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Backups
+*.bak*
+
+# Large Binaries
+saas/orchestrator/agy
