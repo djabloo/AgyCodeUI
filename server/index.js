@@ -12,6 +12,7 @@ const createSettingsRouter = require('./api/settings');
 const createWorkspacesRouter = require('./api/workspaces');
 const createAgentsRouter = require('./api/agents');
 const createWorkflowsRouter = require('./api/workflows');
+const createMetricsRouter = require('./api/metrics');
 
 const PORT = process.env.PORT || 3080;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -41,7 +42,7 @@ const io = new Server(server, {
             const originUrl = new URL(origin);
             const host = req.headers['x-forwarded-host'] || req.headers.host;
             // Verifica che l'origin del client coincida esattamente con l'host del server (prevenzione CSWSH)
-            if (host && originUrl.host === host) {
+            if ((host && originUrl.host === host) || process.env.ALLOW_INSECURE) {
                 return callback(null, true);
             }
             return callback(new Error('Origine WebSocket non consentita (Cross-Origin bloccato)'), false);
@@ -132,6 +133,30 @@ app.post('/api/auth', (req, res) => {
     return res.status(401).json({ success: false, error: 'PIN non valido' });
 });
 
+// Endpoint stato provider OAuth per frontend
+app.get('/api/auth/providers', (req, res) => {
+    res.json({
+        google: { enabled: !!process.env.GOOGLE_CLIENT_ID, clientId: process.env.GOOGLE_CLIENT_ID || '' },
+        github: { enabled: !!process.env.GITHUB_CLIENT_ID, clientId: process.env.GITHUB_CLIENT_ID || '' },
+        email: true
+    });
+});
+
+// Endpoint profilo utente per ambiente self-hosted
+app.get('/api/auth/me', requireAuth, (req, res) => {
+    res.json({
+        user: {
+            id: 'local-admin',
+            email: 'admin@localhost',
+            full_name: 'Admin Locale (Self-Hosted)',
+            role: 'admin',
+            auth_provider: 'local',
+            permissions: { canExecute: true, canEditFiles: true, canManageMcp: true, canManageWorkspaces: true }
+        },
+        subscription: { plan_tier: 'self-hosted', credits_remaining: 'Illimitati' }
+    });
+});
+
 // Endpoint di stato
 app.get('/api/status', requireAuth, (req, res) => {
     res.json({
@@ -157,6 +182,7 @@ app.use('/api/settings', requireAuth, createSettingsRouter(sessionManager, pty))
 app.use('/api/workspaces', requireAuth, createWorkspacesRouter(sessionManager, pty, io));
 app.use('/api/agents', requireAuth, createAgentsRouter(sessionManager, pty, io));
 app.use('/api/workflows', requireAuth, createWorkflowsRouter(sessionManager, pty, io));
+app.use('/api/metrics', requireAuth, createMetricsRouter(sessionManager, pty));
 
 // Servire i file statici del client
 app.use(express.static(path.join(__dirname, '../public')));

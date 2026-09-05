@@ -18,8 +18,37 @@ class AgyChat {
         this.scrollToBottomBtn = document.getElementById('scroll-to-bottom-btn');
         this.headerModelPillEl = document.getElementById('chat-header-model-pill');
 
+        // Allegati chat (upload file / screenshot)
+        this.pendingAttachments = [];
+        this.attachmentsBarEl = document.getElementById('chat-attachments-bar');
+        this.attachInputEl = document.getElementById('chat-attach-input');
+        this.attachBtnEl = document.getElementById('chat-attach-btn');
+        this.screenshotBtnEl = document.getElementById('chat-screenshot-btn');
+
+        // Menu Comandi Slash (/)
+        this.slashPopupEl = document.getElementById('slash-commands-popup');
+        this.slashSelectedIndex = 0;
+        this.filteredSlashCommands = [];
+        this.slashCommands = [
+            { cmd: '/goal ', icon: '🎯', name: '/goal <task>', desc: 'Esegui un task a lungo termine fino al completamento' },
+            { cmd: '/plan ', icon: '📋', name: '/plan <task>', desc: 'Pianifica step-by-step prima dell\'esecuzione' },
+            { cmd: '/schedule ', icon: '⏱️', name: '/schedule <tempo>', desc: 'Imposta timer (es. 5m) o cron ricorrente' },
+            { cmd: '/browser ', icon: '🌐', name: '/browser <url>', desc: 'Visita una pagina web o esegui web scraping' },
+            { cmd: '/model ', icon: '🤖', name: '/model <id>', desc: 'Cambia modello AI attivo (Gemini, Claude, GPT)' },
+            { cmd: '/learn ', icon: '🧠', name: '/learn <regola>', desc: 'Salva istruzioni e preferenze permanenti' },
+            { cmd: '/agents', icon: '👥', name: '/agents', desc: 'Gestisci swarm di subagenti autonomi' },
+            { cmd: '/mcp', icon: '🔌', name: '/mcp', desc: 'Visualizza e configura i server MCP' },
+            { cmd: '/help', icon: '❓', name: '/help', desc: 'Mostra i comandi e la documentazione Antigravity' },
+            { cmd: '/grill-me ', icon: '🔥', name: '/grill-me', desc: 'Intervista per chiarire requisiti architetturali' },
+            { cmd: '/boost ', icon: '🚀', name: '/boost', desc: 'Attiva ragionamento profondo e multi-prospettiva' },
+            { cmd: '/teamwork-preview ', icon: '🤝', name: '/teamwork-preview', desc: 'Collaborazione multi-agente avanzata' },
+            { cmd: '/clear', icon: '🧹', name: '/clear', desc: 'Pulisci lo schermo della sessione' }
+        ];
+
         this.configureMarkdown();
         this.setupEventDelegation();
+        this.setupAttachments();
+        this.setupGlobalClickHandlers();
     }
 
     configureMarkdown() {
@@ -161,13 +190,17 @@ class AgyChat {
             });
         }
 
-        // Auto-expand textarea
+        // Auto-expand textarea and slash commands trigger
         if (this.chatInputEl) {
             this.chatInputEl.addEventListener('input', () => {
                 this.chatInputEl.style.height = 'auto';
                 this.chatInputEl.style.height = Math.min(this.chatInputEl.scrollHeight, 150) + 'px';
+                this.handleInputChange();
             });
         }
+
+        // Initialize sidebar draggable resizer
+        this.setupSidebarResizer();
 
         // Fetch initial sessions & model info
         this.fetchActiveModel();
@@ -205,21 +238,51 @@ class AgyChat {
                 <span class="model-pill-name">${this.escapeHtml(this.activeModelName)}</span>
             `;
         }
+        this.updateToolbarBadges();
+    }
+
+    updateToolbarBadges() {
+        const countEl = document.getElementById('chat-msg-count-badge');
+        const modelPillEl = document.getElementById('chat-toolbar-model-pill');
+        const tokenBadgeEl = document.getElementById('chat-token-count-badge');
+
+        if (countEl) {
+            const count = (this.currentSession && this.currentSession.messages) ? this.currentSession.messages.length : 0;
+            countEl.textContent = count;
+        }
+        if (modelPillEl) {
+            const shortName = this.activeModelName.split(' ')[0] + '...';
+            modelPillEl.textContent = shortName;
+        }
+    }
+
+    toggleAutonomousMode() {
+        const toggleBtn = document.getElementById('btn-autonomous-toggle');
+        const isAuto = toggleBtn && toggleBtn.classList.toggle('active-auto');
+        if (toggleBtn) {
+            toggleBtn.title = isAuto ? 'Modalità Autonoma (Auto-approvazione attiva)' : 'Modalità Sicura (Richiede conferma)';
+            toggleBtn.innerHTML = isAuto ? '<span>🤖</span>' : '<span>✋</span>';
+        }
     }
 
     async fetchSessions() {
         const token = localStorage.getItem('agy_pin') || '';
         try {
             const res = await fetch('/api/sessions', {
-                headers: { 'Authorization': token }
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
             });
             if (res.ok) {
                 const data = await res.json();
                 this.sessions = data.sessions || [];
                 this.renderSessionsList();
+                if (window.agySidebar) {
+                    window.agySidebar.renderActiveDrawerTab();
+                }
                 const active = this.sessions.find(s => s.isActive);
-                if (active) {
+                if (active && (!this.currentSession || this.currentSession.id === active.id)) {
                     this.loadSession(active.id);
+                } else if (this.sessions.length > 0 && !this.currentSession) {
+                    this.loadSession(this.sessions[0].id);
                 }
             }
         } catch (e) {
@@ -231,7 +294,7 @@ class AgyChat {
         const token = localStorage.getItem('agy_pin') || '';
         try {
             const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
-                headers: { 'Authorization': token }
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
             });
             if (res.ok) {
                 const data = await res.json();
@@ -239,6 +302,9 @@ class AgyChat {
                 this.updateActiveSessionHeader();
                 this.renderMessages();
                 this.renderSessionsList();
+                if (window.agySidebar) {
+                    window.agySidebar.renderActiveDrawerTab();
+                }
                 this.scrollToBottom();
                 if (window.innerWidth <= 768) {
                     this.closeSidebar();
@@ -252,18 +318,22 @@ class AgyChat {
     async createNewSession() {
         const token = localStorage.getItem('agy_pin') || '';
         try {
+            const currentWs = window.agySidebar?.currentWorkspace?.path || '';
             const res = await fetch('/api/sessions', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'Authorization': token 
+                    'Authorization': token ? `Bearer ${token}` : ''
                 },
-                body: JSON.stringify({ title: 'Nuova Sessione AGY' })
+                body: JSON.stringify({ 
+                    title: 'Nuova Sessione AGY',
+                    workspace: currentWs 
+                })
             });
             if (res.ok) {
                 const data = await res.json();
                 this.currentSession = data.session;
-                this.renderSessionsList();
+                await this.fetchSessions();
                 this.renderMessages();
                 if (this.chatInputEl) {
                     this.chatInputEl.value = '';
@@ -282,14 +352,14 @@ class AgyChat {
         const session = this.sessions.find(s => s.id === sessionId);
         const currentTitle = session ? session.title : '';
         const newTitle = prompt('Inserisci il nuovo titolo della sessione:', currentTitle);
-        if (newTitle && newTitle.trim() && newTitle !== currentTitle) {
+        if (newTitle && newTitle.trim() && newTitle.trim() !== currentTitle) {
             const token = localStorage.getItem('agy_pin') || '';
             try {
                 const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/title`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': token
+                        'Authorization': token ? `Bearer ${token}` : ''
                     },
                     body: JSON.stringify({ title: newTitle.trim() })
                 });
@@ -298,7 +368,7 @@ class AgyChat {
                         this.currentSession.title = newTitle.trim();
                         this.updateActiveSessionHeader();
                     }
-                    this.fetchSessions();
+                    await this.fetchSessions();
                 }
             } catch (err) {
                 alert('Errore rinomina: ' + err.message);
@@ -313,10 +383,18 @@ class AgyChat {
         try {
             const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': token }
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
             });
             if (res.ok) {
-                this.fetchSessions();
+                if (this.currentSession && this.currentSession.id === sessionId) {
+                    this.currentSession = null;
+                }
+                await this.fetchSessions();
+                if (!this.currentSession && this.sessions.length > 0) {
+                    this.loadSession(this.sessions[0].id);
+                } else if (this.sessions.length === 0) {
+                    this.createNewSession();
+                }
             }
         } catch (err) {
             alert('Errore eliminazione: ' + err.message);
@@ -390,16 +468,35 @@ class AgyChat {
     renderMessages() {
         if (!this.chatMessagesEl) return;
 
+        this.updateToolbarBadges();
+
         if (!this.currentSession || !this.currentSession.messages || this.currentSession.messages.length === 0) {
             this.chatMessagesEl.innerHTML = `
                 <div class="chat-welcome">
-                    <div class="brand-logo-box" style="width: 54px; height: 54px; border-radius: 16px; margin-bottom: 4px; box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);">
-                        <div class="brand-logo-box-inner" style="border-radius: 14.5px;">
-                            <span style="font-size: 1.8rem;">🪐</span>
+                    <div class="choose-assistant-hero">
+                        <h2 class="choose-assistant-title font-display">Choose Your AI Assistant</h2>
+                        <p class="choose-assistant-sub">Select a provider to start a new conversation</p>
+
+                        <div class="assistant-selector-pill" onclick="window.agyApp.switchTab('settings-tab')" title="Clicca per cambiare modello">
+                            <div class="assistant-pill-left">
+                                <span class="assistant-logo-icon">🪐</span>
+                                <div class="assistant-name-group">
+                                    <span class="assistant-name" id="hero-selected-model-name">${this.escapeHtml(this.activeModelName)}</span>
+                                    <span class="assistant-sublabel font-mono text-[11px] text-muted">Click to change model</span>
+                                </div>
+                            </div>
+                            <i data-lucide="chevron-down" class="assistant-chevron"></i>
+                        </div>
+
+                        <p class="assistant-ready-note font-mono text-xs text-muted">
+                            Ready to use <span class="text-white font-bold">${this.escapeHtml(this.activeModelName.split(' ')[0])}</span> with default. Start typing your message below.
+                        </p>
+
+                        <div class="shortcut-pill font-mono text-xs text-muted">
+                            Press <kbd class="kbd-badge">Ctrl+K</kbd> to search sessions, files, and commits
                         </div>
                     </div>
-                    <h2 class="font-display font-bold text-white text-xl">AGY<span class="gradient-brand-text">UI</span> Studio & Agentic Chat</h2>
-                    <p class="text-xs text-slate-400">Orchestra agenti autonomi, esegui refactorings complessi e controlla il tuo workspace direttamente dal browser.</p>
+
                     <div class="welcome-suggestions">
                         <button class="suggestion-chip" onclick="window.agyChat.sendPrompt('Ottimizza le performance del backend e implementa un layer di cache Redis distribuita con TTL di 5 minuti.')">
                             <span style="font-size: 1.1rem;">⚡</span>
@@ -670,7 +767,122 @@ class AgyChat {
         if (window.lucide) window.lucide.createIcons();
     }
 
+    setupGlobalClickHandlers() {
+        document.addEventListener('click', (e) => {
+            if (this.slashPopupEl && !this.slashPopupEl.contains(e.target) && e.target !== this.chatInputEl && !e.target.closest('#chat-slash-menu-btn')) {
+                this.closeSlashMenu();
+            }
+        });
+    }
+
+    handleInputChange() {
+        if (!this.chatInputEl) return;
+        const val = this.chatInputEl.value;
+        if (val.startsWith('/')) {
+            const query = val.slice(1).toLowerCase().trim();
+            this.openSlashMenu(query);
+        } else {
+            this.closeSlashMenu();
+        }
+    }
+
+    toggleSlashMenu() {
+        if (this.slashPopupEl && !this.slashPopupEl.classList.contains('hidden')) {
+            this.closeSlashMenu();
+        } else {
+            this.openSlashMenu('');
+            if (this.chatInputEl) this.chatInputEl.focus();
+        }
+    }
+
+    openSlashMenu(filterQuery = '') {
+        if (!this.slashPopupEl) {
+            this.slashPopupEl = document.getElementById('slash-commands-popup');
+        }
+        if (!this.slashPopupEl) return;
+
+        this.filteredSlashCommands = this.slashCommands.filter(c => 
+            !filterQuery || 
+            c.cmd.toLowerCase().includes(filterQuery) || 
+            c.name.toLowerCase().includes(filterQuery) ||
+            c.desc.toLowerCase().includes(filterQuery)
+        );
+
+        if (this.filteredSlashCommands.length === 0) {
+            this.closeSlashMenu();
+            return;
+        }
+
+        this.slashSelectedIndex = 0;
+        this.renderSlashMenu();
+        this.slashPopupEl.classList.remove('hidden');
+    }
+
+    closeSlashMenu() {
+        if (this.slashPopupEl) {
+            this.slashPopupEl.classList.add('hidden');
+        }
+    }
+
+    renderSlashMenu() {
+        if (!this.slashPopupEl) return;
+        let html = '';
+        this.filteredSlashCommands.forEach((cmd, idx) => {
+            const isSelected = idx === this.slashSelectedIndex;
+            html += `
+                <div class="slash-command-item ${isSelected ? 'selected' : ''}" onclick="window.agyChat.selectSlashCommand('${cmd.cmd}')">
+                    <span class="slash-cmd-icon">${cmd.icon}</span>
+                    <div class="slash-cmd-details">
+                        <span class="slash-cmd-name">${this.escapeHtml(cmd.name)}</span>
+                        <span class="slash-cmd-desc">${this.escapeHtml(cmd.desc)}</span>
+                    </div>
+                </div>
+            `;
+        });
+        this.slashPopupEl.innerHTML = html;
+    }
+
+    selectSlashCommand(cmd) {
+        if (this.chatInputEl) {
+            this.chatInputEl.value = cmd;
+            this.chatInputEl.focus();
+            this.chatInputEl.style.height = 'auto';
+            this.chatInputEl.style.height = Math.min(this.chatInputEl.scrollHeight, 150) + 'px';
+        }
+        this.closeSlashMenu();
+    }
+
     handleChatKeydown(event) {
+        const isPopupOpen = this.slashPopupEl && !this.slashPopupEl.classList.contains('hidden');
+
+        if (isPopupOpen) {
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                this.slashSelectedIndex = (this.slashSelectedIndex + 1) % this.filteredSlashCommands.length;
+                this.renderSlashMenu();
+                return;
+            }
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                this.slashSelectedIndex = (this.slashSelectedIndex - 1 + this.filteredSlashCommands.length) % this.filteredSlashCommands.length;
+                this.renderSlashMenu();
+                return;
+            }
+            if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault();
+                const selected = this.filteredSlashCommands[this.slashSelectedIndex];
+                if (selected) {
+                    this.selectSlashCommand(selected.cmd);
+                }
+                return;
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                this.closeSlashMenu();
+                return;
+            }
+        }
+
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             this.submitPrompt();
@@ -680,11 +892,215 @@ class AgyChat {
     submitPrompt() {
         if (!this.chatInputEl) return;
         const text = this.chatInputEl.value.trim();
-        if (text) {
-            this.sendPrompt(text);
+        if (text || this.pendingAttachments.length) {
+            this.sendPrompt(this.buildPromptWithAttachments(text));
             this.chatInputEl.value = '';
             this.chatInputEl.style.height = 'auto';
+            this.clearAttachments();
+            this.closeSlashMenu();
         }
+    }
+
+    // ── Allegati (file / screenshot) ──────────────────────────────────
+
+    setupAttachments() {
+        if (!this.screenshotBtnEl) {
+            this.screenshotBtnEl = document.getElementById('chat-screenshot-btn');
+        }
+        if (!this.attachBtnEl) {
+            this.attachBtnEl = document.getElementById('chat-attach-btn');
+        }
+        if (!this.attachInputEl) {
+            this.attachInputEl = document.getElementById('chat-attach-input');
+        }
+        if (!this.attachmentsBarEl) {
+            this.attachmentsBarEl = document.getElementById('chat-attachments-bar');
+        }
+
+        if (this.attachInputEl) {
+            this.attachInputEl.addEventListener('change', (e) => {
+                Array.from(e.target.files || []).forEach(f => this.uploadAndAttach(f));
+                this.attachInputEl.value = '';
+            });
+        }
+
+        if (this.screenshotBtnEl) {
+            this.screenshotBtnEl.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.captureScreenshot();
+            });
+        }
+
+        // Incolla screenshot da clipboard (Ctrl+V / Cmd+V)
+        const handlePaste = (e) => {
+            const items = (e.clipboardData || window.clipboardData)?.items;
+            if (!items) return;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.type && item.type.startsWith('image/')) {
+                    const blob = item.getAsFile();
+                    if (blob) {
+                        e.preventDefault();
+                        const ext = item.type.split('/')[1] || 'png';
+                        const file = new File([blob], `screenshot-${Date.now()}.${ext}`, { type: item.type });
+                        this.uploadAndAttach(file);
+                        return;
+                    }
+                }
+            }
+        };
+
+        if (this.chatInputEl) {
+            this.chatInputEl.addEventListener('paste', handlePaste);
+        }
+
+        // Drag & Drop su composer
+        const dropZone = document.querySelector('.input-panel-modern') || this.chatInputEl;
+        if (dropZone) {
+            ['dragenter', 'dragover'].forEach(name => {
+                dropZone.addEventListener(name, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+            ['dragleave', 'drop'].forEach(name => {
+                dropZone.addEventListener(name, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+            dropZone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer?.files;
+                if (files && files.length > 0) {
+                    Array.from(files).forEach(f => this.uploadAndAttach(f));
+                }
+            });
+        }
+    }
+
+    async uploadAndAttach(file) {
+        if (!file) return;
+        const chipId = `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        this.renderAttachmentChip(chipId, file.name, true);
+
+        try {
+            const pin = localStorage.getItem('agy_pin') || '';
+            const res = await fetch('/api/files/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': pin,
+                    'Content-Type': file.type || 'application/octet-stream',
+                    'X-File-Name': encodeURIComponent(file.name)
+                },
+                body: file
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Upload fallito');
+
+            this.pendingAttachments.push({ path: data.path, name: file.name });
+            this.renderAttachmentChip(chipId, file.name, false, data.path);
+        } catch (err) {
+            console.error('[Chat] Errore upload allegato:', err);
+            this.removeAttachmentChip(chipId);
+            alert('Errore caricamento allegato: ' + err.message);
+        }
+    }
+
+    async captureScreenshot() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            alert('La cattura schermo diretta dal browser richiede HTTPS o localhost.\n\nSuggerimento: puoi fare uno screenshot con il sistema operativo (Stamp / Win+Shift+S / Cmd+Shift+4) e incollarlo direttamente qui con Ctrl+V!');
+            return;
+        }
+        let stream = null;
+        try {
+            stream = await navigator.mediaDevices.getDisplayMedia({
+                video: { cursor: 'always' },
+                audio: false
+            });
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.muted = true;
+            await video.play();
+            // Attende che arrivi un frame valido prima di catturare
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 1920;
+            canvas.height = video.videoHeight || 1080;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Interrompe lo stream video subito dopo lo scatto
+            stream.getTracks().forEach(t => t.stop());
+            stream = null;
+
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
+                this.uploadAndAttach(file);
+            }, 'image/png');
+        } catch (err) {
+            if (err.name !== 'NotAllowedError') {
+                console.error('[Chat] Errore screenshot:', err);
+                alert('Impossibile catturare lo screenshot: ' + err.message);
+            }
+        } finally {
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+            }
+        }
+    }
+
+    renderAttachmentChip(id, name, isLoading, filePath) {
+        if (!this.attachmentsBarEl) return;
+        this.attachmentsBarEl.classList.remove('hidden');
+
+        let chip = document.getElementById(id);
+        if (!chip) {
+            chip = document.createElement('div');
+            chip.className = 'attachment-chip';
+            chip.id = id;
+            this.attachmentsBarEl.appendChild(chip);
+        }
+
+        const isImage = /\.(png|jpe?g|webp|gif|svg)$/i.test(name);
+        const iconName = isLoading ? 'loader-circle' : (isImage ? 'image' : 'paperclip');
+
+        chip.innerHTML = `
+            <i data-lucide="${iconName}" class="${isLoading ? 'spin' : ''}"></i>
+            <span class="attachment-name" title="${name}">${name}</span>
+            ${isLoading ? '' : '<button type="button" class="attachment-remove" title="Rimuovi">&times;</button>'}
+        `;
+        if (!isLoading) {
+            chip.querySelector('.attachment-remove').onclick = () => this.removeAttachmentChip(id, filePath);
+        }
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    removeAttachmentChip(id, filePath) {
+        const chip = document.getElementById(id);
+        if (chip) chip.remove();
+        if (filePath) {
+            this.pendingAttachments = this.pendingAttachments.filter(a => a.path !== filePath);
+        }
+        if (this.attachmentsBarEl && !this.attachmentsBarEl.children.length) {
+            this.attachmentsBarEl.classList.add('hidden');
+        }
+    }
+
+    clearAttachments() {
+        this.pendingAttachments = [];
+        if (this.attachmentsBarEl) {
+            this.attachmentsBarEl.innerHTML = '';
+            this.attachmentsBarEl.classList.add('hidden');
+        }
+    }
+
+    buildPromptWithAttachments(text) {
+        if (!this.pendingAttachments.length) return text;
+        const list = this.pendingAttachments.map(a => `- ${a.path}`).join('\n');
+        const header = `📎 File allegati:\n${list}`;
+        return text ? `${header}\n\n${text}` : header;
     }
 
     sendPrompt(promptText) {
@@ -719,6 +1135,81 @@ class AgyChat {
         }
     }
 
+    setupSidebarResizer() {
+        const resizer = document.getElementById('sidebar-resizer');
+        const sidebar = document.getElementById('sessions-sidebar');
+        if (!resizer || !sidebar) return;
+
+        // Restore saved width from localStorage
+        const savedWidth = localStorage.getItem('agy_sidebar_width');
+        if (savedWidth && window.innerWidth > 768) {
+            const widthNum = parseInt(savedWidth, 10);
+            if (widthNum >= 200 && widthNum <= 600) {
+                document.documentElement.style.setProperty('--sidebar-width', `${widthNum}px`);
+            }
+        }
+
+        // Restore collapsed state if saved
+        const isCollapsed = localStorage.getItem('agy_sidebar_collapsed') === 'true';
+        if (isCollapsed && window.innerWidth > 768) {
+            sidebar.classList.add('collapsed');
+        }
+
+        let isDragging = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        const onMouseDown = (e) => {
+            if (window.innerWidth <= 768) return;
+            isDragging = true;
+            startX = e.clientX;
+            startWidth = sidebar.getBoundingClientRect().width;
+            sidebar.classList.add('resizing');
+            resizer.classList.add('is-dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        };
+
+        const onMouseMove = (e) => {
+            if (!isDragging) return;
+            const delta = e.clientX - startX;
+            let newWidth = startWidth + delta;
+            if (newWidth < 200) {
+                newWidth = 200;
+            } else if (newWidth > 600) {
+                newWidth = 600;
+            }
+            document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+            localStorage.setItem('agy_sidebar_width', String(Math.round(newWidth)));
+            if (sidebar.classList.contains('collapsed')) {
+                sidebar.classList.remove('collapsed');
+                localStorage.setItem('agy_sidebar_collapsed', 'false');
+            }
+        };
+
+        const onMouseUp = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            sidebar.classList.remove('resizing');
+            resizer.classList.remove('is-dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        resizer.addEventListener('mousedown', onMouseDown);
+
+        // Double-click resizer to reset to default 290px
+        resizer.addEventListener('dblclick', () => {
+            document.documentElement.style.setProperty('--sidebar-width', '290px');
+            localStorage.setItem('agy_sidebar_width', '290');
+        });
+    }
+
     toggleSidebar() {
         const isMobile = window.innerWidth <= 768;
         if (!this.sidebarBackdropEl) {
@@ -743,7 +1234,8 @@ class AgyChat {
         } else {
             if (this.sidebarEl) {
                 this.sidebarEl.classList.remove('open');
-                this.sidebarEl.classList.toggle('collapsed');
+                const isCollapsed = this.sidebarEl.classList.toggle('collapsed');
+                localStorage.setItem('agy_sidebar_collapsed', isCollapsed ? 'true' : 'false');
             }
             if (this.sidebarBackdropEl) {
                 this.sidebarBackdropEl.classList.remove('visible');
