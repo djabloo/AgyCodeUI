@@ -29,5 +29,6 @@ Thumbs.db
 # Backups
 *.bak*
 
-# Large Binaries
-saas/orchestrator/agy
+# Server SaaS privato: repo separato e annidato (djabloo/AGYUI), non fa parte
+# di questo repo pubblico. Ha il suo .git, tracciato lì, ignorato qui.
+saas/

@@ -2385,6 +2385,235 @@ input:checked + .slider:before {
     display: none !important;
 }
 
+/* Card "ambiente cloud" in Impostazioni → Account (solo SaaS) */
+.cloud-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.cloud-block {
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md, 10px);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cloud-block-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 4px;
+}
+
+.cloud-block-title i { width: 16px; height: 16px; }
+
+.cloud-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+
+.cloud-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm, 8px);
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 0.85rem;
+}
+
+.cloud-row.is-current { border: 1px solid rgba(99, 102, 241, 0.4); }
+
+.cloud-row-main { display: flex; flex-direction: column; min-width: 0; }
+
+.cloud-row-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cloud-inline-form { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+.cloud-inline-form input, .cloud-inline-form select {
+    flex: 1 1 140px;
+    min-width: 0;
+    padding: 6px 8px;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 8px);
+    color: var(--text-main);
+    font-size: 0.82rem;
+}
+
+.cloud-msg {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm, 8px);
+    font-size: 0.82rem;
+}
+
+.cloud-msg.is-ok { background: rgba(124, 227, 139, 0.1); border: 1px solid rgba(124, 227, 139, 0.35); color: #7ce38b; }
+.cloud-msg.is-error { background: rgba(250, 121, 112, 0.1); border: 1px solid rgba(250, 121, 112, 0.35); color: #fa7970; }
+
+/* Avviso temporaneo nel terminale (Copiato / Incollato) */
+.terminal-flash {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    z-index: 5;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(13, 18, 31, 0.9);
+    border: 1px solid rgba(99, 102, 241, 0.5);
+    color: var(--text-bright, #fff);
+    font-size: 0.78rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.terminal-flash.show {
+    opacity: 1;
+}
+
+/* Tool call della chat strutturata (agy stream-json) */
+.tool-calls {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 4px 0 10px;
+}
+
+.tool-call {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    border-radius: var(--radius-md, 10px);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    font-size: 0.8rem;
+    font-family: var(--font-mono, monospace);
+    color: var(--text-muted);
+}
+
+.tool-call > i {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.tool-call.is-done > i { color: #7ce38b; }
+.tool-call.is-error > i { color: #fa7970; }
+.tool-call.is-active > i { color: var(--accent-blue, #818cf8); }
+
+.tool-call-name {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.tool-call-detail {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60%;
+    opacity: 0.85;
+}
+
+.tool-call-duration {
+    margin-left: auto;
+    font-size: 0.72rem;
+    opacity: 0.7;
+}
+
+.tool-call-error {
+    flex-basis: 100%;
+    color: #fa7970;
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+}
+
+.msg-error-box {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md, 10px);
+    background: rgba(250, 121, 112, 0.08);
+    border: 1px solid rgba(250, 121, 112, 0.35);
+    color: #fa7970;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+}
+
+.msg-status-error {
+    color: #fa7970;
+    font-size: 0.75rem;
+}
+
+.btn-cancel-circle {
+    background: rgba(250, 121, 112, 0.18) !important;
+    border-color: rgba(250, 121, 112, 0.5) !important;
+    color: #fa7970 !important;
+}
+
+.chat-notice {
+    margin: 6px auto;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(250, 163, 86, 0.12);
+    border: 1px solid rgba(250, 163, 86, 0.4);
+    color: #faa356;
+    font-size: 0.8rem;
+    width: fit-content;
+}
+
+/* Banner onboarding SaaS (login Antigravity nel container) */
+.onboarding-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 10px 12px 0;
+    padding: 12px 14px;
+    background: rgba(99, 102, 241, 0.10);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    border-radius: var(--radius-lg, 14px);
+    font-size: 0.85rem;
+    color: var(--text-main);
+    flex-wrap: wrap;
+}
+
+.onboarding-banner > i {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--accent-blue, #818cf8);
+    margin-top: 2px;
+}
+
+.onboarding-banner .onboarding-text {
+    flex: 1 1 260px;
+    line-height: 1.45;
+}
+
+.onboarding-banner .onboarding-text code {
+    font-family: var(--font-mono, monospace);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.onboarding-banner .onboarding-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
 /* Allegati chat (allega file / screenshot) */
 .attachments-bar {
     display: flex;

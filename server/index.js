@@ -65,6 +65,25 @@ const pty = new PtyManager({
 const sessionManager = new SessionManager();
 sessionManager.setIo(io);
 
+// Runner strutturato per la Chat (agy in modalità print + stream-json): niente scraping del terminale
+const AgentRunner = require('./agentRunner');
+const agentRunner = new AgentRunner({
+    command: process.env.CLI_COMMAND || 'agy',
+    getWorkspaceDir: () => pty.currentWorkspaceDir || process.env.WORKSPACE_DIR || process.cwd(),
+    sessionManager,
+    io
+});
+
+// Terminale e Chat sulla stessa conversazione agy: al cambio di sessione (o quando la chat
+// crea una conversazione) il PTY viene riavviato con --conversation <id>
+sessionManager.onActiveSessionChange = (session) => pty.setConversation(session ? session.conversationId : null);
+
+// La Chat rispecchia la trascrizione agy della conversazione (anche i turni fatti dal terminale)
+const TranscriptSync = require('./transcriptSync');
+const transcriptSync = new TranscriptSync({ sessionManager, agentRunner });
+agentRunner.onTurnComplete = (session) => setTimeout(() => transcriptSync.syncSession(session, true), 400);
+transcriptSync.start();
+
 // Gestione sicurezza PIN con Timing-Safe comparison e Rate Limiting
 const authAttempts = new Map(); // ip -> { count, until }
 
@@ -211,21 +230,26 @@ io.on('connection', (socket) => {
     socket.emit('sessions-updated', sessionManager.getSessions());
     socket.emit('session-switched', sessionManager.getActiveSession());
 
-    // Invio prompt da interfaccia Chat
-    socket.on('chat-prompt', (promptText) => {
-        if (!promptText || !promptText.trim()) return;
+    // Invio prompt da interfaccia Chat → turno strutturato (agy -p, stream-json)
+    socket.on('chat-prompt', (promptText, options) => {
+        if (!promptText || typeof promptText !== 'string' || !promptText.trim()) return;
+        const session = sessionManager.getActiveSession();
+        if (agentRunner.isBusy(session.id)) {
+            socket.emit('chat-error', { sessionId: session.id, error: 'AGY sta ancora rispondendo: attendi la fine del turno o annulla.' });
+            return;
+        }
         sessionManager.addUserMessage(promptText);
-        pty.write(promptText + '\r');
+        agentRunner.run(session, promptText, options && typeof options === 'object' ? options : {});
     });
 
-    // Ricezione input da terminale interattivo
+    // Annulla il turno di chat in corso
+    socket.on('chat-cancel', () => {
+        const session = sessionManager.getActiveSession();
+        agentRunner.cancel(session.id);
+    });
+
+    // Ricezione input da terminale interattivo (il terminale non alimenta più la chat)
     socket.on('terminal-input', (data) => {
-        if (typeof data === 'string' && data.length > 3 && data.endsWith('\r')) {
-            const clean = SessionManager.cleanAnsi(data.slice(0, -1)).trim();
-            if (clean && !clean.startsWith('\x1b') && clean !== 'y' && clean !== 'n') {
-                sessionManager.addUserMessage(clean);
-            }
-        }
         pty.write(data);
     });
 
@@ -239,13 +263,14 @@ io.on('connection', (socket) => {
     });
 });
 
-// Trasmetti l'output di PTY a tutti i client collegati e al SessionManager
+// Trasmetti l'output di PTY ai client (solo terminale: la chat usa AgentRunner)
 pty.onData((data) => {
     io.emit('terminal-output', data);
-    sessionManager.handlePtyStream(data);
 });
 
-// Avvia il PTY
+// Avvia il PTY già allineato alla conversazione della sessione attiva (se esiste)
+const activeAtBoot = sessionManager.getActiveSession();
+pty.conversationId = activeAtBoot && activeAtBoot.conversationId ? activeAtBoot.conversationId : null;
 pty.start();
 
 // Avvia il server HTTP

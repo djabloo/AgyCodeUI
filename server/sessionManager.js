@@ -13,7 +13,25 @@ class SessionManager {
         this.saveDebounceTimer = null;
         this.pendingPromptEcho = null;
         this.io = null;
+        this.onActiveSessionChange = null; // callback(session): usato per allineare il terminale alla conversazione
         this.load();
+    }
+
+    _notifyActive(session) {
+        if (!session || session.id !== this.activeSessionId) return;
+        if (typeof this.onActiveSessionChange === 'function') {
+            try {
+                const r = this.onActiveSessionChange(session);
+                if (r && typeof r.catch === 'function') r.catch(e => console.warn('[SessionManager] onActiveSessionChange:', e.message));
+            } catch (e) {
+                console.warn('[SessionManager] onActiveSessionChange:', e.message);
+            }
+        }
+    }
+
+    // Chiamato da AgentRunner quando la conversazione agy della sessione viene creata/cambia
+    notifyConversationChanged(session) {
+        this._notifyActive(session);
     }
 
     setIo(io) {
@@ -127,6 +145,7 @@ class SessionManager {
             this.io.emit('sessions-updated', this.getSessions());
             this.io.emit('session-switched', session);
         }
+        this._notifyActive(session);
 
         return session;
     }
@@ -141,6 +160,7 @@ class SessionManager {
             this.io.emit('sessions-updated', this.getSessions());
             this.io.emit('session-switched', session);
         }
+        this._notifyActive(session);
         return session;
     }
 
@@ -161,6 +181,7 @@ class SessionManager {
                 this.io.emit('sessions-updated', this.getSessions());
                 this.io.emit('session-switched', this.getActiveSession());
             }
+            this._notifyActive(this.getActiveSession());
             return true;
         }
         return false;
@@ -235,6 +256,77 @@ class SessionManager {
         }
 
         return msg;
+    }
+
+    // ── Turni strutturati (AgentRunner, modalità print stream-json) ──────────
+
+    beginAssistantMessage(session) {
+        const msg = {
+            id: 'msg-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex'),
+            role: 'assistant',
+            content: '',
+            thinking: '',
+            toolCalls: [],
+            status: 'streaming',
+            timestamp: new Date().toISOString()
+        };
+        session.messages.push(msg);
+        session.updatedAt = new Date().toISOString();
+        this.currentAssistantMessage = msg;
+        this.save(false);
+        this._emitStream(session, msg);
+        return msg;
+    }
+
+    appendAssistantDelta(session, msg, delta) {
+        if (!delta) return;
+        msg.content += delta;
+        session.updatedAt = new Date().toISOString();
+        this.save(false);
+        this._emitStream(session, msg, delta);
+    }
+
+    appendAssistantThinking(session, msg, delta) {
+        if (!delta) return;
+        msg.thinking = (msg.thinking || '') + delta;
+        this._emitStream(session, msg);
+    }
+
+    upsertToolCall(session, msg, tool) {
+        const existing = msg.toolCalls.find(t => t.stepIndex === tool.stepIndex);
+        if (existing) {
+            Object.assign(existing, tool);
+        } else {
+            msg.toolCalls.push(tool);
+        }
+        this.save(false);
+        this._emitStream(session, msg);
+    }
+
+    finalizeAssistantMessage(session, msg, { error } = {}) {
+        msg.status = error ? 'error' : 'done';
+        if (error) msg.error = error;
+        if (msg.usage && msg.usage.total_tokens) msg.tokens_used = msg.usage.total_tokens;
+        session.updatedAt = new Date().toISOString();
+        if (this.currentAssistantMessage && this.currentAssistantMessage.id === msg.id) this.currentAssistantMessage = null;
+        this.save(true);
+        if (this.io) {
+            this.io.emit('chat-message', { sessionId: session.id, message: msg });
+            this.io.emit('sessions-updated', this.getSessions());
+        }
+    }
+
+    _emitStream(session, msg, delta = '') {
+        if (!this.io) return;
+        this.io.emit('chat-stream', {
+            sessionId: session.id,
+            messageId: msg.id,
+            delta,
+            fullContent: msg.content,
+            thinking: msg.thinking || '',
+            toolCalls: msg.toolCalls || [],
+            status: msg.status || 'streaming'
+        });
     }
 
     // Pulisce sequenze di controllo ANSI, codici di colore e caratteri di rendering xterm

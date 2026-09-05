@@ -1,0 +1,14 @@
+.git
+node_modules
+saas/gateway/node_modules
+saas/storage
+saas/landing
+saas/billing
+saas/ai-gateway
+tests
+*.bak*
+*.log
+.env
+.env.*
+!.env.example
+public/**/*.bak*
