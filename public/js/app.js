@@ -25,14 +25,12 @@ class AgyApp {
             });
         }
 
-        // Gestione parametri OAuth redirect (es. ?token=... o ?auth_error=...)
+        // Gestione parametri OAuth redirect (?provider=... o ?auth_error=...).
+        // In modalità SaaS la sessione è nel cookie httpOnly impostato dal gateway: nessun token nell'URL.
         const urlParams = new URLSearchParams(window.location.search);
-        const urlToken = urlParams.get('token') || urlParams.get('jwt');
         const authErrorParam = urlParams.get('auth_error');
 
-        if (urlToken) {
-            localStorage.setItem('agy_pin', urlToken);
-            document.cookie = `agy_jwt=${encodeURIComponent(urlToken)}; path=/; max-age=604800; SameSite=Lax`;
+        if (urlParams.get('provider')) {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
@@ -64,7 +62,6 @@ class AgyApp {
                 this.authModal.classList.add('hidden');
                 if (token) {
                     localStorage.setItem('agy_pin', token);
-                    document.cookie = `agy_jwt=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
                 }
 
                 // Carica dettagli profilo utente autenticato se disponibile
@@ -109,6 +106,7 @@ class AgyApp {
             if (res.ok) {
                 const data = await res.json();
                 if (data.user) {
+                    this.isSaasMode = true;
                     localStorage.setItem('agy_user', JSON.stringify({
                         ...data.user,
                         subscription: data.subscription
@@ -116,6 +114,7 @@ class AgyApp {
                     if (window.agySettings && typeof window.agySettings.renderUserProfile === 'function') {
                         window.agySettings.renderUserProfile(data.user, data.subscription);
                     }
+                    this.showSaasOnboarding();
                 }
             }
         } catch (e) {
@@ -147,15 +146,36 @@ class AgyApp {
         });
     }
 
-    logout() {
+    /**
+     * Avviso una tantum in modalità SaaS: agy nel container richiede il login Antigravity dal terminale.
+     */
+    showSaasOnboarding() {
+        const banner = document.getElementById('saas-onboarding-banner');
+        if (!banner) return;
+        if (localStorage.getItem('agy_onboarding_seen') === '1') return;
+        banner.classList.remove('hidden');
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    dismissSaasOnboarding(openTerminal) {
+        const banner = document.getElementById('saas-onboarding-banner');
+        if (banner) banner.classList.add('hidden');
+        localStorage.setItem('agy_onboarding_seen', '1');
+        if (openTerminal) this.switchTab('terminal-tab');
+    }
+
+    async logout() {
         if (!confirm('Sei sicuro di voler effettuare il logout?')) return;
         localStorage.removeItem('agy_pin');
         localStorage.removeItem('agy_user');
-        document.cookie = 'agy_jwt=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        localStorage.removeItem('agy_onboarding_seen');
+        if (this.isSaasMode) {
+            try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) { /* ignore */ }
+        }
         if (this.socket) {
             this.socket.disconnect();
         }
-        window.location.reload();
+        window.location.href = this.isSaasMode ? '/' : window.location.pathname;
     }
 
     toggleSaasMode() {
@@ -218,15 +238,31 @@ class AgyApp {
                 const token = data.token;
                 localStorage.setItem('agy_pin', token);
                 if (data.user) localStorage.setItem('agy_user', JSON.stringify(data.user));
-                document.cookie = `agy_jwt=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
-                
+
                 this.authModal.classList.add('hidden');
                 this.loadUserProfile(token);
                 this.connectSocket(token);
                 if (window.agyFiles) window.agyFiles.loadDir('');
+            } else if (res.ok && data.requiresVerification) {
+                // Registrazione riuscita: serve la conferma via email
+                if (errorEl) {
+                    errorEl.textContent = data.message || 'Controlla la tua email per confermare l\'account.';
+                    errorEl.style.color = '#7ce38b';
+                    errorEl.classList.remove('hidden');
+                }
+                if (this.isRegisterMode) this.toggleSaasMode();
             } else {
                 if (errorEl) {
+                    errorEl.style.color = '';
                     errorEl.textContent = data.error || 'Credenziali non valide.';
+                    if (data.code === 'EMAIL_NOT_VERIFIED') {
+                        errorEl.textContent += ' Per un nuovo link vai alla pagina principale: ';
+                        const a = document.createElement('a');
+                        a.href = '/?forgot=1';
+                        a.textContent = 'agyui';
+                        a.style.color = '#58a6ff';
+                        errorEl.appendChild(a);
+                    }
                     errorEl.classList.remove('hidden');
                 }
             }
@@ -255,7 +291,6 @@ class AgyApp {
             if (res.ok) {
                 this.authModal.classList.add('hidden');
                 localStorage.setItem('agy_pin', pin);
-                document.cookie = `agy_jwt=${encodeURIComponent(pin)}; path=/; max-age=604800; SameSite=Lax`;
                 this.connectSocket(pin);
                 if (window.agyFiles) window.agyFiles.loadDir('');
             } else {
@@ -268,21 +303,14 @@ class AgyApp {
         });
     }
 
-    logout() {
-        localStorage.removeItem('agy_pin');
-        localStorage.removeItem('agy_user');
-        document.cookie = 'agy_jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        window.location.reload();
-    }
-
     connectSocket(pin) {
         if (this.socket) {
             this.socket.disconnect();
         }
 
+        // In SaaS il gateway autentica via cookie httpOnly; in standalone il PIN viaggia nel payload auth.
         this.socket = io({
             auth: { token: pin },
-            query: { token: pin },
             transports: ['websocket', 'polling'],
             reconnectionAttempts: 10,
             reconnectionDelay: 1500

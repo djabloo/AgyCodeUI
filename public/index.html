@@ -98,6 +98,9 @@
                         <input type="password" id="saas-password-input" placeholder="••••••••" autocomplete="current-password" required />
                     </div>
                     <button type="submit" id="saas-submit-btn" class="btn btn-primary btn-block">Accedi</button>
+                    <div id="saas-forgot-row" style="margin-top: 10px; font-size: 0.8rem; text-align: center;">
+                        <a href="/?forgot=1" style="color: #8b949e;">Password dimenticata?</a>
+                    </div>
                     <div style="margin-top: 14px; font-size: 0.85rem; text-align: center;">
                         <span id="saas-toggle-label" style="color: #8b949e;">Non hai ancora un account?</span>
                         <a href="#" id="saas-toggle-link" style="color: #58a6ff; margin-left: 6px; font-weight: 500;" onclick="event.preventDefault(); window.agyApp.toggleSaasMode();">Registrati</a>
@@ -458,6 +461,20 @@
                     
                     <!-- 💬 Chat Tab Pane (Default) -->
                     <section id="chat-tab" class="tab-pane active">
+                        <!-- Avviso onboarding SaaS (mostrato una volta dopo il login cloud) -->
+                        <div id="saas-onboarding-banner" class="onboarding-banner hidden">
+                            <i data-lucide="key-round"></i>
+                            <div class="onboarding-text">
+                                <strong>Collega il tuo account Antigravity.</strong>
+                                Il tuo ambiente cloud è pronto, ma <code>agy</code> deve ancora fare il login con Google:
+                                apri il <em>Terminale</em>, scegli il metodo di accesso e segui il link che ti mostra. Va fatto una sola volta.
+                                Nelle schermate di conferma (Termini, cartella fidata) usa <kbd>↓</kbd> e <kbd>→</kbd> per arrivare al pulsante <em>Done</em>, poi <kbd>Invio</kbd>: <kbd>Invio</kbd> da solo attiva/disattiva la casella.
+                            </div>
+                            <div class="onboarding-actions">
+                                <button type="button" class="btn btn-sm btn-action" onclick="window.agyApp.dismissSaasOnboarding(true)">Apri Terminale</button>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="window.agyApp.dismissSaasOnboarding(false)">Ho capito</button>
+                            </div>
+                        </div>
                         <!-- Chat Messages Container -->
                         <div class="chat-messages-container custom-scrollbar" id="chat-messages">
                             <!-- Popolato dinamicamente da chat.js -->
@@ -564,6 +581,9 @@
                                         <button type="submit" id="chat-send-btn" class="btn-send-circle" title="Invia Prompt (Invio)">
                                             <i data-lucide="send"></i>
                                         </button>
+                                        <button type="button" id="chat-cancel-btn" class="btn-send-circle btn-cancel-circle hidden" title="Annulla la risposta in corso" onclick="window.agyChat.cancelPrompt()">
+                                            <i data-lucide="square"></i>
+                                        </button>
                                     </div>
                                 </div>
                             </form>
@@ -579,6 +599,13 @@
                     <!-- Mobile Quick Action Toolbar -->
                     <div class="quick-toolbar">
                         <div class="toolbar-scroll">
+                            <button class="btn btn-sm btn-outline" onclick="window.agyTerminal.copySelection()" title="Copia il testo selezionato (o Ctrl+C con selezione)">
+                                <i data-lucide="copy"></i> <span>Copia</span>
+                            </button>
+                            <button class="btn btn-sm btn-outline" onclick="window.agyTerminal.pasteClipboard()" title="Incolla dagli appunti (o Ctrl+Shift+V)">
+                                <i data-lucide="clipboard-paste"></i> <span>Incolla</span>
+                            </button>
+                            <span class="toolbar-divider"></span>
                             <button class="btn btn-sm btn-action" onclick="window.agyTerminal.send('y\r')">
                                 <i data-lucide="check"></i> <span data-i18n="btnYes">Sì (y)</span>
                             </button>
@@ -595,6 +622,8 @@
                             <button class="btn btn-sm" onclick="window.agyTerminal.send('\x1b')">Esc</button>
                             <button class="btn btn-sm" onclick="window.agyTerminal.send('\x1b[A')" title="Freccia Su">↑</button>
                             <button class="btn btn-sm" onclick="window.agyTerminal.send('\x1b[B')" title="Freccia Giù">↓</button>
+                            <button class="btn btn-sm" onclick="window.agyTerminal.send('\x1b[D')" title="Freccia Sinistra">←</button>
+                            <button class="btn btn-sm" onclick="window.agyTerminal.send('\x1b[C')" title="Freccia Destra">→</button>
                             <span class="toolbar-divider"></span>
                             <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/model\r')">/model</button>
                             <button class="btn btn-sm btn-outline" onclick="window.agyApp.insertPrompt('/goal ')">/goal</button>
@@ -747,8 +776,7 @@
                                             </div>
                                             <p id="user-display-email" class="user-email-text">Inizializzazione...</p>
                                             <div class="user-sub-info" id="user-sub-info">
-                                                <span class="sub-tier-tag" id="user-plan-tag">Piano Starter</span>
-                                                <span class="credits-tag" id="user-credits-tag">100 Crediti</span>
+                                                <span class="sub-tier-tag" id="user-plan-tag">Piano Free</span>
                                             </div>
                                         </div>
                                         <div class="user-actions-box">
@@ -770,6 +798,70 @@
                                             <span class="perm-chip active"><i data-lucide="folder-check"></i> Gestione Workspace</span>
                                         </div>
                                     </div>
+                                </div>
+
+                                <!-- Card Cloud (solo SaaS): piano, workspace, chiavi API, container -->
+                                <div class="settings-card cloud-account-card hidden" id="cloud-account-card">
+                                    <div class="card-header-flex">
+                                        <div>
+                                            <h4 style="display: flex; align-items: center; gap: 8px;"><i data-lucide="cloud"></i> Il tuo ambiente cloud</h4>
+                                            <p class="card-desc">Piano, workspace, chiavi API personali e container del tuo ambiente Antigravity.</p>
+                                        </div>
+                                        <span id="cloud-plan-pill" class="badge-status-pill status-connected">Free</span>
+                                    </div>
+
+                                    <div id="subscription-expired-banner" class="onboarding-banner hidden" style="border-color: rgba(250,121,112,0.4); background: rgba(250,121,112,0.08);">
+                                        <i data-lucide="alert-triangle" style="color: #fa7970;"></i>
+                                        <div class="onboarding-text">
+                                            <strong>Abbonamento scaduto.</strong> Il container di questo piano è stato spento; i tuoi dati restano al sicuro.
+                                            Scrivi a supporto per rinnovare: verrà riattivato appena confermato il pagamento.
+                                        </div>
+                                    </div>
+
+                                    <div class="cloud-block" style="margin-bottom: 12px;">
+                                        <div class="cloud-block-title"><i data-lucide="receipt"></i> Stato dell'abbonamento</div>
+                                        <div id="subscription-status-body" class="card-desc">Caricamento...</div>
+                                    </div>
+
+                                    <div class="cloud-grid">
+                                        <div class="cloud-block">
+                                            <div class="cloud-block-title"><i data-lucide="folder-git-2"></i> Workspace</div>
+                                            <p class="card-desc">Ogni workspace ha il suo container e la sua cartella. Cambiarlo ricarica l'IDE.</p>
+                                            <div id="cloud-workspaces-list" class="cloud-list"></div>
+                                            <form class="cloud-inline-form" onsubmit="event.preventDefault(); window.agySettings.createCloudWorkspace();">
+                                                <input type="text" id="cloud-ws-name" placeholder="Nome nuovo workspace" maxlength="40" required>
+                                                <input type="url" id="cloud-ws-repo" placeholder="Repo Git da clonare (opzionale)">
+                                                <button type="submit" class="btn btn-sm btn-primary"><i data-lucide="plus"></i> Crea</button>
+                                            </form>
+                                        </div>
+
+                                        <div class="cloud-block">
+                                            <div class="cloud-block-title"><i data-lucide="key-round"></i> Chiavi API personali (BYOK)</div>
+                                            <p class="card-desc">Opzionali: vengono passate al container come variabili d'ambiente per i modelli che le richiedono.</p>
+                                            <div id="cloud-keys-list" class="cloud-list"></div>
+                                            <form class="cloud-inline-form" onsubmit="event.preventDefault(); window.agySettings.saveCloudApiKey();">
+                                                <select id="cloud-key-provider" class="form-select">
+                                                    <option value="gemini">Gemini</option>
+                                                    <option value="anthropic">Anthropic</option>
+                                                    <option value="openai">OpenAI</option>
+                                                    <option value="groq">Groq</option>
+                                                    <option value="deepseek">DeepSeek</option>
+                                                </select>
+                                                <input type="password" id="cloud-key-value" placeholder="Incolla la chiave" autocomplete="off" required>
+                                                <button type="submit" class="btn btn-sm btn-primary"><i data-lucide="save"></i> Salva</button>
+                                            </form>
+                                        </div>
+
+                                        <div class="cloud-block">
+                                            <div class="cloud-block-title"><i data-lucide="box"></i> Container</div>
+                                            <div id="cloud-runner-status" class="card-desc">Stato in caricamento...</div>
+                                            <div class="agy-auth-btn-toolbar">
+                                                <button type="button" class="btn btn-outline btn-sm" onclick="window.agySettings.restartCloudRunner()"><i data-lucide="refresh-cw"></i> Riavvia container</button>
+                                                <button type="button" class="btn btn-danger btn-sm" onclick="window.agySettings.stopCloudRunner()"><i data-lucide="power"></i> Spegni</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="cloud-account-msg" class="cloud-msg hidden"></div>
                                 </div>
 
                                 <!-- Card 2: Login ad Antigravity CLI (agy) -->

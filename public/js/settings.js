@@ -135,12 +135,16 @@ class AgySettings {
             }
         }
 
-        // Subscription & Credits
+        // Piano (i crediti non esistono più: il piano definisce risorse e tempo acceso del container)
         const userSub = sub || user.subscription;
-        if (userSub) {
-            if (planEl) planEl.textContent = `Piano ${(userSub.plan_tier || 'starter').toUpperCase()}`;
-            if (creditsEl) creditsEl.textContent = `${userSub.credits_remaining ?? 100} Crediti Residui`;
-        }
+        const planLabels = { starter: 'Free', free: 'Free', hobby: 'Hobby', pro: 'Pro', pro_cloud: 'Pro', team: 'Team', enterprise: 'Team' };
+        const tier = (userSub && userSub.plan_tier) ? String(userSub.plan_tier).toLowerCase() : 'starter';
+        if (planEl) planEl.textContent = `Piano ${planLabels[tier] || tier}`;
+        if (creditsEl) creditsEl.remove();
+
+        // Card cloud (workspace, chiavi, container) — solo in modalità SaaS
+        this.cloudPlanLabel = planLabels[tier] || tier;
+        this.loadCloudAccount();
 
         // Permissions List
         if (permsChipsContainer) {
@@ -175,6 +179,204 @@ class AgySettings {
             permsChipsContainer.innerHTML = chipsHtml;
             if (window.lucide) window.lucide.createIcons();
         }
+    }
+
+    // ── Ambiente cloud (SaaS): workspace, chiavi BYOK, container ────────────
+
+    saasHeaders(json = false) {
+        const token = localStorage.getItem('agy_pin') || '';
+        const h = {};
+        if (json) h['Content-Type'] = 'application/json';
+        if (token && token.split('.').length === 3) h['Authorization'] = `Bearer ${token}`;
+        return h;
+    }
+
+    getCurrentWorkspaceSlug() {
+        const m = document.cookie.match(/(?:^|;\s*)agy_workspace=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : 'default';
+    }
+
+    cloudMessage(text, ok = true) {
+        const el = document.getElementById('cloud-account-msg');
+        if (!el) return;
+        el.textContent = text;
+        el.className = `cloud-msg ${ok ? 'is-ok' : 'is-error'}`;
+        clearTimeout(this._cloudMsgTimer);
+        this._cloudMsgTimer = setTimeout(() => el.classList.add('hidden'), 5000);
+    }
+
+    async loadCloudAccount() {
+        const card = document.getElementById('cloud-account-card');
+        if (!card) return;
+        try {
+            const res = await fetch('/api/auth/me', { headers: this.saasHeaders() });
+            if (!res.ok) { card.classList.add('hidden'); return; }
+            const data = await res.json();
+            if (!data.user) { card.classList.add('hidden'); return; }
+            card.classList.remove('hidden');
+            this.cloudWorkspaces = data.workspaces || [];
+            const pill = document.getElementById('cloud-plan-pill');
+            if (pill) pill.textContent = `Piano ${this.cloudPlanLabel || 'Free'}`;
+            this.renderSubscriptionStatus(data.subscription);
+            this.renderCloudWorkspaces();
+            this.loadCloudKeys();
+            this.loadCloudRunner();
+            if (window.lucide) window.lucide.createIcons();
+        } catch (e) {
+            card.classList.add('hidden');
+        }
+    }
+
+    /**
+     * "Stato dell'abbonamento": piano, scadenza, avviso se scaduto. Le scadenze oggi sono
+     * impostate a mano dall'admin (niente pagamenti automatici collegati).
+     */
+    renderSubscriptionStatus(sub) {
+        const body = document.getElementById('subscription-status-body');
+        const banner = document.getElementById('subscription-expired-banner');
+        if (!body) return;
+
+        const planLabel = this.cloudPlanLabel || 'Free';
+        const isStarter = !sub || !sub.plan_tier || sub.plan_tier === 'starter';
+
+        if (banner) banner.classList.toggle('hidden', !(sub && sub.is_expired));
+
+        if (isStarter) {
+            body.innerHTML = `Piano <strong>${this.escapeHtml(planLabel)}</strong> — uso libero, senza data di scadenza.
+                Per un uso continuativo passa a un piano a pagamento (Hobby, Growth o Team) dalla <a href="/#prezzi" style="color: var(--accent-blue);">pagina dei piani</a>.`;
+            return;
+        }
+
+        if (!sub.current_period_end) {
+            body.innerHTML = `Piano <strong>${this.escapeHtml(planLabel)}</strong> — nessuna scadenza impostata ancora dall'amministrazione.`;
+            return;
+        }
+
+        const endDate = new Date(sub.current_period_end);
+        const formatted = endDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+        if (sub.is_expired) {
+            body.innerHTML = `Piano <strong>${this.escapeHtml(planLabel)}</strong> — <span style="color:#fa7970; font-weight:600;">scaduto il ${formatted}</span>. Contatta il supporto per rinnovare.`;
+        } else {
+            const daysLeft = Math.ceil((endDate.getTime() - Date.now()) / 86400000);
+            body.innerHTML = `Piano <strong>${this.escapeHtml(planLabel)}</strong> — attivo fino al <strong>${formatted}</strong> (${daysLeft} giorni rimanenti).`;
+        }
+    }
+
+    renderCloudWorkspaces() {
+        const list = document.getElementById('cloud-workspaces-list');
+        if (!list) return;
+        const current = this.getCurrentWorkspaceSlug();
+        list.innerHTML = (this.cloudWorkspaces || []).map(ws => `
+            <div class="cloud-row ${ws.slug === current ? 'is-current' : ''}">
+                <div class="cloud-row-main">
+                    <strong>${this.escapeHtml(ws.name)}</strong>
+                    <span class="cloud-row-sub">${this.escapeHtml(ws.slug)}${ws.repo_url ? ' · ' + this.escapeHtml(ws.repo_url) : ''}</span>
+                </div>
+                ${ws.slug === current
+                    ? '<span class="badge-status-pill status-connected">attivo</span>'
+                    : `<button type="button" class="btn btn-sm btn-outline" onclick="window.agySettings.switchCloudWorkspace('${this.escapeHtml(ws.slug)}')">Apri</button>`}
+            </div>`).join('') || '<p class="card-desc">Nessun workspace.</p>';
+    }
+
+    switchCloudWorkspace(slug) {
+        if (!confirm(`Passare al workspace "${slug}"? L'IDE verrà ricaricato sul suo container.`)) return;
+        document.cookie = `agy_workspace=${encodeURIComponent(slug)}; path=/; max-age=31536000; SameSite=Lax`;
+        window.location.reload();
+    }
+
+    async createCloudWorkspace() {
+        const nameEl = document.getElementById('cloud-ws-name');
+        const repoEl = document.getElementById('cloud-ws-repo');
+        const name = (nameEl.value || '').trim();
+        if (!name) return;
+        const slug = name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || `ws-${Date.now().toString(36)}`;
+        try {
+            const res = await fetch('/saas/workspaces', {
+                method: 'POST', headers: this.saasHeaders(true),
+                body: JSON.stringify({ name, slug, repo_url: (repoEl.value || '').trim() || null })
+            });
+            const data = await res.json();
+            if (!res.ok) { this.cloudMessage(data.error || 'Errore creazione workspace', false); return; }
+            nameEl.value = ''; repoEl.value = '';
+            this.cloudMessage(`Workspace "${name}" creato. Aprilo per avviare il suo container.`);
+            this.loadCloudAccount();
+        } catch (e) { this.cloudMessage('Errore di rete', false); }
+    }
+
+    async loadCloudKeys() {
+        const list = document.getElementById('cloud-keys-list');
+        if (!list) return;
+        try {
+            const res = await fetch('/saas/keys', { headers: this.saasHeaders() });
+            const data = await res.json();
+            const keys = data.keys || [];
+            list.innerHTML = keys.map(k => `
+                <div class="cloud-row">
+                    <div class="cloud-row-main"><strong>${this.escapeHtml(k.provider)}</strong><span class="cloud-row-sub">${this.escapeHtml(k.key_hint || '')}</span></div>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="window.agySettings.deleteCloudApiKey('${this.escapeHtml(k.provider)}')">Rimuovi</button>
+                </div>`).join('') || '<p class="card-desc">Nessuna chiave salvata: agy usa il tuo account Antigravity.</p>';
+        } catch (e) { list.innerHTML = ''; }
+    }
+
+    async saveCloudApiKey() {
+        const provider = document.getElementById('cloud-key-provider').value;
+        const valEl = document.getElementById('cloud-key-value');
+        const apiKey = (valEl.value || '').trim();
+        if (!apiKey) return;
+        try {
+            const res = await fetch('/saas/keys', { method: 'POST', headers: this.saasHeaders(true), body: JSON.stringify({ provider, apiKey }) });
+            const data = await res.json();
+            if (!res.ok) { this.cloudMessage(data.error || 'Errore salvataggio', false); return; }
+            valEl.value = '';
+            this.cloudMessage('Chiave salvata (cifrata). Sarà usata al prossimo avvio del container.');
+            this.loadCloudKeys();
+        } catch (e) { this.cloudMessage('Errore di rete', false); }
+    }
+
+    async deleteCloudApiKey(provider) {
+        if (!confirm(`Rimuovere la chiave ${provider}?`)) return;
+        try {
+            await fetch(`/saas/keys/${encodeURIComponent(provider)}`, { method: 'DELETE', headers: this.saasHeaders() });
+            this.loadCloudKeys();
+        } catch (e) { /* ignore */ }
+    }
+
+    currentCloudWorkspace() {
+        const slug = this.getCurrentWorkspaceSlug();
+        return (this.cloudWorkspaces || []).find(w => w.slug === slug) || (this.cloudWorkspaces || [])[0] || null;
+    }
+
+    async loadCloudRunner() {
+        const el = document.getElementById('cloud-runner-status');
+        const ws = this.currentCloudWorkspace();
+        if (!el || !ws) return;
+        try {
+            const res = await fetch(`/saas/runners/workspace/${ws.id}/status`, { headers: this.saasHeaders() });
+            const data = await res.json();
+            const r = data.runner || {}; const s = data.stats;
+            el.innerHTML = r.active
+                ? `<span class="badge-status-pill status-connected">acceso</span> ${this.escapeHtml(r.containerName || '')}${s ? ` · CPU ${this.escapeHtml(s.cpu)} · RAM ${this.escapeHtml(s.memory)}` : ''}`
+                : `<span class="badge-status-pill status-disconnected">spento</span> si accende da solo alla prossima richiesta`;
+        } catch (e) { el.textContent = 'Stato non disponibile'; }
+    }
+
+    async restartCloudRunner() {
+        const ws = this.currentCloudWorkspace();
+        if (!ws || !confirm('Riavviare il container? L\'IDE si ricollega da solo dopo qualche secondo.')) return;
+        try {
+            await fetch(`/saas/runners/workspace/${ws.id}/restart`, { method: 'POST', headers: this.saasHeaders() });
+            setTimeout(() => window.location.reload(), 2500);
+        } catch (e) { this.cloudMessage('Errore riavvio', false); }
+    }
+
+    async stopCloudRunner() {
+        const ws = this.currentCloudWorkspace();
+        if (!ws || !confirm('Spegnere il container? Le chat restano salvate; si riaccende alla prossima apertura dell\'IDE.')) return;
+        try {
+            await fetch(`/saas/runners/workspace/${ws.id}/stop`, { method: 'POST', headers: this.saasHeaders() });
+            this.cloudMessage('Container spento.');
+            this.loadCloudRunner();
+        } catch (e) { this.cloudMessage('Errore spegnimento', false); }
     }
 
     // Gestione Autenticazione Antigravity CLI (agy)

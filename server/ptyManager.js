@@ -11,6 +11,7 @@ class PtyManager {
         this.currentWorkspaceDir = options.workspaceDir || process.env.WORKSPACE_DIR || process.cwd();
         this.runnerMode = options.runnerMode || process.env.RUNNER_MODE || 'host'; // 'host' | 'docker'
         this.containerName = options.containerName || null;
+        this.conversationId = null; // conversazione agy condivisa con la Chat (--conversation <id>)
         this.ptyProcess = null;
         this.outputHistory = '';
         this.maxHistoryLength = 50000;
@@ -23,10 +24,9 @@ class PtyManager {
      */
     async start() {
         if (this.ptyProcess) {
-            try {
-                this.ptyProcess.kill();
-            } catch (e) {}
+            const old = this.ptyProcess;
             this.ptyProcess = null;
+            this.killProcess(old);
         }
 
         const workspaceDir = this.currentWorkspaceDir;
@@ -132,6 +132,11 @@ class PtyManager {
         let spawnCmd = command;
         let spawnArgs = args;
 
+        // Terminale e Chat condividono la stessa conversazione agy (come claudecodeui con --resume)
+        if (this.conversationId && !spawnArgs.includes('--conversation') && !spawnArgs.includes('--continue')) {
+            spawnArgs = [...spawnArgs, '--conversation', this.conversationId];
+        }
+
         console.log(`[PTY:Host] Avvio processo: ${spawnCmd} ${spawnArgs.join(' ')} in ${workspaceDir}`);
 
         const envPath = [
@@ -176,17 +181,34 @@ class PtyManager {
      */
     bindPtyEvents() {
         if (!this.ptyProcess) return;
+        const proc = this.ptyProcess;
 
-        this.ptyProcess.onData((data) => {
+        proc.onData((data) => {
+            // Ignora l'output di un processo già sostituito (evita schermate sovrapposte)
+            if (this.ptyProcess !== proc) return;
             this.broadcastData(data);
         });
 
-        this.ptyProcess.onExit(({ exitCode, signal }) => {
-            console.log(`[PTY] Processo terminato con codice: ${exitCode}, signal: ${signal}`);
+        proc.onExit(({ exitCode, signal }) => {
+            console.log(`[PTY] Processo ${proc.pid} terminato con codice: ${exitCode}, signal: ${signal}`);
+            // Solo se è ancora il processo corrente: un processo vecchio non deve azzerare quello nuovo
+            if (this.ptyProcess !== proc) return;
             const exitMsg = `\r\n\x1b[33m[agycodeui] Processo terminato (codice: ${exitCode ?? signal}). Invia un comando o tocca 'Riavvia' per riaprire.\x1b[0m\r\n`;
             this.broadcastData(exitMsg);
             this.ptyProcess = null;
         });
+    }
+
+    /**
+     * Termina un processo PTY in modo affidabile (SIGTERM, poi SIGKILL se ancora vivo)
+     */
+    killProcess(proc) {
+        if (!proc) return;
+        const pid = proc.pid;
+        try { proc.kill('SIGTERM'); } catch (e) { /* già morto */ }
+        setTimeout(() => {
+            try { process.kill(pid, 0); process.kill(pid, 'SIGKILL'); } catch (e) { /* già terminato */ }
+        }, 1500);
     }
 
     /**
@@ -241,6 +263,21 @@ class PtyManager {
     async restart() {
         this.outputHistory = '';
         return await this.start();
+    }
+
+    /**
+     * Allinea il terminale alla conversazione della sessione Chat attiva.
+     * Riavvia agy con --conversation <id> solo se cambia davvero.
+     */
+    async setConversation(conversationId) {
+        const next = conversationId || null;
+        if (next === this.conversationId && this.ptyProcess) return false;
+        this.conversationId = next;
+        if (next) {
+            this.broadcastData(`\r\n\x1b[90m[agycodeui] Terminale allineato alla conversazione della chat (${next.slice(0, 8)}…)\x1b[0m\r\n`);
+        }
+        await this.restart();
+        return true;
     }
 
     onData(callback) {

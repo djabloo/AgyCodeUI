@@ -141,12 +141,16 @@ class AgyChat {
                 } else {
                     this.currentSession.messages.push(message);
                 }
+                if (message.role === 'assistant') {
+                    this.isStreaming = false;
+                    this.setStreamingUi(false);
+                }
                 this.appendOrUpdateMessage(message);
                 if (this.autoScroll) this.scrollToBottom();
             }
         });
 
-        this.socket.on('chat-stream', ({ sessionId, messageId, delta, fullContent }) => {
+        this.socket.on('chat-stream', ({ sessionId, messageId, delta, fullContent, thinking, toolCalls, status }) => {
             if (this.currentSession && this.currentSession.id === sessionId) {
                 let msg = this.currentSession.messages.find(m => m.id === messageId);
                 if (!msg) {
@@ -162,8 +166,19 @@ class AgyChat {
                     msg.content = fullContent;
                     msg.isStreaming = true;
                 }
+                if (thinking !== undefined) msg.thinking = thinking;
+                if (toolCalls !== undefined) msg.toolCalls = toolCalls;
+                if (status !== undefined) msg.status = status;
+                this.isStreaming = true;
+                this.setStreamingUi(true);
                 this.updateStreamingMessage(msg);
                 if (this.autoScroll) this.scrollToBottom();
+            }
+        });
+
+        this.socket.on('chat-error', ({ sessionId, error }) => {
+            if (this.currentSession && this.currentSession.id === sessionId) {
+                this.showTransientNotice(error || 'Errore sconosciuto');
             }
         });
 
@@ -293,7 +308,10 @@ class AgyChat {
     async loadSession(sessionId) {
         const token = localStorage.getItem('agy_pin') || '';
         try {
-            const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+            // Rende la sessione ATTIVA anche lato server (prima veniva solo letta: i nuovi
+            // messaggi finivano nell'ultima sessione usata e il terminale non seguiva)
+            const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/switch`, {
+                method: 'POST',
                 headers: { 'Authorization': token ? `Bearer ${token}` : '' }
             });
             if (res.ok) {
@@ -622,6 +640,66 @@ class AgyChat {
         return { thinking, tools, mainContent };
     }
 
+    /**
+     * Mostra/nasconde il pulsante "Annulla" e blocca l'invio mentre AGY risponde
+     */
+    setStreamingUi(active) {
+        const sendBtn = document.getElementById('chat-send-btn');
+        const cancelBtn = document.getElementById('chat-cancel-btn');
+        if (sendBtn) sendBtn.classList.toggle('hidden', !!active);
+        if (cancelBtn) cancelBtn.classList.toggle('hidden', !active);
+    }
+
+    cancelPrompt() {
+        if (this.socket && this.socket.connected) this.socket.emit('chat-cancel');
+    }
+
+    showTransientNotice(text) {
+        if (!this.chatMessagesEl) return;
+        const el = document.createElement('div');
+        el.className = 'chat-notice';
+        el.textContent = text;
+        this.chatMessagesEl.appendChild(el);
+        this.scrollToBottom();
+        setTimeout(() => el.remove(), 6000);
+    }
+
+    /**
+     * Riassunto leggibile dei parametri di una tool call (primo valore significativo)
+     */
+    describeToolParams(params) {
+        if (!params || typeof params !== 'object') return '';
+        const preferred = ['DirectoryPath', 'AbsolutePath', 'File', 'FilePath', 'TargetFile', 'Path', 'CommandLine', 'Command', 'Query', 'Url', 'SearchPath', 'Pattern'];
+        for (const k of preferred) {
+            if (params[k] !== undefined && params[k] !== null && params[k] !== '') return String(params[k]);
+        }
+        const firstKey = Object.keys(params)[0];
+        if (!firstKey) return '';
+        const v = params[firstKey];
+        return typeof v === 'string' ? v : JSON.stringify(v);
+    }
+
+    buildToolCallsHtml(toolCalls) {
+        if (!toolCalls || !toolCalls.length) return '';
+        const items = toolCalls.map(t => {
+            const state = (t.state || 'ACTIVE').toUpperCase();
+            const icon = state === 'DONE' ? 'check' : (state === 'ERROR' ? 'x' : 'loader-circle');
+            const cls = state === 'DONE' ? 'is-done' : (state === 'ERROR' ? 'is-error' : 'is-active');
+            const detail = this.escapeHtml(this.describeToolParams(t.params)).slice(0, 160);
+            const err = t.error ? `<div class="tool-call-error">${this.escapeHtml(String(t.error)).slice(0, 300)}</div>` : '';
+            const dur = t.durationSeconds ? `<span class="tool-call-duration">${Number(t.durationSeconds).toFixed(1)}s</span>` : '';
+            return `
+                <div class="tool-call ${cls}">
+                    <i data-lucide="${icon}" class="${state === 'ACTIVE' ? 'spin' : ''}"></i>
+                    <span class="tool-call-name">${this.escapeHtml(t.name || 'tool')}</span>
+                    <span class="tool-call-detail" title="${detail}">${detail}</span>
+                    ${dur}
+                    ${err}
+                </div>`;
+        }).join('');
+        return `<div class="tool-calls">${items}</div>`;
+    }
+
     buildMessageHtml(msg, isStreaming = false) {
         const isUser = msg.role === 'user';
         const parsed = isUser ? { thinking: '', tools: [], mainContent: msg.content } : this.parseMessageContent(msg.content);
@@ -659,6 +737,7 @@ class AgyChat {
 
         // Assistant Message rendering
         let thinkingHtml = '';
+        if (!parsed.thinking && msg.thinking) parsed.thinking = msg.thinking;
         if (parsed.thinking) {
             thinkingHtml = `
                 <details class="thinking-details" ${isStreaming ? 'open' : ''}>
@@ -677,14 +756,22 @@ class AgyChat {
             `;
         }
 
-        const renderedMarkdown = this.renderMarkdown(parsed.mainContent || (isStreaming ? '...' : ''));
+        const hasTools = msg.toolCalls && msg.toolCalls.length > 0;
+        const placeholder = isStreaming ? (hasTools ? '' : '...') : '';
+        const renderedMarkdown = this.renderMarkdown(parsed.mainContent || placeholder);
+        const toolsHtml = this.buildToolCallsHtml(msg.toolCalls);
+        const isError = msg.status === 'error';
+        const errorHtml = isError && msg.error ? `<div class="msg-error-box">${this.escapeHtml(String(msg.error)).slice(0, 800)}</div>` : '';
+        const statusHtml = isStreaming
+            ? '<span class="msg-status-live">● In elaborazione...</span>'
+            : (isError ? '<span class="msg-status-error">✕ Errore</span>' : '<span class="msg-status-done">✓ Completato</span>');
 
         return `
             <div class="message-meta">
                 <div class="message-meta-left">
                     <span class="message-author">Antigravity</span>
                     <span class="model-tag-pill">${this.escapeHtml(this.activeModelName)}</span>
-                    ${isStreaming ? '<span class="msg-status-live">● In elaborazione...</span>' : '<span class="msg-status-done">✓ Completato</span>'}
+                    ${statusHtml}
                 </div>
                 <div class="message-meta-right">
                     <span class="message-time">${formattedTime}</span>
@@ -695,9 +782,11 @@ class AgyChat {
             </div>
             <div class="message-body markdown-body">
                 ${thinkingHtml}
+                ${toolsHtml}
                 <div class="markdown-content">
                     ${renderedMarkdown}
                 </div>
+                ${errorHtml}
                 ${isStreaming ? '<span class="typing-cursor"></span>' : ''}
                 <div class="message-footer-bar">
                     <div class="msg-footer-left">

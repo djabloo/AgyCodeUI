@@ -88,9 +88,10 @@ module.exports = function createSessionRouter(sessionManager, ptyManager) {
                 return res.status(404).json({ error: 'Sessione non trovata' });
             }
 
-            if (ptyManager) {
-                // Riavvia PTY per connettersi alla sessione
-                ptyManager.restart();
+            // Il terminale viene allineato automaticamente alla conversazione della sessione
+            // (hook onActiveSessionChange); se la sessione non ha ancora una conversazione, riavvia agy pulito.
+            if (ptyManager && !session.conversationId) {
+                ptyManager.setConversation(null);
             }
 
             res.json({ success: true, message: 'Sessione ripresa', session });
