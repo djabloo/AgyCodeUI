@@ -613,15 +613,34 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                 updates.WORKSPACE_DIR = resolvedWorkspace;
             }
 
+            // Gestione modulare e sicura di CLI_ARGS: preserva i flag esistenti quando si modifica modello/ragionamento
+            const currentEnv = readEnvFile();
+            const currentArgs = (currentEnv.CLI_ARGS || process.env.CLI_ARGS || '').split(/\s+/).filter(Boolean);
+
+            let skipPerms = dangerouslySkipPermissions !== undefined ? dangerouslySkipPermissions : currentArgs.includes('--dangerously-skip-permissions');
+            let sandbox = sandboxMode !== undefined ? sandboxMode : currentArgs.includes('--sandbox');
+
+            let curModel = null;
+            let curEffort = null;
+            for (let i = 0; i < currentArgs.length; i++) {
+                if (currentArgs[i] === '--model' && currentArgs[i + 1]) curModel = currentArgs[i + 1];
+                else if (currentArgs[i].startsWith('--model=')) curModel = currentArgs[i].slice(8);
+                else if (currentArgs[i] === '--effort' && currentArgs[i + 1]) curEffort = currentArgs[i + 1];
+                else if (currentArgs[i].startsWith('--effort=')) curEffort = currentArgs[i].slice(9);
+            }
+
+            const targetModel = (model && typeof model === 'string' && /^[a-zA-Z0-9_.-]+$/.test(model.trim()))
+                ? model.trim()
+                : curModel;
+            const targetEffort = (effort && ['low', 'medium', 'high'].includes(effort.trim()))
+                ? effort.trim()
+                : curEffort;
+
             let args = [];
-            if (dangerouslySkipPermissions) args.push('--dangerously-skip-permissions');
-            if (sandboxMode) args.push('--sandbox');
-            if (model && typeof model === 'string' && /^[a-zA-Z0-9_.-]+$/.test(model.trim())) {
-                args.push(`--model ${model.trim()}`);
-            }
-            if (effort && ['low', 'medium', 'high'].includes(effort.trim())) {
-                args.push(`--effort ${effort.trim()}`);
-            }
+            if (skipPerms) args.push('--dangerously-skip-permissions');
+            if (sandbox) args.push('--sandbox');
+            if (targetModel) args.push(`--model ${targetModel}`);
+            if (targetEffort) args.push(`--effort ${targetEffort}`);
 
             if (args.length > 0) {
                 updates.CLI_ARGS = args.join(' ');
@@ -883,6 +902,143 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
             }
 
             res.json({ success: true, message: `Comando rimosso dalla whitelist` });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // ==========================================
+    // 📊 MODELS & USAGE QUOTA TELEMETRY
+    // ==========================================
+
+    router.get('/models-usage', async (req, res) => {
+        try {
+            const usageFile = path.join(dataDir, 'models-usage.json');
+            let stored = {
+                plan: 'Google AI Pro',
+                planSubtitle: 'You can upgrade to a Google AI Ultra plan to receive higher rate limits.',
+                creditOverages: false,
+                gemini: {
+                    weeklyLimitRemaining: 85,
+                    weeklyRefreshText: 'You have used some of your weekly limit, it will fully refresh in 4 days, 8 hours.',
+                    fiveHourLimitRemaining: 79,
+                    fiveHourRefreshText: 'You have used some of your 5-hour limit, it will fully refresh in 2 hours, 18 minutes.'
+                },
+                claudeGpt: {
+                    weeklyLimitRemaining: 100,
+                    weeklyRefreshText: 'You have not used any of your weekly limit.'
+                }
+            };
+
+            if (fs.existsSync(usageFile)) {
+                try {
+                    const parsed = JSON.parse(fs.readFileSync(usageFile, 'utf8'));
+                    stored = { ...stored, ...parsed };
+                } catch (e) {}
+            }
+
+            res.json({ success: true, ...stored });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/models-usage/overages', (req, res) => {
+        try {
+            const { enabled } = req.body || {};
+            const usageFile = path.join(dataDir, 'models-usage.json');
+            let stored = {};
+            if (fs.existsSync(usageFile)) {
+                try { stored = JSON.parse(fs.readFileSync(usageFile, 'utf8')); } catch (e) {}
+            }
+            stored.creditOverages = !!enabled;
+            fs.writeFileSync(usageFile, JSON.stringify(stored, null, 2), 'utf8');
+            res.json({ success: true, creditOverages: stored.creditOverages });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // ==========================================
+    // 🌐 BROWSER SETTINGS & SUBAGENT POLICY
+    // ==========================================
+
+    router.get('/browser/status', async (req, res) => {
+        try {
+            const browserSettingsFile = path.join(dataDir, 'browser-settings.json');
+            let stored = {
+                executionPolicy: 'request_review', // 'request_review' | 'allow_always' | 'disallow'
+                actuationRules: [
+                    { id: 'rule-1', type: 'allow', pattern: 'https://*.google.com/*' },
+                    { id: 'rule-2', type: 'allow', pattern: 'https://github.com/*' },
+                    { id: 'rule-3', type: 'deny', pattern: 'https://*.internal/*' }
+                ]
+            };
+
+            if (fs.existsSync(browserSettingsFile)) {
+                try {
+                    const parsed = JSON.parse(fs.readFileSync(browserSettingsFile, 'utf8'));
+                    stored = { ...stored, ...parsed };
+                } catch (e) {}
+            }
+
+            // Check Chrome / Chromium availability on host
+            let chromeInstalled = false;
+            let chromeVersion = '';
+            let chromePath = '';
+
+            const candidates = [
+                '/snap/bin/chromium',
+                '/usr/bin/chromium-browser',
+                '/usr/bin/google-chrome',
+                '/usr/bin/chromium'
+            ];
+
+            for (const cand of candidates) {
+                try {
+                    if (fs.existsSync(cand)) {
+                        const { stdout } = await execFileAsync(cand, ['--version'], { timeout: 4000 });
+                        if (stdout && stdout.trim()) {
+                            chromeInstalled = true;
+                            chromeVersion = stdout.trim();
+                            chromePath = cand;
+                            break;
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            res.json({
+                success: true,
+                installed: chromeInstalled,
+                version: chromeVersion,
+                path: chromePath,
+                executionPolicy: stored.executionPolicy,
+                actuationRules: stored.actuationRules
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/browser/settings', (req, res) => {
+        try {
+            const { executionPolicy, actuationRules } = req.body || {};
+            const browserSettingsFile = path.join(dataDir, 'browser-settings.json');
+            let stored = {
+                executionPolicy: 'request_review',
+                actuationRules: []
+            };
+
+            if (fs.existsSync(browserSettingsFile)) {
+                try { stored = JSON.parse(fs.readFileSync(browserSettingsFile, 'utf8')); } catch (e) {}
+            }
+
+            if (executionPolicy) stored.executionPolicy = executionPolicy;
+            if (Array.isArray(actuationRules)) stored.actuationRules = actuationRules;
+
+            fs.writeFileSync(browserSettingsFile, JSON.stringify(stored, null, 2), 'utf8');
+            res.json({ success: true, settings: stored });
         } catch (e) {
             res.status(500).json({ error: e.message });
         }

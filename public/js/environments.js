@@ -28,6 +28,11 @@ class AgyEnvironments {
     async init() {
         this.injectModalsHtml();
         this.setupGlobalShortcuts();
+        window.addEventListener('agy-lang-changed', () => {
+            this.renderEnvironmentsDashboard();
+            this.updateWizardUi();
+            if (window.agyI18n) window.agyI18n.applyTranslations();
+        });
         await this.loadEnvironments();
         await this.checkOnboarding();
     }
@@ -84,20 +89,27 @@ class AgyEnvironments {
     renderEnvironmentsDashboard() {
         const listEl = document.getElementById('environments-cards-list');
         const quotaEl = document.getElementById('dashboard-quota-text');
+        const used = this.environments.length;
+        const total = (this.quota && this.quota.total) || 10;
         if (quotaEl) {
-            quotaEl.textContent = this.quota.text;
+            const quotaTpl = window.agyI18n ? window.agyI18n.t('envQuotaTemplate', '{used} di {total} ambienti') : `${used} di ${total} ambienti`;
+            quotaEl.textContent = quotaTpl.replace('{used}', used).replace('{total}', total);
         }
 
         if (!listEl) return;
 
         if (this.environments.length === 0) {
+            const emptyTitle = window.agyI18n ? window.agyI18n.t('envEmptyTitle', 'Nessun ambiente attivo') : 'Nessun ambiente attivo';
+            const emptyDesc = window.agyI18n ? window.agyI18n.t('envEmptyDesc', 'Crea il tuo primo ambiente cloud con Google Antigravity in pochi secondi.') : 'Crea il tuo primo ambiente cloud con Google Antigravity in pochi secondi.';
+            const newBtnText = window.agyI18n ? window.agyI18n.t('envNewBtn', 'Nuovo Ambiente') : 'Nuovo Ambiente';
+
             listEl.innerHTML = `
                 <div class="empty-env-state">
                     <i data-lucide="cloud-off" class="empty-icon"></i>
-                    <h3>Nessun ambiente attivo</h3>
-                    <p>Crea il tuo primo ambiente cloud con Google Antigravity in pochi secondi.</p>
+                    <h3>${emptyTitle}</h3>
+                    <p>${emptyDesc}</p>
                     <button class="btn btn-primary" onclick="window.agyEnvironments.openCreateModal()">
-                        <i data-lucide="plus"></i> Crea Nuovo Ambiente
+                        <i data-lucide="plus"></i> ${newBtnText}
                     </button>
                 </div>
             `;
@@ -105,11 +117,21 @@ class AgyEnvironments {
             return;
         }
 
+        const t = (k, fb) => window.agyI18n ? window.agyI18n.t(k, fb) : fb;
+        const statusRunningText = t('envStatusRunning', 'In esecuzione');
+        const statusStoppedText = t('envStatusStopped', 'Arrestato');
+        const sessionWord = t('envSessionsCount', 'sessioni');
+        const openWord = t('envActionOpen', 'Apri');
+        const stopWord = t('envActionStop', 'Arresta');
+        const startWord = t('envActionStart', 'Avvia');
+        const piiWord = t('envActionPii', 'PII');
+
         let html = '';
         this.environments.forEach(env => {
             const isRunning = env.status !== 'stopped';
             const statusClass = isRunning ? 'status-running' : 'status-stopped';
-            const statusText = isRunning ? 'Running' : 'Stopped';
+            const statusText = isRunning ? statusRunningText : statusStoppedText;
+            const actionWord = isRunning ? stopWord : startWord;
             const isCurrent = env.isCurrent;
 
             html += `
@@ -132,22 +154,22 @@ class AgyEnvironments {
                             <span class="status-label">${statusText}</span>
                         </span>
                         <span class="env-sessions-tag font-mono text-xs">
-                            <i data-lucide="message-square" class="inline-icon"></i> ${env.sessionCount || 0} sessioni
+                            <i data-lucide="message-square" class="inline-icon"></i> ${env.sessionCount || 0} ${sessionWord}
                         </span>
                     </div>
 
                     <div class="env-actions-row">
-                        <button class="btn btn-primary env-open-btn" onclick="window.agyEnvironments.openEnvironment('${env.path}')" title="Apri workspace e chat live">
-                            <i data-lucide="external-link"></i> Open
+                        <button class="btn btn-primary env-open-btn" onclick="window.agyEnvironments.openEnvironment('${env.path}')" title="${openWord}">
+                            <i data-lucide="external-link"></i> ${openWord}
                         </button>
-                        <button class="btn btn-dark env-action-btn" onclick="window.agyEnvironments.toggleEnvAction('${env.id}', '${env.path}', '${isRunning ? 'stop' : 'start'}')">
-                            <i data-lucide="${isRunning ? 'square' : 'play'}"></i> ${isRunning ? 'Stop' : 'Start'}
+                        <button class="btn btn-dark env-action-btn" onclick="window.agyEnvironments.toggleEnvAction('${env.id}', '${env.path}', '${isRunning ? 'stop' : 'start'}')" title="${actionWord}">
+                            <i data-lucide="${isRunning ? 'square' : 'play'}"></i> ${actionWord}
                         </button>
-                        <button class="btn btn-dark env-ssh-btn" onclick="window.agyEnvironments.openSshModal('${env.id}', '${this.escapeHtml(env.name)}')" title="Accesso SSH diretto">
+                        <button class="btn btn-dark env-ssh-btn" onclick="window.agyEnvironments.openSshModal('${env.id}', '${this.escapeHtml(env.name)}')" title="SSH">
                             <i data-lucide="terminal"></i> SSH
                         </button>
-                        <button class="btn btn-dark env-pii-btn" onclick="window.agyEnvironments.openPiiModal('${env.id}', '${this.escapeHtml(env.name)}', '${env.path}')" title="Anonimizza documenti (PII) per questo ambiente">
-                            <i data-lucide="shield-check"></i> PII
+                        <button class="btn btn-dark env-pii-btn" onclick="window.agyEnvironments.openPiiModal('${env.id}', '${this.escapeHtml(env.name)}', '${env.path}')" title="PII">
+                            <i data-lucide="shield-check"></i> ${piiWord}
                         </button>
                     </div>
                 </div>
@@ -194,7 +216,8 @@ class AgyEnvironments {
     }
 
     async confirmDelete(id, name) {
-        if (confirm(`Sei sicuro di voler eliminare l'ambiente "${name}"?`)) {
+        const confirmMsg = window.agyI18n ? window.agyI18n.t('envDeleteConfirm', 'Vuoi davvero eliminare l\'ambiente "{name}"?').replace('{name}', name) : `Vuoi davvero eliminare l'ambiente "${name}"?`;
+        if (confirm(confirmMsg)) {
             try {
                 const res = await fetch(`/api/workspaces/${id}`, {
                     method: 'DELETE',
@@ -300,7 +323,12 @@ class AgyEnvironments {
         const backBtn = document.getElementById('wizard-back-btn');
         const nextBtn = document.getElementById('wizard-next-btn');
 
-        if (stepTitle) stepTitle.textContent = `Step ${this.currentWizardStep} of 3`;
+        const t = (k, fb) => window.agyI18n ? window.agyI18n.t(k, fb) : fb;
+
+        if (stepTitle) {
+            const stepTpl = t('envWizardStep', 'Passo {current} di {total}');
+            stepTitle.textContent = stepTpl.replace('{current}', this.currentWizardStep).replace('{total}', 3);
+        }
 
         step1?.classList.toggle('hidden', this.currentWizardStep !== 1);
         step2?.classList.toggle('hidden', this.currentWizardStep !== 2);
@@ -312,14 +340,17 @@ class AgyEnvironments {
 
         if (backBtn) {
             backBtn.style.visibility = this.currentWizardStep === 1 ? 'hidden' : 'visible';
+            backBtn.textContent = t('envWizardBtnBack', 'Indietro');
         }
 
         if (nextBtn) {
             if (this.currentWizardStep === 3) {
-                nextBtn.innerHTML = '<span>Create Environment</span>';
+                const createLabel = t('envWizardBtnCreate', 'Crea Ambiente');
+                nextBtn.innerHTML = `<span>${createLabel}</span>`;
                 nextBtn.className = 'btn btn-primary wizard-submit-btn';
             } else {
-                nextBtn.innerHTML = '<span>Next</span>';
+                const nextLabel = t('envWizardBtnNext', 'Avanti');
+                nextBtn.innerHTML = `<span>${nextLabel}</span>`;
                 nextBtn.className = 'btn btn-primary';
             }
         }
@@ -334,7 +365,8 @@ class AgyEnvironments {
 
         if (nextBtn) {
             nextBtn.disabled = true;
-            nextBtn.innerHTML = '<span class="spinner-inline"></span> Creating environment...';
+            const creatingLabel = window.agyI18n ? window.agyI18n.t('envWizardBtnCreating', 'Creazione ambiente in corso...') : 'Creazione ambiente in corso...';
+            nextBtn.innerHTML = `<span class="spinner-inline"></span> ${creatingLabel}`;
         }
 
         try {
@@ -840,7 +872,7 @@ class AgyEnvironments {
                 <div class="modal-card modal-env-wizard">
                     <div class="wizard-header">
                         <div class="wizard-header-top">
-                            <h2 class="wizard-main-title font-display">Create Environment</h2>
+                            <h2 class="wizard-main-title font-display" data-i18n="envWizardTitle">Crea Nuovo Ambiente</h2>
                             <button class="icon-btn close-modal-btn" onclick="window.agyEnvironments.closeCreateModal()">
                                 <i data-lucide="x"></i>
                             </button>
@@ -851,15 +883,15 @@ class AgyEnvironments {
                                 <div id="progress-bar-2" class="progress-segment"></div>
                                 <div id="progress-bar-3" class="progress-segment"></div>
                             </div>
-                            <span id="wizard-step-indicator" class="wizard-step-text font-mono">Step 1 of 3</span>
+                            <span id="wizard-step-indicator" class="wizard-step-text font-mono">Passo 1 di 3</span>
                         </div>
                     </div>
 
                     <div class="wizard-body">
-                        <!-- STEP 1: How would you like to start? -->
+                        <!-- STEP 1: Come desideri iniziare? -->
                         <div id="wizard-step-1" class="wizard-step-content">
-                            <h3 class="wizard-section-title font-display">How would you like to start?</h3>
-                            <p class="wizard-section-desc">Create a new blank project or import an existing one from GitHub</p>
+                            <h3 class="wizard-section-title font-display" data-i18n="envWizardStep1Title">Come desideri iniziare?</h3>
+                            <p class="wizard-section-desc" data-i18n="envWizardStep1Desc">Crea un nuovo progetto vuoto o importane uno esistente da GitHub</p>
 
                             <div class="wizard-cards-grid">
                                 <div id="wizard-mode-blank" class="wizard-choice-card selected" onclick="window.agyEnvironments.selectStartMode('blank')">
@@ -867,8 +899,8 @@ class AgyEnvironments {
                                         <i data-lucide="plus"></i>
                                     </div>
                                     <div class="choice-info">
-                                        <h4 class="choice-title">New Project</h4>
-                                        <p class="choice-desc">Start with a blank workspace</p>
+                                        <h4 class="choice-title" data-i18n="envWizardNewProject">Nuovo Progetto</h4>
+                                        <p class="choice-desc" data-i18n="envWizardNewProjectDesc">Inizia con un workspace vuoto</p>
                                     </div>
                                 </div>
 
@@ -877,63 +909,63 @@ class AgyEnvironments {
                                         <i data-lucide="download"></i>
                                     </div>
                                     <div class="choice-info">
-                                        <h4 class="choice-title">Import from GitHub</h4>
-                                        <p class="choice-desc">Clone an existing repository</p>
+                                        <h4 class="choice-title" data-i18n="envWizardImportGithub">Importa da GitHub</h4>
+                                        <p class="choice-desc" data-i18n="envWizardImportGithubDesc">Clona un repository esistente</p>
                                     </div>
                                 </div>
                             </div>
 
                             <div id="wizard-git-input-group" class="form-group hidden" style="margin-top: 16px;">
-                                <label class="form-label font-mono text-xs">URL Repository GitHub *</label>
+                                <label class="form-label font-mono text-xs" data-i18n="envWizardGitLabel">URL Repository GitHub *</label>
                                 <input type="text" id="wizard-git-url" placeholder="https://github.com/username/my-project" class="form-input">
                             </div>
                         </div>
 
-                        <!-- STEP 2: Name Your Project -->
+                        <!-- STEP 2: Nome del Progetto -->
                         <div id="wizard-step-2" class="wizard-step-content hidden">
-                            <h3 class="wizard-section-title font-display">Name Your Project</h3>
-                            <p class="wizard-section-desc">Give your development environment a memorable name</p>
+                            <h3 class="wizard-section-title font-display" data-i18n="envWizardStep2Title">Nome del Progetto</h3>
+                            <p class="wizard-section-desc" data-i18n="envWizardStep2Desc">Assegna un nome identificativo al tuo ambiente di sviluppo</p>
 
                             <div class="form-group" style="margin-top: 18px;">
-                                <label class="form-label font-mono text-xs">Project Name</label>
-                                <input type="text" id="wizard-project-name" placeholder="es. Prova ino, E-commerce Bot" class="form-input font-display text-lg" autofocus>
+                                <label class="form-label font-mono text-xs" data-i18n="envWizardProjectNameLabel">Nome Progetto</label>
+                                <input type="text" id="wizard-project-name" data-i18n-placeholder="envWizardProjectPlaceholder" placeholder="es. Progetto E-commerce, Bot Telegram..." class="form-input font-display text-lg" autofocus>
                             </div>
                         </div>
 
-                        <!-- STEP 3: Environment Settings -->
+                        <!-- STEP 3: Impostazioni Ambiente -->
                         <div id="wizard-step-3" class="wizard-step-content hidden">
-                            <h3 class="wizard-section-title font-display">Environment Settings</h3>
-                            <p class="wizard-section-desc">Confirm the folder identifier and optionally note project-specific tools.</p>
+                            <h3 class="wizard-section-title font-display" data-i18n="envWizardStep3Title">Impostazioni Ambiente</h3>
+                            <p class="wizard-section-desc" data-i18n="envWizardStep3Desc">Conferma l'identificatore della cartella e configura eventuali strumenti specifici.</p>
 
                             <div class="form-group" style="margin-top: 16px;">
-                                <label class="form-label font-mono text-xs">Slug - used as the local project folder name.</label>
+                                <label class="form-label font-mono text-xs" data-i18n="envWizardSlugLabel">Slug (identificativo cartella locale del progetto)</label>
                                 <div class="url-input-wrapper">
                                     <input type="text" id="wizard-slug-input" placeholder="project-slug" class="form-input font-mono">
                                 </div>
                                 <div class="url-status-badge">
                                     <i data-lucide="check-circle-2" class="text-success"></i>
-                                    <span class="text-success font-mono text-xs">Available</span>
+                                    <span class="text-success font-mono text-xs" data-i18n="envWizardAvailable">Disponibile</span>
                                 </div>
                             </div>
 
                             <div class="software-summary-box">
-                                <label class="form-label font-mono text-xs">Software</label>
-                                <p class="software-desc-text font-mono text-xs text-muted">
-                                    Runs directly on this machine (host mode): whatever is already installed here, plus Google Antigravity CLI (agy).
+                                <label class="form-label font-mono text-xs" data-i18n="envWizardSoftware">Software &amp; Runtime</label>
+                                <p class="software-desc-text font-mono text-xs text-muted" data-i18n="envWizardSoftwareDesc">
+                                    Eseguito direttamente su questa macchina (modalità host): include i pacchetti installati e Google Antigravity CLI (agy).
                                 </p>
                                 <button type="button" class="add-tools-link-btn" onclick="window.agyEnvironments.openExtraToolsModal()">
-                                    <i data-lucide="plus"></i> Add extra tools
+                                    <i data-lucide="plus"></i> <span data-i18n="envWizardAddTools">Aggiungi altri strumenti</span>
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     <div class="wizard-footer">
-                        <button id="wizard-back-btn" class="btn btn-outline" onclick="window.agyEnvironments.wizardBack()" style="visibility: hidden;">
-                            Back
+                        <button id="wizard-back-btn" class="btn btn-outline" onclick="window.agyEnvironments.wizardBack()" style="visibility: hidden;" data-i18n="envWizardBtnBack">
+                            Indietro
                         </button>
                         <button id="wizard-next-btn" class="btn btn-primary" onclick="window.agyEnvironments.wizardNext()">
-                            Next
+                            <span data-i18n="envWizardBtnNext">Avanti</span>
                         </button>
                     </div>
                 </div>
@@ -944,15 +976,15 @@ class AgyEnvironments {
                 <div class="modal-card">
                     <div class="modal-header">
                         <i data-lucide="wrench"></i>
-                        <h2>Strumenti & Pacchetti Aggiuntivi</h2>
+                        <h2 data-i18n="extraToolsTitle">Strumenti &amp; Pacchetti Aggiuntivi</h2>
                         <button class="icon-btn close-modal-btn" onclick="window.agyEnvironments.closeExtraToolsModal()">
                             <i data-lucide="x"></i>
                         </button>
                     </div>
-                    <p class="text-muted text-xs">Seleziona i pacchetti software da pre-installare nel tuo ambiente:</p>
+                    <p class="text-muted text-xs" data-i18n="extraToolsSubtitle">Seleziona i pacchetti software da pre-installare nel tuo ambiente:</p>
                     <div id="extra-tools-checkboxes" class="tools-grid-list"></div>
                     <div class="modal-footer">
-                        <button class="btn btn-primary" onclick="window.agyEnvironments.closeExtraToolsModal()">Conferma</button>
+                        <button class="btn btn-primary" onclick="window.agyEnvironments.closeExtraToolsModal()" data-i18n="btnConfirm">Conferma</button>
                     </div>
                 </div>
             </div>
@@ -971,15 +1003,15 @@ class AgyEnvironments {
                         <div id="onboard-badge-1" class="onboard-step-badge active">
                             <div class="badge-icon-circle"><i data-lucide="git-branch"></i></div>
                             <div class="badge-text-group">
-                                <span class="badge-step-title">Git Configuration</span>
-                                <span class="badge-step-sub text-danger font-mono text-[10px]">Required</span>
+                                <span class="badge-step-title" data-i18n="onboardGitTitle">Configurazione Git</span>
+                                <span class="badge-step-sub text-danger font-mono text-[10px]" data-i18n="onboardRequired">Obbligatorio</span>
                             </div>
                         </div>
                         <div class="onboard-stepper-line"></div>
                         <div id="onboard-badge-2" class="onboard-step-badge">
                             <div class="badge-icon-circle"><i data-lucide="log-in"></i></div>
                             <div class="badge-text-group">
-                                <span class="badge-step-title">Connect Agents</span>
+                                <span class="badge-step-title" data-i18n="onboardConnectAgents">Connetti Agenti AI</span>
                             </div>
                         </div>
                     </div>
@@ -989,17 +1021,17 @@ class AgyEnvironments {
                         <div class="step-hero-icon">
                             <i data-lucide="git-branch"></i>
                         </div>
-                        <h2 class="onboard-title font-display">Git Configuration</h2>
-                        <p class="onboard-desc">Configure your git identity to ensure proper attribution for commits.</p>
+                        <h2 class="onboard-title font-display" data-i18n="onboardGitTitle">Configurazione Git</h2>
+                        <p class="onboard-desc" data-i18n="onboardGitDesc">Configura la tua identità Git per attribuire correttamente i commit.</p>
 
                         <div class="form-group">
-                            <label class="form-label font-mono text-xs"><i data-lucide="user"></i> Git Name *</label>
+                            <label class="form-label font-mono text-xs"><i data-lucide="user"></i> <span data-i18n="onboardGitName">Nome Git *</span></label>
                             <input type="text" id="onboard-git-name" placeholder="Proseo" class="form-input">
                             <span class="input-hint font-mono text-[11px] text-muted">Saved as 'git config --global user.name'</span>
                         </div>
 
                         <div class="form-group" style="margin-top: 14px;">
-                            <label class="form-label font-mono text-xs"><i data-lucide="mail"></i> Git Email *</label>
+                            <label class="form-label font-mono text-xs"><i data-lucide="mail"></i> <span data-i18n="onboardGitEmail">Email Git *</span></label>
                             <input type="email" id="onboard-git-email" placeholder="djabloo@gmail.com" class="form-input">
                             <span class="input-hint font-mono text-[11px] text-muted">Saved as 'git config --global user.email'</span>
                         </div>
@@ -1007,22 +1039,22 @@ class AgyEnvironments {
 
                     <!-- STEP 2: Connect AI Agents -->
                     <div id="onboard-step-2" class="onboard-card-inner hidden">
-                        <h2 class="onboard-title font-display">Connect Your AI Agents</h2>
-                        <p class="onboard-desc">Login to one or more AI coding assistants. All are optional.</p>
+                        <h2 class="onboard-title font-display" data-i18n="onboardAgentsTitle">Connetti i Tuoi Agenti AI</h2>
+                        <p class="onboard-desc" data-i18n="onboardAgentsDesc">Accedi a uno o più assistenti AI di programmazione. Tutti opzionali.</p>
 
                         <div id="onboard-agents-list" class="onboard-agents-list"></div>
 
-                        <p class="text-center font-mono text-xs text-muted" style="margin-top: 12px;">
-                            You can configure these later in Settings.
+                        <p class="text-center font-mono text-xs text-muted" style="margin-top: 12px;" data-i18n="onboardSettingsHint">
+                            Puoi configurarli in qualsiasi momento nelle Impostazioni.
                         </p>
                     </div>
 
                     <div class="onboard-footer">
-                        <button id="onboard-prev-btn" class="btn btn-outline" onclick="window.agyEnvironments.onboardingPrevious()" style="visibility: hidden;">
-                            &lt; Previous
+                        <button id="onboard-prev-btn" class="btn btn-outline" onclick="window.agyEnvironments.onboardingPrevious()" style="visibility: hidden;" data-i18n="btnPrevious">
+                            &lt; Indietro
                         </button>
-                        <button id="onboard-next-btn" class="btn btn-primary" onclick="window.agyEnvironments.onboardingNext()">
-                            Next &gt;
+                        <button id="onboard-next-btn" class="btn btn-primary" onclick="window.agyEnvironments.onboardingNext()" data-i18n="btnNext">
+                            Avanti &gt;
                         </button>
                     </div>
                 </div>
@@ -1034,27 +1066,27 @@ class AgyEnvironments {
                     <div class="modal-header">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <i data-lucide="layers" class="text-accent"></i>
-                            <h2>Shared Setup <span class="badge-template font-mono text-[10px]">Template layer</span></h2>
+                            <h2><span data-i18n="envSharedSetupTitle">Configurazione Condivisa</span> <span class="badge-template font-mono text-[10px]" data-i18n="envTemplateLayer">Livello Template</span></h2>
                         </div>
                         <button class="icon-btn close-modal-btn" onclick="window.agyEnvironments.closeSharedSetupModal()">
                             <i data-lucide="x"></i>
                         </button>
                     </div>
-                    <p class="text-muted text-xs">Configure shared skills and MCP servers for users or the whole organization.</p>
+                    <p class="text-muted text-xs" data-i18n="envSharedSetupDesc">Configura skill e server MCP condivisi per gli ambienti o per l'intera organizzazione.</p>
 
                     <div class="shared-section-block">
-                        <h4 class="font-display font-bold text-sm" style="margin-bottom: 8px;">🪄 Shared Skills</h4>
+                        <h4 class="font-display font-bold text-sm" style="margin-bottom: 8px;">🪄 <span data-i18n="envSharedSkills">Skills Condivise</span></h4>
                         <div id="shared-skills-list" class="shared-chips-container"></div>
                     </div>
 
                     <div class="shared-section-block" style="margin-top: 16px;">
-                        <h4 class="font-display font-bold text-sm" style="margin-bottom: 8px;">🔌 Shared MCP Servers</h4>
+                        <h4 class="font-display font-bold text-sm" style="margin-bottom: 8px;">🔌 <span data-i18n="envSharedMcp">Server MCP Condivisi</span></h4>
                         <div id="shared-mcp-list" class="shared-chips-container"></div>
                     </div>
 
                     <div class="modal-footer">
-                        <button class="btn btn-outline" onclick="window.agyEnvironments.closeSharedSetupModal()">Chiudi</button>
-                        <button class="btn btn-primary" onclick="window.agyApp.switchTab('settings-tab'); window.agyEnvironments.closeSharedSetupModal();">Modifica in Impostazioni</button>
+                        <button class="btn btn-outline" onclick="window.agyEnvironments.closeSharedSetupModal()" data-i18n="btnClose">Chiudi</button>
+                        <button class="btn btn-primary" onclick="window.agyApp.switchTab('settings-tab'); window.agyEnvironments.closeSharedSetupModal();" data-i18n="envModifyInSettings">Modifica in Impostazioni</button>
                     </div>
                 </div>
             </div>
@@ -1064,12 +1096,12 @@ class AgyEnvironments {
                 <div class="modal-card">
                     <div class="modal-header">
                         <i data-lucide="terminal" class="text-accent"></i>
-                        <h2 id="ssh-modal-env-title">Accesso SSH</h2>
+                        <h2 id="ssh-modal-env-title" data-i18n="sshModalTitle">Accesso SSH</h2>
                         <button class="icon-btn close-modal-btn" onclick="window.agyEnvironments.closeSshModal()">
                             <i data-lucide="x"></i>
                         </button>
                     </div>
-                    <p class="text-muted text-xs">Connettiti direttamente tramite il terminale dal tuo computer o apri la web console:</p>
+                    <p class="text-muted text-xs" data-i18n="sshModalDesc">Connettiti direttamente tramite il terminale dal tuo computer o apri la web console:</p>
 
                     <div class="ssh-code-box">
                         <pre><code id="ssh-command-code">ssh tino@agy.proseo.it -p 22</code></pre>
@@ -1077,10 +1109,10 @@ class AgyEnvironments {
 
                     <div class="modal-footer" style="display:flex; justify-content:space-between; width:100%;">
                         <button id="ssh-copy-btn" class="btn btn-outline" onclick="window.agyEnvironments.copySshCommand()">
-                            <i data-lucide="copy"></i> Copia Comando
+                            <i data-lucide="copy"></i> <span data-i18n="sshCopyCmd">Copia Comando</span>
                         </button>
                         <button class="btn btn-primary" onclick="window.agyEnvironments.launchWebSsh()">
-                            <i data-lucide="external-link"></i> Apri Web Terminal
+                            <i data-lucide="external-link"></i> <span data-i18n="sshOpenWeb">Apri Web Terminal</span>
                         </button>
                     </div>
                 </div>
@@ -1091,12 +1123,12 @@ class AgyEnvironments {
                 <div class="modal-card">
                     <div class="modal-header">
                         <i data-lucide="shield-check" class="text-accent"></i>
-                        <h2 id="pii-modal-env-title">Anonimizza Documenti</h2>
+                        <h2 id="pii-modal-env-title" data-i18n="piiModalTitle">Anonimizza Documenti (PII Shield)</h2>
                         <button class="icon-btn close-modal-btn" onclick="window.agyEnvironments.closePiiModal()">
                             <i data-lucide="x"></i>
                         </button>
                     </div>
-                    <p class="text-muted text-xs">
+                    <p class="text-muted text-xs" data-i18n="piiModalDesc">
                         Carica un PDF, un .txt o un .md: i dati personali (nomi, CF, IBAN, indirizzi...)
                         vengono rilevati ed oscurati in locale, senza uscire da questa macchina.
                         Il file censurato viene salvato in <code>pii-clean/</code> nell'ambiente, pronto per l'agente.
@@ -1114,9 +1146,9 @@ class AgyEnvironments {
                     <div id="pii-error-box" class="hidden" style="margin-top:10px; padding:10px; border-radius:8px; background:rgba(220,38,38,0.1); color:#dc2626; font-size:12px;"></div>
 
                     <div class="modal-footer">
-                        <button class="btn btn-outline" onclick="window.agyEnvironments.closePiiModal()">Chiudi</button>
+                        <button class="btn btn-outline" onclick="window.agyEnvironments.closePiiModal()" data-i18n="btnClose">Chiudi</button>
                         <button id="pii-submit-btn" class="btn btn-primary" onclick="window.agyEnvironments.submitPiiRedact()">
-                            <i data-lucide="shield-check"></i> Anonimizza e Salva
+                            <i data-lucide="shield-check"></i> <span data-i18n="piiModalSubmit">Anonimizza e Salva</span>
                         </button>
                     </div>
                 </div>
@@ -1124,6 +1156,7 @@ class AgyEnvironments {
         `;
 
         document.body.appendChild(container);
+        if (window.agyI18n) window.agyI18n.applyTranslations();
     }
 }
 

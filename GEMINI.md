@@ -43,6 +43,36 @@ public/                 frontend vanilla JS (index.html, js/*.js, css/style.css)
   restano fuori vista), pulsanti Copia/Incolla, Ctrl+C con selezione = copia invece di interrompere il processo.
 - Attenzione alla sintassi: `agy -p` va scritto `-p=<testo>`, altrimenti mangia il flag successivo come prompt.
 - Il tool `/browser` di agy non funziona su host arm64: Google non pubblica il driver Playwright per quell'architettura.
+- **Rizzo-PII Shield (Dati Riservati & Privacy)**: Microservizio locale Docker (`rizzo-pii` su porta 5005) che esegue
+  l'anonimizzazione on-premise di PDF, file di testo e Markdown. Nomi, codici fiscali, IBAN, email e indirizzi
+  vengono oscurati prima del prompt all'agente. I file censurati vengono salvati in `<workspace>/pii-clean/`.
+  Integrato sia via pulsante dedicato nella chat (`#chat-pii-btn`), sia nella card dell'ambiente via modal.
+- **Quick Model & Reasoning Effort Selector**: Popover compatto inline nell'header della chat (`.chat-model-popover`)
+  per switch rapido tra modelli agy e selezione del Thinking Effort (low, medium, high), preservando i flag CLI
+  (`--dangerously-skip-permissions`, `--sandbox`).
+- **Sistema di Internazionalizzazione (i18n)**: Supporto completo multilingua (Italiano IT, Inglese EN, Tedesco DE)
+  con commutazione dinamica live, persistenza (`localStorage['agy_lang']`) e riallineamento automatico dei componenti
+  tramite evento `agy-lang-changed`. Copre tutti i controlli della sidebar, drawer footer ("Segnala Problema",
+  "Community", "Pannello Ambienti", "Impostazioni"), "Pannello Sviluppo Ambienti di Lavoro", quote, wizard di
+  creazione ambiente a 3 step ("Nuovo Progetto", "Importa da GitHub", "Software & Runtime"), e tutti i modal.
+- **Ottimizzazione Mobile & Accessibilità Terminale**:
+  - **Header compatto e pulito**: rimossi i selettori di lingua e tema giorno/notte dall'header dell'IDE per liberare spazio
+    orizzontale critico (rimangono disponibili nelle Impostazioni e sulla landing page).
+  - **Titolo responsive**: `.header-session-title-group` vincolato con troncamento a riga singola ed ellipsis (`text-overflow: ellipsis`),
+    nascondendo il sottotitolo su schermi stretti per evitare l'avvolgimento del testo su 4-5 righe.
+  - **Navigazione sempre visibile**: le tab di navigazione (`.nav-tabs`) mantengono `flex-shrink: 0` su mobile con touch target confortevoli
+    (36x34px), garantendo che l'icona del **Terminale** sia sempre accessibile e visibile.
+  - **Scorciatoie terminale dedicate**: aggiunto pulsante diretto al terminale nel footer del drawer laterale (`drawer-footer-links`)
+    e chip di accesso rapido `[💻 Terminale]` sopra la barra di input della chat.
+  - **Toolbar chat fluida**: barra degli strumenti del composer con scorrimento orizzontale touch per evitare il taglio del badge
+    modello su smartphone, e badge statistici numerici nascosti su mobile.
+- **Risoluzione Refresh Sidebar & Sincronizzazione Brain**:
+  - L'icona di refresh della sidebar esegue `window.agySidebar.refreshAll()` con animazione rotante (`spin-animation`).
+  - Il refresh ricarica sia i progetti (`loadWorkspaces`) che le sessioni (`window.agyChat.fetchSessions(false)`),
+    senza chiudere forzatamente il drawer laterale su mobile né interrompere la chat attiva.
+  - Lato server, `sessionManager.discoverBrainSessions()` effettua la scansione automatica di `~/.gemini/antigravity-cli/brain/`
+    importando qualsiasi conversazione creata direttamente da CLI o da terminale, sincronizzando titolo e metadata.
+  - `sessionManager.load()` preserva in modo sicuro l'`activeSessionId` senza sovrascriverlo con la prima sessione.
 
 ## 4. Esecuzione self-hosted
 

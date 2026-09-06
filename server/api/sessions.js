@@ -6,6 +6,10 @@ module.exports = function createSessionRouter(sessionManager, ptyManager) {
     // Elenco di tutte le sessioni
     router.get('/', (req, res) => {
         try {
+            sessionManager.load();
+            if (typeof sessionManager.discoverBrainSessions === 'function') {
+                sessionManager.discoverBrainSessions();
+            }
             const list = sessionManager.getSessions();
             res.json({ sessions: list });
         } catch (e) {

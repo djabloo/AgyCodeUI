@@ -10,6 +10,8 @@ class AgyApp {
     }
 
     async init() {
+        this.initTheme();
+
         if (window.agyI18n) {
             window.agyI18n.applyTranslations();
         }
@@ -427,6 +429,78 @@ class AgyApp {
             this.switchTab('terminal-tab');
             window.agyTerminal.send(cmd + '\r');
         }
+    }
+
+    initTheme() {
+        const savedTheme = localStorage.getItem('agy_theme') || 'dark';
+        this.setTheme(savedTheme, false);
+
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if (localStorage.getItem('agy_theme') === 'system') {
+                    this.applyEffectiveTheme('system');
+                }
+            });
+        }
+    }
+
+    setTheme(theme, persist = true) {
+        if (persist) {
+            localStorage.setItem('agy_theme', theme);
+        }
+        this.applyEffectiveTheme(theme);
+    }
+
+    applyEffectiveTheme(theme) {
+        let effective = theme;
+        if (theme === 'system') {
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            effective = prefersDark ? 'dark' : 'light';
+        }
+
+        document.documentElement.setAttribute('data-theme', effective);
+        if (effective === 'light') {
+            document.body.classList.add('theme-light');
+            document.body.classList.remove('theme-dark');
+        } else {
+            document.body.classList.add('theme-dark');
+            document.body.classList.remove('theme-light');
+        }
+
+        const iconEl = document.getElementById('theme-toggle-icon');
+        const toggleBtn = document.getElementById('theme-toggle-btn');
+        if (iconEl) {
+            iconEl.setAttribute('data-lucide', effective === 'light' ? 'moon' : 'sun');
+            if (window.lucide) window.lucide.createIcons();
+        }
+        if (toggleBtn) {
+            toggleBtn.setAttribute('title', effective === 'light' ? 'Passa a Notte (Scuro)' : 'Passa a Giorno (Chiaro)');
+        }
+
+        ['dark', 'light', 'system'].forEach(t => {
+            const card = document.getElementById(`theme-card-${t}`);
+            if (card) {
+                if (t === (localStorage.getItem('agy_theme') || 'dark')) {
+                    card.classList.add('active');
+                } else {
+                    card.classList.remove('active');
+                }
+            }
+        });
+    }
+
+    toggleTheme() {
+        const current = localStorage.getItem('agy_theme') || 'dark';
+        let next = 'light';
+        if (current === 'light') {
+            next = 'dark';
+        } else if (current === 'dark') {
+            next = 'light';
+        } else {
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            next = prefersDark ? 'light' : 'dark';
+        }
+        this.setTheme(next);
     }
 
     async restartSession() {
