@@ -668,6 +668,10 @@ class AgyChat {
     }
 
     renderSessionsList() {
+        // sidebarModules.js ricrea da zero il nodo #sessions-list quando ridisegna il
+        // drawer (nuovo elemento, stesso id): il riferimento preso una volta in
+        // constructor() diventerebbe orfano. Ri-agganciarsi sempre al nodo live.
+        this.sessionsListEl = document.getElementById('sessions-list') || this.sessionsListEl;
         if (!this.sessionsListEl) return;
 
         const query = this.sessionSearchEl ? this.sessionSearchEl.value.trim().toLowerCase() : '';
@@ -698,7 +702,7 @@ class AgyChat {
             const safePreview = this.escapeHtml(s.lastMessagePreview || 'Nuova conversazione');
 
             html += `
-                <div class="session-card ${isActive ? 'active' : ''}" data-session-id="${safeId}">
+                <div class="session-card ${isActive ? 'active' : ''}" data-session-id="${safeId}" onclick="window.agyChat.loadSession('${safeId}')">
                     <div class="session-card-main">
                         <div class="session-title-row">
                             <span class="session-title" title="${safeTitle}">${safeTitle}</span>
@@ -709,11 +713,11 @@ class AgyChat {
                             ${s.messageCount > 0 ? `<span class="session-msg-badge">${s.messageCount} msg</span>` : ''}
                         </div>
                     </div>
-                    <div class="session-actions">
-                        <button class="session-action-btn btn-rename" title="Rinomina">
+                    <div class="session-actions" onclick="event.stopPropagation()">
+                        <button class="session-action-btn btn-rename" title="Rinomina" onclick="window.agyChat.renameSession('${safeId}')">
                             <i data-lucide="pencil"></i>
                         </button>
-                        <button class="session-action-btn btn-del" title="Elimina">
+                        <button class="session-action-btn btn-del" title="Elimina" onclick="window.agyChat.deleteSession('${safeId}')">
                             <i data-lucide="trash"></i>
                         </button>
                     </div>
