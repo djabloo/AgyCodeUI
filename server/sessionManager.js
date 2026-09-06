@@ -6,6 +6,11 @@ const crypto = require('crypto');
 class SessionManager {
     constructor(dataPath) {
         this.dataPath = dataPath || path.join(__dirname, 'data', 'sessions.json');
+        // Tombstone delle conversationId eliminate dall'utente: senza, discoverBrainSessions()
+        // le resuscita ad ogni GET /api/sessions perché la cartella agy su disco (brain/<id>)
+        // non sparisce solo perché abbiamo tolto la sessione da sessions.json.
+        this.deletedConvIdsPath = path.join(path.dirname(this.dataPath), 'deleted-conversations.json');
+        this.deletedConversationIds = new Set();
         this.sessions = [];
         this.activeSessionId = null;
         this.currentAssistantMessage = null;
@@ -15,7 +20,29 @@ class SessionManager {
         this.pendingPromptEcho = null;
         this.io = null;
         this.onActiveSessionChange = null; // callback(session): usato per allineare il terminale alla conversazione
+        this._loadDeletedConversationIds();
         this.load();
+    }
+
+    _loadDeletedConversationIds() {
+        try {
+            if (fs.existsSync(this.deletedConvIdsPath)) {
+                const raw = JSON.parse(fs.readFileSync(this.deletedConvIdsPath, 'utf8'));
+                if (Array.isArray(raw)) this.deletedConversationIds = new Set(raw);
+            }
+        } catch (e) {
+            console.warn('[SessionManager] Errore caricamento deleted-conversations.json:', e.message);
+        }
+    }
+
+    _saveDeletedConversationIds() {
+        try {
+            const dir = path.dirname(this.deletedConvIdsPath);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(this.deletedConvIdsPath, JSON.stringify([...this.deletedConversationIds], null, 2), 'utf8');
+        } catch (e) {
+            console.error('[SessionManager] Errore salvataggio deleted-conversations.json:', e.message);
+        }
     }
 
     _notifyActive(session) {
@@ -77,6 +104,7 @@ class SessionManager {
                 const convId = entry.name;
                 if (!/^[a-zA-Z0-9-]+$/.test(convId)) continue;
                 if (existingConvIds.has(convId)) continue;
+                if (this.deletedConversationIds.has(convId)) continue;
 
                 const transcriptFile = path.join(brainDir, convId, '.system_generated', 'logs', 'transcript.jsonl');
                 if (!fs.existsSync(transcriptFile)) continue;
@@ -241,6 +269,14 @@ class SessionManager {
     deleteSession(id) {
         const index = this.sessions.findIndex(s => s.id === id);
         if (index !== -1) {
+            const deletedSession = this.sessions[index];
+            if (deletedSession.conversationId) {
+                // Senza questo tombstone, la prossima GET /api/sessions la resuscita:
+                // discoverBrainSessions() la ritrova ancora su disco (agy non cancella
+                // la sua cartella brain/<id> solo perché l'abbiamo tolta da sessions.json).
+                this.deletedConversationIds.add(deletedSession.conversationId);
+                this._saveDeletedConversationIds();
+            }
             this.sessions.splice(index, 1);
             if (this.activeSessionId === id) {
                 if (this.sessions.length > 0) {
