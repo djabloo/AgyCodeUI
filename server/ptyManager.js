@@ -16,6 +16,7 @@ class PtyManager {
         this.outputHistory = '';
         this.maxHistoryLength = 50000;
         this.listeners = new Set();
+        this.resetListeners = new Set(); // avvisano il client di svuotare lo schermo (nuova conversazione)
         this.isWindows = os.platform() === 'win32';
     }
 
@@ -273,11 +274,30 @@ class PtyManager {
         const next = conversationId || null;
         if (next === this.conversationId && this.ptyProcess) return false;
         this.conversationId = next;
+        // Il vecchio processo agy viene ucciso e ne parte uno nuovo (vedi start()):
+        // senza avvisare il client di svuotare lo schermo, la sessione eliminata/cambiata
+        // resta visibile come scrollback anche se il processo sotto e' gia' un altro.
+        this._notifyReset();
         if (next) {
             this.broadcastData(`\r\n\x1b[90m[agycodeui] Terminale allineato alla conversazione della chat (${next.slice(0, 8)}…)\x1b[0m\r\n`);
         }
         await this.restart();
         return true;
+    }
+
+    onReset(callback) {
+        this.resetListeners.add(callback);
+        return () => this.resetListeners.delete(callback);
+    }
+
+    _notifyReset() {
+        for (const listener of this.resetListeners) {
+            try {
+                listener();
+            } catch (e) {
+                console.error('[PTY] Errore listener reset:', e.message);
+            }
+        }
     }
 
     onData(callback) {
