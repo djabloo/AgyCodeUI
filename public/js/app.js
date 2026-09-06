@@ -119,6 +119,25 @@ class AgyApp {
                     const dashLink = document.getElementById('back-to-dashboard-link');
                     if (dashLink) dashLink.classList.remove('hidden');
                     this.showSaasOnboarding();
+
+                    // In modalità SaaS la gestione ambienti vive solo nella Dashboard
+                    // (fuori dalla IDE): i tre ingressi storici al pannello interno
+                    // (cloud in sidebar, "Pannello Ambienti" nel drawer, icona nuvola
+                    // in header) rimandano tutti li', invece di aprire la vista locale.
+                    if (window.agyEnvironments && typeof window.agyEnvironments.switchView === 'function') {
+                        const originalSwitchView = window.agyEnvironments.switchView.bind(window.agyEnvironments);
+                        window.agyEnvironments.switchView = (viewName) => {
+                            if (viewName === 'environments') {
+                                window.location.href = '/dashboard';
+                                return;
+                            }
+                            return originalSwitchView(viewName);
+                        };
+                        // Anche "Crea Nuovo Ambiente" (folder-plus in sidebar) va in Dashboard
+                        window.agyEnvironments.openCreateModal = () => {
+                            window.location.href = '/dashboard';
+                        };
+                    }
                 }
             }
         } catch (e) {
