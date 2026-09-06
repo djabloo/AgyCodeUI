@@ -114,6 +114,8 @@ class AgyApp {
                     if (window.agySettings && typeof window.agySettings.renderUserProfile === 'function') {
                         window.agySettings.renderUserProfile(data.user, data.subscription);
                     }
+                    const dashLink = document.getElementById('back-to-dashboard-link');
+                    if (dashLink) dashLink.classList.remove('hidden');
                     this.showSaasOnboarding();
                 }
             }
