@@ -53,6 +53,13 @@ class AgyTerminal {
             this.term.write(data);
         });
 
+        // Il server ha sostituito il processo agy sotto (switch/eliminazione
+        // sessione, riavvio manuale): pulisce lo schermo per non lasciare la
+        // vecchia conversazione visibile come scrollback residuo.
+        this.socket.on('terminal-reset', () => {
+            this.clear();
+        });
+
         this.term.onData((data) => {
             this.send(data);
         });

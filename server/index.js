@@ -190,6 +190,7 @@ app.get('/api/status', requireAuth, (req, res) => {
 
 // Endpoint per riavviare la sessione CLI
 app.post('/api/restart', requireAuth, (req, res) => {
+    io.emit('terminal-reset');
     pty.restart();
     io.emit('terminal-output', '\r\n\x1b[32m[agycodeui] Sessione AGY riavviata con successo.\x1b[0m\r\n');
     res.json({ success: true, message: 'Sessione riavviata' });
@@ -268,6 +269,14 @@ io.on('connection', (socket) => {
 // Trasmetti l'output di PTY ai client (solo terminale: la chat usa AgentRunner)
 pty.onData((data) => {
     io.emit('terminal-output', data);
+});
+
+// Il processo agy sotto il terminale viene sostituito (nuova conversazione,
+// switch/eliminazione sessione): avvisa i client di svuotare lo schermo,
+// altrimenti la vecchia sessione resta visibile come scrollback anche se
+// il processo reale è già un altro (bug segnalato da Tino il 2026-09-06).
+pty.onReset(() => {
+    io.emit('terminal-reset');
 });
 
 // Avvia il PTY già allineato alla conversazione della sessione attiva (se esiste)
