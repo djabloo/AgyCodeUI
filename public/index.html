@@ -274,7 +274,7 @@
                     <span>AGY<span class="gradient-brand-text">UI</span><span class="logo-badge">.ai</span></span>
                 </div>
                 <div class="sidebar-header-right">
-                    <button class="icon-btn" onclick="window.agySidebar.loadWorkspaces()" title="Aggiorna Progetti">
+                    <button class="icon-btn" id="sidebar-refresh-btn" onclick="window.agySidebar.refreshAll()" title="Aggiorna Sessioni e Progetti">
                         <i data-lucide="refresh-cw"></i>
                     </button>
                     <button class="icon-btn btn-new-env" onclick="window.agyEnvironments.openCreateModal()" title="Crea Nuovo Ambiente">
@@ -327,21 +327,25 @@
 
             <!-- Drawer Bottom Links -->
             <div class="drawer-footer-links">
+                <button class="drawer-footer-btn" onclick="window.agyApp.switchTab('terminal-tab'); window.agyChat.closeSidebar();" title="Apri Terminale CLI">
+                    <i data-lucide="terminal"></i>
+                    <span data-i18n="navTerminal">Terminale</span>
+                </button>
                 <button class="drawer-footer-btn" onclick="window.agySidebar.openReportIssueModal()">
                     <i data-lucide="bug"></i>
-                    <span>Report Issue</span>
+                    <span data-i18n="drawerReportIssue">Segnala Problema</span>
                 </button>
                 <button class="drawer-footer-btn" onclick="window.agySidebar.openCommunityLink()">
                     <i data-lucide="message-circle"></i>
-                    <span>Join Community</span>
+                    <span data-i18n="drawerCommunity">Community</span>
                 </button>
                 <button class="drawer-footer-btn" onclick="window.agyEnvironments.switchView('environments')">
                     <i data-lucide="cloud"></i>
-                    <span>Environments Dashboard</span>
+                    <span data-i18n="drawerEnvironments">Pannello Ambienti</span>
                 </button>
                 <button class="drawer-footer-btn" onclick="window.agyApp.switchTab('settings-tab')">
                     <i data-lucide="settings"></i>
-                    <span>Settings</span>
+                    <span data-i18n="navSettings">Impostazioni</span>
                 </button>
             </div>
 
@@ -359,15 +363,15 @@
                         <button class="icon-btn sidebar-toggle-btn" title="Menu Laterale" onclick="window.agyChat.toggleSidebar()">
                             <i data-lucide="panel-left"></i>
                         </button>
-                        <h1 class="env-dashboard-main-title font-display">Environments</h1>
+                        <h1 class="env-dashboard-main-title font-display" data-i18n="envDashboardTitle">Pannello Sviluppo Ambienti di Lavoro</h1>
                     </div>
                     <div class="env-dashboard-right">
                         <div class="env-quota-box">
-                            <span id="dashboard-quota-text" class="quota-text font-mono">0 of 10 env</span>
-                            <button class="upgrade-link-btn font-mono" onclick="alert('Piano Pro Attivo!')">Upgrade &rarr;</button>
+                            <span id="dashboard-quota-text" class="quota-text font-mono">0 di 10 ambienti</span>
+                            <button class="upgrade-link-btn font-mono" onclick="alert('Piano Pro Attivo!')" data-i18n="envUpgradeBtn">Aggiorna &rarr;</button>
                         </div>
                         <button class="btn btn-primary btn-new-environment" onclick="window.agyEnvironments.openCreateModal()">
-                            <i data-lucide="plus"></i> New
+                            <i data-lucide="plus"></i> <span data-i18n="envNewBtn">Nuovo Ambiente</span>
                         </button>
                     </div>
                 </header>
@@ -381,19 +385,19 @@
                             </div>
                             <div class="shared-setup-info">
                                 <div class="shared-setup-title-row">
-                                    <h3 class="shared-setup-title font-display">Shared Setup</h3>
-                                    <span class="badge-template font-mono">Template layer</span>
+                                    <h3 class="shared-setup-title font-display" data-i18n="envSharedSetupTitle">Configurazione Condivisa</h3>
+                                    <span class="badge-template font-mono" data-i18n="envTemplateLayer">Livello Template</span>
                                 </div>
-                                <p class="shared-setup-desc">Configure shared skills and MCP servers for users or the whole organization.</p>
+                                <p class="shared-setup-desc" data-i18n="envSharedSetupDesc">Configura skill e server MCP condivisi per gli ambienti o per l'intera organizzazione.</p>
                                 <div class="shared-setup-tags-row">
-                                    <span class="setup-tag-pill font-mono"><i data-lucide="sparkles"></i> Skills</span>
-                                    <span class="setup-tag-pill font-mono"><i data-lucide="network"></i> MCP</span>
+                                    <span class="setup-tag-pill font-mono"><i data-lucide="sparkles"></i> <span data-i18n="envSharedSkills">Skills</span></span>
+                                    <span class="setup-tag-pill font-mono"><i data-lucide="network"></i> <span data-i18n="envSharedMcp">MCP</span></span>
                                 </div>
                             </div>
                         </div>
                         <div class="shared-setup-right">
-                            <button class="btn btn-configure-pill" onclick="window.agyEnvironments.openSharedSetupModal()">
-                                Configure
+                            <button class="btn btn-configure-pill" onclick="window.agyEnvironments.openSharedSetupModal()" data-i18n="envConfigureBtn">
+                                Configura
                             </button>
                         </div>
                     </div>
@@ -450,10 +454,7 @@
                         <button class="icon-btn nav-env-btn" title="Dashboard Ambienti" onclick="window.agyEnvironments.switchView('environments')">
                             <i data-lucide="cloud"></i>
                         </button>
-                        <button class="lang-switch-btn" id="lang-switch-btn" title="Cambia Lingua" onclick="window.agyI18n.toggleLanguage()">
-                            <span id="lang-switch-badge">🇮🇹 <b>IT</b></span>
-                        </button>
-                        <button class="icon-btn" title="Riavvia Sessione CLI" onclick="window.agyApp.restartSession()">
+                        <button class="icon-btn btn-restart-cli" title="Riavvia Sessione CLI" onclick="window.agyApp.restartSession()">
                             <i data-lucide="refresh-cw"></i>
                         </button>
                     </div>
@@ -490,6 +491,9 @@
 
                         <!-- Quick Slash Commands & Action Chips Bar -->
                         <div class="chat-action-chips" id="chat-action-chips">
+                            <button class="chip-btn chip-terminal-shortcut" onclick="window.agyApp.switchTab('terminal-tab')" title="Apri Terminale Interattivo">
+                                <span>💻</span> Terminale
+                            </button>
                             <button class="chip-btn" onclick="window.agyChat.insertPrompt('/goal ')">
                                 <span>🎯</span> /goal
                             </button>
@@ -536,6 +540,7 @@
                             <div id="chat-attachments-bar" class="attachments-bar hidden"></div>
                             <form class="input-form-modern" onsubmit="event.preventDefault(); window.agyChat.submitPrompt();">
                                 <input type="file" id="chat-attach-input" multiple hidden>
+                                <input type="file" id="chat-pii-input" accept=".pdf,.txt,.md,.json,.csv,.log" hidden>
                                 
                                 <div class="composer-textarea-row">
                                     <textarea
@@ -551,6 +556,9 @@
                                     <div class="toolbar-left-actions">
                                         <button type="button" id="chat-attach-btn" class="toolbar-icon-btn" title="Allega file" onclick="document.getElementById('chat-attach-input').click()">
                                             <i data-lucide="paperclip"></i>
+                                        </button>
+                                        <button type="button" id="chat-pii-btn" class="toolbar-icon-btn" title="Anonimizza documento con Rizzo-PII ed allega" onclick="document.getElementById('chat-pii-input').click()">
+                                            <i data-lucide="shield-check" style="color: #10b981;"></i>
                                         </button>
                                         <button type="button" id="chat-screenshot-btn" class="toolbar-icon-btn" title="Cattura screenshot schermo" onclick="window.agyChat.captureScreenshot()">
                                             <i data-lucide="camera"></i>
@@ -569,9 +577,50 @@
                                         <button type="button" class="toolbar-icon-btn" title="Cronologia sessioni" onclick="window.agyChat.toggleSidebar()">
                                             <i data-lucide="clock"></i>
                                         </button>
-                                        <button type="button" id="chat-toolbar-model-pill" class="toolbar-model-pill font-mono" onclick="window.agyApp.switchTab('settings-tab')" title="Cambia Modello AI">
-                                            Default (recommended)
-                                        </button>
+                                        <div class="chat-model-selector-wrapper" style="position: relative; display: inline-block;">
+                                            <button type="button" id="chat-toolbar-model-pill" class="toolbar-model-pill font-mono" onclick="window.agyChat.toggleModelPopover(event)" title="Cambia Modello AI e Reasoning">
+                                                <span id="chat-toolbar-model-name">Gemini Flash</span>
+                                                <span id="chat-toolbar-model-effort" class="model-pill-effort-badge">high</span>
+                                                <i data-lucide="chevron-down" class="model-pill-chevron"></i>
+                                            </button>
+                                            <div id="chat-model-popover" class="chat-model-popover hidden" onclick="event.stopPropagation()">
+                                                <div class="chat-model-popover-header">
+                                                    <div class="chat-model-popover-title">
+                                                        <i data-lucide="bot"></i>
+                                                        <span>Modello & Reasoning</span>
+                                                    </div>
+                                                    <button type="button" class="chat-model-popover-close" onclick="window.agyChat.closeModelPopover()">&times;</button>
+                                                </div>
+
+                                                <div class="chat-model-popover-section">
+                                                    <div class="chat-popover-label-row">
+                                                        <span class="chat-popover-label">Ragionamento (Effort)</span>
+                                                        <span class="chat-popover-hint font-mono" id="chat-popover-effort-hint">high</span>
+                                                    </div>
+                                                    <div class="chat-effort-pill-group">
+                                                        <button type="button" class="effort-pill-btn" data-effort="low" onclick="window.agyChat.quickSetEffort('low')">Low</button>
+                                                        <button type="button" class="effort-pill-btn" data-effort="medium" onclick="window.agyChat.quickSetEffort('medium')">Medium</button>
+                                                        <button type="button" class="effort-pill-btn active" data-effort="high" onclick="window.agyChat.quickSetEffort('high')">High</button>
+                                                    </div>
+                                                </div>
+
+                                                <div class="chat-model-popover-section">
+                                                    <div class="chat-popover-label-row">
+                                                        <span class="chat-popover-label">Modello Attivo</span>
+                                                    </div>
+                                                    <div id="chat-popover-model-list" class="chat-popover-model-list">
+                                                        <!-- Inseriti dinamicamente da chat.js -->
+                                                    </div>
+                                                </div>
+
+                                                <div class="chat-model-popover-footer">
+                                                    <button type="button" class="chat-popover-link-btn" onclick="window.agyChat.closeModelPopover(); window.agyApp.switchTab('settings-tab');">
+                                                        <i data-lucide="settings" style="width: 12px; height: 12px;"></i>
+                                                        <span>Tutte le impostazioni</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="toolbar-right-actions">
@@ -734,7 +783,19 @@
                         <aside class="settings-nav">
                             <button class="settings-sub-tab active" data-subtab="account" onclick="window.agySettings.switchSubTab('account')">
                                 <i data-lucide="user-check"></i>
-                                <span>Account & Modelli</span>
+                                <span data-i18n="navSettings">Account & Generale</span>
+                            </button>
+                            <button class="settings-sub-tab" data-subtab="models-usage" onclick="window.agySettings.switchSubTab('models-usage')">
+                                <i data-lucide="gauge"></i>
+                                <span data-i18n="settingsTabModelsUsage">Modelli & Consumi</span>
+                            </button>
+                            <button class="settings-sub-tab" data-subtab="appearance" onclick="window.agySettings.switchSubTab('appearance')">
+                                <i data-lucide="palette"></i>
+                                <span data-i18n="settingsTabAppearance">Aspetto</span>
+                            </button>
+                            <button class="settings-sub-tab" data-subtab="browser" onclick="window.agySettings.switchSubTab('browser')">
+                                <i data-lucide="globe"></i>
+                                <span data-i18n="settingsTabBrowser">Browser Subagent</span>
                             </button>
                             <button class="settings-sub-tab" data-subtab="mcp" onclick="window.agySettings.switchSubTab('mcp')">
                                 <i data-lucide="server"></i>
@@ -919,6 +980,7 @@
                                         <select id="language-select" class="form-select" onchange="window.agyI18n.setLanguage(this.value)">
                                             <option value="it">🇮🇹 Italiano (Italian)</option>
                                             <option value="en">🇬🇧 English (Inglese)</option>
+                                            <option value="de">🇩🇪 Deutsch (Tedesco)</option>
                                         </select>
                                     </div>
                                 </div>
@@ -1114,11 +1176,263 @@
                                 </div>
                             </div>
 
+                            <!-- Section: Models & Usage (Antigravity Quotas) -->
+                            <div class="settings-section" id="settings-section-models-usage">
+                                <div class="section-header usage-header-flex">
+                                    <div class="usage-title-row">
+                                        <h3 data-i18n="modelsUsageTitle">Models & Usage</h3>
+                                        <button type="button" class="icon-btn-ghost" title="Aggiorna Limiti" onclick="window.agySettings.loadModelsUsage(true)">
+                                            <i data-lucide="refresh-cw" id="models-usage-refresh-icon"></i>
+                                        </button>
+                                    </div>
+                                    <p data-i18n="modelsUsageSubtitle">Manage your model quota and credits.</p>
+                                </div>
+
+                                <!-- Section: Plan -->
+                                <div class="usage-group-title" data-i18n="planSectionTitle">Plan</div>
+                                <div class="settings-card usage-card">
+                                    <div class="usage-row-flex">
+                                        <div>
+                                            <div class="usage-card-title" id="usage-plan-name">Your Plan: Google AI Pro</div>
+                                            <div class="usage-card-desc" id="usage-plan-subtitle">You can upgrade to a Google AI Ultra plan to receive higher rate limits.</div>
+                                        </div>
+                                        <div>
+                                            <button type="button" class="btn btn-primary" onclick="window.agySettings.openUpgradeModal()" data-i18n="upgradeBtn">Upgrade</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Section: Model Credits -->
+                                <div class="usage-group-title" data-i18n="modelCreditsTitle">Model Credits</div>
+                                <div class="settings-card usage-card">
+                                    <div class="usage-row-flex">
+                                        <div style="max-width: 80%;">
+                                            <div class="usage-card-title" data-i18n="enableOveragesTitle">Enable AI Credit Overages</div>
+                                            <div class="usage-card-desc" data-i18n="enableOveragesDesc">When toggled on, Antigravity will use your AI credits to fulfill model requests once you're out of model quota. Antigravity will always use your model quota first before using AI credits.</div>
+                                        </div>
+                                        <div>
+                                            <label class="switch-toggle">
+                                                <input type="checkbox" id="ai-credit-overages-switch" onchange="window.agySettings.toggleCreditOverages(this.checked)">
+                                                <span class="switch-slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Section: Gemini Models -->
+                                <div class="usage-group-title">
+                                    <span data-i18n="geminiModelsTitle">Gemini Models</span>
+                                    <i data-lucide="info" class="info-icon" title="Limiti e frequenza di refresh per Google Gemini"></i>
+                                </div>
+                                <div class="settings-card usage-list-card">
+                                    <div class="usage-metric-row">
+                                        <div class="usage-metric-info">
+                                            <div class="usage-metric-title" data-i18n="weeklyLimitTitle">Weekly Limit Remaining</div>
+                                            <div class="usage-metric-sub" id="gemini-weekly-text">You have used some of your weekly limit, it will fully refresh in 4 days, 8 hours.</div>
+                                        </div>
+                                        <div class="usage-metric-gauge">
+                                            <span class="usage-percent-val" id="gemini-weekly-val">85%</span>
+                                            <div class="usage-ring-container" id="gemini-weekly-ring">
+                                                <svg class="usage-ring" width="34" height="34" viewBox="0 0 34 34">
+                                                    <circle class="usage-ring-bg" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" />
+                                                    <circle class="usage-ring-fill" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" stroke-dasharray="94.24" stroke-dashoffset="14.13" transform="rotate(-90 17 17)" stroke-linecap="round" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="usage-divider"></div>
+                                    <div class="usage-metric-row">
+                                        <div class="usage-metric-info">
+                                            <div class="usage-metric-title" data-i18n="fiveHourLimitTitle">Five Hour Limit Remaining</div>
+                                            <div class="usage-metric-sub" id="gemini-5hour-text">You have used some of your 5-hour limit, it will fully refresh in 2 hours, 18 minutes.</div>
+                                        </div>
+                                        <div class="usage-metric-gauge">
+                                            <span class="usage-percent-val" id="gemini-5hour-val">79%</span>
+                                            <div class="usage-ring-container" id="gemini-5hour-ring">
+                                                <svg class="usage-ring" width="34" height="34" viewBox="0 0 34 34">
+                                                    <circle class="usage-ring-bg" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" />
+                                                    <circle class="usage-ring-fill" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" stroke-dasharray="94.24" stroke-dashoffset="19.79" transform="rotate(-90 17 17)" stroke-linecap="round" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Section: Claude and GPT models -->
+                                <div class="usage-group-title">
+                                    <span data-i18n="claudeGptModelsTitle">Claude and GPT models</span>
+                                    <i data-lucide="info" class="info-icon" title="Limiti per Claude Sonnet e OpenAI GPT"></i>
+                                </div>
+                                <div class="settings-card usage-list-card">
+                                    <div class="usage-metric-row">
+                                        <div class="usage-metric-info">
+                                            <div class="usage-metric-title" data-i18n="weeklyLimitTitle">Weekly Limit Remaining</div>
+                                            <div class="usage-metric-sub" id="claude-weekly-text">You have not used any of your weekly limit.</div>
+                                        </div>
+                                        <div class="usage-metric-gauge">
+                                            <span class="usage-percent-val" id="claude-weekly-val">100%</span>
+                                            <div class="usage-ring-container" id="claude-weekly-ring">
+                                                <svg class="usage-ring" width="34" height="34" viewBox="0 0 34 34">
+                                                    <circle class="usage-ring-bg" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" />
+                                                    <circle class="usage-ring-fill" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" stroke-dasharray="94.24" stroke-dashoffset="0" transform="rotate(-90 17 17)" stroke-linecap="round" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section: Appearance (Theme Day / Night) -->
+                            <div class="settings-section" id="settings-section-appearance">
+                                <div class="section-header">
+                                    <div class="section-header-title">
+                                        <h3 data-i18n="appearanceTitle">Aspetto & Tema Interfaccia</h3>
+                                        <p data-i18n="appearanceSubtitle">Personalizza la luminosità dell'interfaccia tra versione Giorno (Chiaro con sfondo bianco) e Notte (Scuro).</p>
+                                    </div>
+                                </div>
+
+                                <div class="usage-group-title" data-i18n="themeChoiceTitle">Tema Selezionato</div>
+                                <div class="theme-selection-grid">
+                                    <div class="theme-card active" id="theme-card-dark" onclick="window.agyApp.setTheme('dark')">
+                                        <div class="theme-preview theme-preview-dark">
+                                            <div class="preview-header"></div>
+                                            <div class="preview-body">
+                                                <div class="preview-sidebar"></div>
+                                                <div class="preview-content">
+                                                    <div class="preview-line"></div>
+                                                    <div class="preview-line short"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="theme-card-label">
+                                            <i data-lucide="moon"></i>
+                                            <span data-i18n="themeDark">Notte (Scuro)</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="theme-card" id="theme-card-light" onclick="window.agyApp.setTheme('light')">
+                                        <div class="theme-preview theme-preview-light">
+                                            <div class="preview-header"></div>
+                                            <div class="preview-body">
+                                                <div class="preview-sidebar"></div>
+                                                <div class="preview-content">
+                                                    <div class="preview-line"></div>
+                                                    <div class="preview-line short"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="theme-card-label">
+                                            <i data-lucide="sun"></i>
+                                            <span data-i18n="themeLight">Giorno (Chiaro - Sfondo Bianco)</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="theme-card" id="theme-card-system" onclick="window.agyApp.setTheme('system')">
+                                        <div class="theme-preview theme-preview-system">
+                                            <div class="preview-half dark"></div>
+                                            <div class="preview-half light"></div>
+                                        </div>
+                                        <div class="theme-card-label">
+                                            <i data-lucide="monitor"></i>
+                                            <span data-i18n="themeSystem">Automatico (Sistema)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section: Browser Settings -->
+                            <div class="settings-section" id="settings-section-browser">
+                                <div class="section-header">
+                                    <div class="section-header-title">
+                                        <h3 data-i18n="browserSettingsTitle">Browser Settings</h3>
+                                        <p data-i18n="browserSettingsSubtitle">Configure the browser subagent. It requires Google Chrome to be installed. The browser subagent can be invoked by typing /browser in the conversation input box.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Browser Status Card -->
+                                <div class="settings-card usage-card" id="browser-status-card">
+                                    <div class="usage-row-flex">
+                                        <div>
+                                            <div class="usage-card-title">
+                                                <span id="browser-status-badge" class="badge-status-pill badge-success">✓ Google Chrome / Chromium Rilevato</span>
+                                            </div>
+                                            <div class="usage-card-desc" id="browser-status-version" style="font-family: var(--font-mono); font-size: 0.8rem; margin-top: 4px;">
+                                                Chromium 151.0.7922.173 snap (/snap/bin/chromium)
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <button type="button" class="btn btn-outline btn-sm" onclick="window.agySettings.loadBrowserStatus(true)">
+                                                <i data-lucide="refresh-cw"></i> Ricontrolla
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Section: General -->
+                                <div class="usage-group-title" data-i18n="browserGeneralTitle">General</div>
+                                <div class="settings-card usage-card">
+                                    <div class="usage-row-flex">
+                                        <div style="max-width: 70%;">
+                                            <div class="usage-card-title" data-i18n="jsPolicyTitle">Browser Javascript Execution Policy</div>
+                                            <div class="usage-card-desc" data-i18n="jsPolicyDesc">Controls whether the agent can run custom JavaScript to automate complex browser actions.</div>
+                                        </div>
+                                        <div>
+                                            <select id="browser-js-policy-select" class="form-select form-select-modern" onchange="window.agySettings.saveBrowserPolicy(this.value)">
+                                                <option value="request_review" data-i18n="policyReview">Request Review</option>
+                                                <option value="allow_always" data-i18n="policyAllow">Allow Always</option>
+                                                <option value="disallow" data-i18n="policyDisallow">Disallow</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Section: Actuation Permissions -->
+                                <div class="usage-group-title" data-i18n="actuationPermissionsTitle">Actuation Permissions</div>
+                                <div class="settings-card usage-card">
+                                    <div class="usage-row-flex">
+                                        <div style="max-width: 80%;">
+                                            <div class="usage-card-title" data-i18n="actuationRulesTitle">Browser Actuation Rules</div>
+                                            <div class="usage-card-desc" data-i18n="actuationRulesDesc">Configure allowed and denied URLs for browser actuation.</div>
+                                        </div>
+                                        <div>
+                                            <button type="button" class="btn btn-outline" onclick="window.agySettings.openActuationRulesModal()" data-i18n="editBtn">Edit</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </section>
 
             </main>
+    <!-- Modal Regole Browser Actuation -->
+    <div id="browser-rules-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="window.agySettings.closeActuationRulesModal()"></div>
+        <div class="modal-dialog modal-md">
+            <div class="modal-header">
+                <h3 data-i18n="actuationRulesModalTitle">Regole Attuazione Browser (URL Rules)</h3>
+                <button class="icon-btn close-modal-btn" onclick="window.agySettings.closeActuationRulesModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc" data-i18n="actuationRulesModalDesc">Definisci quali URL o domini il subagent browser è autorizzato a navigare o attuare.</p>
+                <div class="rules-form-row">
+                    <select id="rule-type-input" class="form-select" style="max-width: 110px;">
+                        <option value="allow">ALLOW</option>
+                        <option value="deny">DENY</option>
+                    </select>
+                    <input type="text" id="rule-pattern-input" class="form-input" placeholder="e.g. https://*.google.com/*" style="flex:1;">
+                    <button type="button" class="btn btn-primary" onclick="window.agySettings.addActuationRule()">Aggiungi</button>
+                </div>
+                <div class="rules-list-box" id="actuation-rules-list">
+                    <!-- Popolato da settings.js -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="window.agySettings.closeActuationRulesModal()" data-i18n="modalClose">Chiudi</button>
+            </div>
         </div>
     </div>
 

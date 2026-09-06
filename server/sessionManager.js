@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 
@@ -54,8 +55,81 @@ class SessionManager {
         if (this.sessions.length === 0) {
             const initialSession = this.createSession({ title: 'Nuova Sessione AGY' });
             this.activeSessionId = initialSession.id;
-        } else {
+        } else if (!this.activeSessionId || !this.sessions.find(s => s.id === this.activeSessionId)) {
             this.activeSessionId = this.sessions[0].id;
+        }
+    }
+
+    discoverBrainSessions() {
+        try {
+            const brainDir = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'brain');
+            if (!fs.existsSync(brainDir)) return;
+            const entries = fs.readdirSync(brainDir, { withFileTypes: true });
+            let addedAny = false;
+
+            const existingConvIds = new Set();
+            this.sessions.forEach(s => {
+                if (s.conversationId) existingConvIds.add(s.conversationId);
+            });
+
+            for (const entry of entries) {
+                if (!entry.isDirectory()) continue;
+                const convId = entry.name;
+                if (!/^[a-zA-Z0-9-]+$/.test(convId)) continue;
+                if (existingConvIds.has(convId)) continue;
+
+                const transcriptFile = path.join(brainDir, convId, '.system_generated', 'logs', 'transcript.jsonl');
+                if (!fs.existsSync(transcriptFile)) continue;
+
+                try {
+                    const stat = fs.statSync(transcriptFile);
+                    if (stat.size === 0) continue;
+
+                    const content = fs.readFileSync(transcriptFile, 'utf8');
+                    const lines = content.split('\n');
+                    let title = 'Sessione Antigravity ' + convId.slice(0, 8);
+                    let createdAt = stat.birthtime ? stat.birthtime.toISOString() : stat.mtime.toISOString();
+                    let updatedAt = stat.mtime.toISOString();
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const parsed = JSON.parse(line.trim());
+                            if (parsed.created_at && !createdAt) createdAt = parsed.created_at;
+                            if (parsed.type === 'USER_INPUT') {
+                                const rawText = typeof parsed.content === 'string' ? parsed.content : '';
+                                const match = rawText.match(/<USER_REQUEST>\s*([\s\S]*?)\s*<\/USER_REQUEST>/);
+                                let clean = match ? match[1] : rawText;
+                                clean = clean.replace(/<ADDITIONAL_METADATA>[\s\S]*?<\/ADDITIONAL_METADATA>/g, '').trim();
+                                if (clean) {
+                                    title = clean.slice(0, 40) + (clean.length > 40 ? '...' : '');
+                                    break;
+                                }
+                            }
+                        } catch (e) {}
+                    }
+
+                    const newSession = {
+                        id: 'brain-' + convId,
+                        conversationId: convId,
+                        title: title.replace(/^[\/#!\s]+/, '') || 'Sessione Antigravity',
+                        createdAt,
+                        updatedAt,
+                        workspace: process.env.WORKSPACE_DIR || process.cwd(),
+                        messages: []
+                    };
+
+                    this.sessions.push(newSession);
+                    existingConvIds.add(convId);
+                    addedAny = true;
+                } catch (err) {}
+            }
+
+            if (addedAny) {
+                this.save(true);
+            }
+        } catch (e) {
+            console.warn('[SessionManager] Errore discoverBrainSessions:', e.message);
         }
     }
 

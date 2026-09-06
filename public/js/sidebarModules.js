@@ -71,6 +71,29 @@ class AgySidebarModules {
         if (window.lucide) window.lucide.createIcons();
     }
 
+    async refreshAll() {
+        const btn = document.getElementById('sidebar-refresh-btn') || document.querySelector('.sidebar-header-right button');
+        const icon = btn ? btn.querySelector('svg, i') : null;
+        if (icon) icon.classList.add('spin-animation');
+
+        try {
+            if (window.agyChat && typeof window.agyChat.fetchSessions === 'function') {
+                await window.agyChat.fetchSessions(false);
+            }
+            await this.loadWorkspaces();
+            if (this.activeDrawerTab === 'metrics' && typeof this.loadMetrics === 'function') {
+                await this.loadMetrics();
+            }
+            this.renderActiveDrawerTab();
+        } catch (e) {
+            console.error('[Sidebar] Errore refreshAll:', e);
+        } finally {
+            if (icon) {
+                setTimeout(() => icon.classList.remove('spin-animation'), 500);
+            }
+        }
+    }
+
     async loadWorkspaces() {
         try {
             const token = localStorage.getItem('agy_pin') || '';

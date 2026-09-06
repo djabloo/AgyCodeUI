@@ -14,7 +14,7 @@ const path = require('path');
 
 const RIZZO_PII_URL = process.env.RIZZO_PII_URL || 'http://127.0.0.1:5005';
 
-function createPiiRouter() {
+function createPiiRouter(ptyManager) {
     const router = express.Router();
     const dataDir = path.resolve(__dirname, '../data');
     const workspacesFile = path.join(dataDir, 'workspaces.json');
@@ -30,12 +30,21 @@ function createPiiRouter() {
         return [];
     }
 
+    function getDefaultWorkspace() {
+        return (ptyManager && ptyManager.currentWorkspaceDir) || process.env.WORKSPACE_DIR || process.cwd();
+    }
+
     // Il path del workspace target deve corrispondere a uno noto: niente scritture
     // arbitrarie sul filesystem a partire da un header controllato dal client.
+    // Se non specificato, fa fallback sicuro sul workspace attivo corrente.
     function resolveAllowedWorkspacePath(rawPath) {
-        if (!rawPath) return null;
+        const defaultWs = getDefaultWorkspace();
+        if (!rawPath) {
+            return defaultWs ? path.resolve(defaultWs) : null;
+        }
         const resolved = path.resolve(rawPath);
         const known = getStoredWorkspaces().map(w => path.resolve(w.path));
+        if (defaultWs) known.push(path.resolve(defaultWs));
         if (process.env.WORKSPACE_DIR) known.push(path.resolve(process.env.WORKSPACE_DIR));
         return known.includes(resolved) ? resolved : null;
     }

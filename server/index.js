@@ -203,7 +203,7 @@ app.use('/api/workspaces', requireAuth, createWorkspacesRouter(sessionManager, p
 app.use('/api/agents', requireAuth, createAgentsRouter(sessionManager, pty, io));
 app.use('/api/workflows', requireAuth, createWorkflowsRouter(sessionManager, pty, io));
 app.use('/api/metrics', requireAuth, createMetricsRouter(sessionManager, pty));
-app.use('/api/pii', requireAuth, createPiiRouter());
+app.use('/api/pii', requireAuth, createPiiRouter(pty));
 
 // Servire i file statici del client
 app.use(express.static(path.join(__dirname, '../public')));

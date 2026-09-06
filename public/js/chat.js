@@ -17,12 +17,17 @@ class AgyChat {
         this.sidebarBackdropEl = document.getElementById('sidebar-backdrop');
         this.scrollToBottomBtn = document.getElementById('scroll-to-bottom-btn');
         this.headerModelPillEl = document.getElementById('chat-header-model-pill');
+        this.activeModelId = 'gemini-3.8-flash-high';
+        this.activeEffort = 'high';
+        this.modelsList = [];
 
-        // Allegati chat (upload file / screenshot)
+        // Allegati chat (upload file / screenshot / PII)
         this.pendingAttachments = [];
         this.attachmentsBarEl = document.getElementById('chat-attachments-bar');
         this.attachInputEl = document.getElementById('chat-attach-input');
+        this.piiInputEl = document.getElementById('chat-pii-input');
         this.attachBtnEl = document.getElementById('chat-attach-btn');
+        this.piiBtnEl = document.getElementById('chat-pii-btn');
         this.screenshotBtnEl = document.getElementById('chat-screenshot-btn');
 
         // Menu Comandi Slash (/)
@@ -217,6 +222,17 @@ class AgyChat {
         // Initialize sidebar draggable resizer
         this.setupSidebarResizer();
 
+        // Chiudi il popover modello al click esterno
+        document.addEventListener('click', (e) => {
+            const popover = document.getElementById('chat-model-popover');
+            const pill = document.getElementById('chat-toolbar-model-pill');
+            if (popover && !popover.classList.contains('hidden')) {
+                if (!popover.contains(e.target) && (!pill || !pill.contains(e.target))) {
+                    this.closeModelPopover();
+                }
+            }
+        });
+
         // Fetch initial sessions & model info
         this.fetchActiveModel();
         this.fetchSessions();
@@ -230,16 +246,36 @@ class AgyChat {
             });
             if (res.ok) {
                 const data = await res.json();
+                this.modelsList = data.models || [];
                 const currentArgs = data.cliArgs || '';
-                const match = currentArgs.match(/--model\s+([^\s]+)/);
-                if (match) {
-                    const modelId = match[1];
-                    const found = (data.models || []).find(m => m.id === modelId);
-                    this.activeModelName = found ? found.name : modelId;
+
+                // Estrai model
+                const modelMatch = currentArgs.match(/--model\s+([^\s]+)/);
+                if (modelMatch) {
+                    this.activeModelId = modelMatch[1];
+                    const found = this.modelsList.find(m => m.id === this.activeModelId);
+                    this.activeModelName = found ? found.name : this.activeModelId;
                 } else {
-                    this.activeModelName = 'Gemini 3.7 Flash Thinking';
+                    this.activeModelId = 'gemini-3.8-flash-high';
+                    this.activeModelName = 'Gemini 3.8 Flash (High)';
                 }
+
+                // Estrai effort
+                const effortMatch = currentArgs.match(/--effort\s+([^\s]+)/);
+                if (effortMatch) {
+                    this.activeEffort = effortMatch[1];
+                } else if (this.activeModelId.includes('high')) {
+                    this.activeEffort = 'high';
+                } else if (this.activeModelId.includes('medium')) {
+                    this.activeEffort = 'medium';
+                } else if (this.activeModelId.includes('low')) {
+                    this.activeEffort = 'low';
+                } else {
+                    this.activeEffort = 'high';
+                }
+
                 this.updateModelPillUI();
+                this.renderModelPopover();
             }
         } catch (e) {
             console.error('[Chat] Errore recupero modello:', e);
@@ -253,21 +289,137 @@ class AgyChat {
                 <span class="model-pill-name">${this.escapeHtml(this.activeModelName)}</span>
             `;
         }
+
+        const modelNameEl = document.getElementById('chat-toolbar-model-name');
+        const modelEffortEl = document.getElementById('chat-toolbar-model-effort');
+        const effortHintEl = document.getElementById('chat-popover-effort-hint');
+
+        let cleanName = (this.activeModelName || 'Gemini Flash').replace(/\s*\([^)]*\)/g, '').trim();
+        if (modelNameEl) modelNameEl.textContent = cleanName;
+        if (modelEffortEl) modelEffortEl.textContent = this.activeEffort || 'high';
+        if (effortHintEl) effortHintEl.textContent = this.activeEffort || 'high';
+
+        // Aggiorna classi bottoni effort
+        document.querySelectorAll('.effort-pill-btn').forEach(btn => {
+            const eff = btn.getAttribute('data-effort');
+            btn.classList.toggle('active', eff === this.activeEffort);
+        });
+
+        // Aggiorna selezione nella lista popover
+        document.querySelectorAll('.chat-popover-model-item').forEach(item => {
+            const mId = item.getAttribute('data-model-id');
+            const isActive = mId === this.activeModelId;
+            item.classList.toggle('active', isActive);
+            const checkIcon = item.querySelector('.chat-popover-check-icon');
+            if (checkIcon) checkIcon.style.display = isActive ? 'inline-block' : 'none';
+        });
+
         this.updateToolbarBadges();
+    }
+
+    renderModelPopover() {
+        const container = document.getElementById('chat-popover-model-list');
+        if (!container || !this.modelsList || !this.modelsList.length) return;
+
+        let html = '';
+        for (const m of this.modelsList) {
+            const isActive = m.id === this.activeModelId;
+            const badge = m.id.startsWith('gemini') ? 'Google' : (m.id.startsWith('claude') ? 'Anthropic' : 'OSS');
+            const cleanTitle = m.name.replace(/\s*\([^)]*\)/g, '').trim();
+
+            html += `
+                <div class="chat-popover-model-item ${isActive ? 'active' : ''}" data-model-id="${m.id}" onclick="window.agyChat.quickSelectModel('${m.id}')">
+                    <div class="chat-popover-model-left">
+                        <span class="chat-popover-model-title">${this.escapeHtml(cleanTitle)}</span>
+                        <span class="chat-popover-model-id">${this.escapeHtml(m.id)}</span>
+                    </div>
+                    <div class="chat-popover-model-right">
+                        <span class="chat-popover-provider-badge">${badge}</span>
+                        <i data-lucide="check" class="chat-popover-check-icon" style="width: 13px; height: 13px; color: #60a5fa; display: ${isActive ? 'inline-block' : 'none'};"></i>
+                    </div>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    toggleModelPopover(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        const popover = document.getElementById('chat-model-popover');
+        if (!popover) return;
+        const isHidden = popover.classList.contains('hidden');
+        if (isHidden) {
+            popover.classList.remove('hidden');
+            if (window.lucide) window.lucide.createIcons();
+        } else {
+            popover.classList.add('hidden');
+        }
+    }
+
+    closeModelPopover() {
+        const popover = document.getElementById('chat-model-popover');
+        if (popover) popover.classList.add('hidden');
+    }
+
+    async quickSelectModel(modelId) {
+        this.activeModelId = modelId;
+        const found = (this.modelsList || []).find(m => m.id === modelId);
+        if (found) this.activeModelName = found.name;
+
+        this.updateModelPillUI();
+        this.closeModelPopover();
+
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            await fetch('/api/settings/permissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({
+                    model: modelId,
+                    effort: this.activeEffort
+                })
+            });
+            if (window.agySettings && typeof window.agySettings.loadInfo === 'function') {
+                window.agySettings.loadInfo();
+            }
+        } catch (e) {
+            console.error('[Chat] Errore salvataggio modello:', e);
+        }
+    }
+
+    async quickSetEffort(effort) {
+        this.activeEffort = effort;
+        this.updateModelPillUI();
+
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            await fetch('/api/settings/permissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({
+                    model: this.activeModelId,
+                    effort: effort
+                })
+            });
+            if (window.agySettings && typeof window.agySettings.loadInfo === 'function') {
+                window.agySettings.loadInfo();
+            }
+        } catch (e) {
+            console.error('[Chat] Errore salvataggio effort:', e);
+        }
     }
 
     updateToolbarBadges() {
         const countEl = document.getElementById('chat-msg-count-badge');
-        const modelPillEl = document.getElementById('chat-toolbar-model-pill');
         const tokenBadgeEl = document.getElementById('chat-token-count-badge');
 
         if (countEl) {
             const count = (this.currentSession && this.currentSession.messages) ? this.currentSession.messages.length : 0;
             countEl.textContent = count;
-        }
-        if (modelPillEl) {
-            const shortName = this.activeModelName.split(' ')[0] + '...';
-            modelPillEl.textContent = shortName;
         }
     }
 
@@ -280,7 +432,7 @@ class AgyChat {
         }
     }
 
-    async fetchSessions() {
+    async fetchSessions(autoLoadActive = true) {
         const token = localStorage.getItem('agy_pin') || '';
         try {
             const res = await fetch('/api/sessions', {
@@ -293,11 +445,22 @@ class AgyChat {
                 if (window.agySidebar) {
                     window.agySidebar.renderActiveDrawerTab();
                 }
-                const active = this.sessions.find(s => s.isActive);
-                if (active && (!this.currentSession || this.currentSession.id === active.id)) {
-                    this.loadSession(active.id);
-                } else if (this.sessions.length > 0 && !this.currentSession) {
-                    this.loadSession(this.sessions[0].id);
+
+                if (this.currentSession) {
+                    // Aggiorna lo stato/titolo della sessione corrente se presente nell'elenco
+                    const matched = this.sessions.find(s => s.id === this.currentSession.id);
+                    if (matched) {
+                        this.currentSession.title = matched.title;
+                        this.currentSession.updatedAt = matched.updatedAt;
+                        this.updateActiveSessionHeader();
+                    }
+                } else if (autoLoadActive) {
+                    const active = this.sessions.find(s => s.isActive);
+                    if (active) {
+                        this.loadSession(active.id);
+                    } else if (this.sessions.length > 0) {
+                        this.loadSession(this.sessions[0].id);
+                    }
                 }
             }
         } catch (e) {
@@ -1081,8 +1244,14 @@ class AgyChat {
         if (!this.attachBtnEl) {
             this.attachBtnEl = document.getElementById('chat-attach-btn');
         }
+        if (!this.piiBtnEl) {
+            this.piiBtnEl = document.getElementById('chat-pii-btn');
+        }
         if (!this.attachInputEl) {
             this.attachInputEl = document.getElementById('chat-attach-input');
+        }
+        if (!this.piiInputEl) {
+            this.piiInputEl = document.getElementById('chat-pii-input');
         }
         if (!this.attachmentsBarEl) {
             this.attachmentsBarEl = document.getElementById('chat-attachments-bar');
@@ -1092,6 +1261,13 @@ class AgyChat {
             this.attachInputEl.addEventListener('change', (e) => {
                 Array.from(e.target.files || []).forEach(f => this.uploadAndAttach(f));
                 this.attachInputEl.value = '';
+            });
+        }
+
+        if (this.piiInputEl) {
+            this.piiInputEl.addEventListener('change', (e) => {
+                Array.from(e.target.files || []).forEach(f => this.uploadPiiAndAttach(f));
+                this.piiInputEl.value = '';
             });
         }
 
@@ -1177,6 +1353,37 @@ class AgyChat {
         }
     }
 
+    async uploadPiiAndAttach(file) {
+        if (!file) return;
+        const chipId = `pii-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        this.renderAttachmentChip(chipId, file.name, true, null, true);
+
+        try {
+            const pin = localStorage.getItem('agy_pin') || '';
+            const buffer = await file.arrayBuffer();
+            const headers = {
+                'Authorization': pin,
+                'Content-Type': 'application/octet-stream',
+                'X-File-Name': encodeURIComponent(file.name)
+            };
+
+            const res = await fetch('/api/pii/redact', {
+                method: 'POST',
+                headers,
+                body: buffer
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Anonimizzazione fallita');
+
+            this.pendingAttachments.push({ path: data.path, name: data.name, isPii: true });
+            this.renderAttachmentChip(chipId, data.name, false, data.path, true);
+        } catch (err) {
+            console.error('[Chat] Errore PII:', err);
+            this.removeAttachmentChip(chipId);
+            alert('Errore anonimizzazione PII: ' + err.message);
+        }
+    }
+
     async captureScreenshot() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
             alert('La cattura schermo diretta dal browser richiede HTTPS o localhost.\n\nSuggerimento: puoi fare uno screenshot con il sistema operativo (Stamp / Win+Shift+S / Cmd+Shift+4) e incollarlo direttamente qui con Ctrl+V!');
@@ -1222,24 +1429,27 @@ class AgyChat {
         }
     }
 
-    renderAttachmentChip(id, name, isLoading, filePath) {
+    renderAttachmentChip(id, name, isLoading, filePath, isPii = false) {
         if (!this.attachmentsBarEl) return;
         this.attachmentsBarEl.classList.remove('hidden');
 
         let chip = document.getElementById(id);
         if (!chip) {
             chip = document.createElement('div');
-            chip.className = 'attachment-chip';
+            chip.className = `attachment-chip ${isPii ? 'pii-chip' : ''}`;
             chip.id = id;
             this.attachmentsBarEl.appendChild(chip);
+        } else if (isPii) {
+            chip.classList.add('pii-chip');
         }
 
         const isImage = /\.(png|jpe?g|webp|gif|svg)$/i.test(name);
-        const iconName = isLoading ? 'loader-circle' : (isImage ? 'image' : 'paperclip');
+        const iconName = isLoading ? 'loader-circle' : (isPii ? 'shield-check' : (isImage ? 'image' : 'paperclip'));
+        const displayTitle = isPii ? `${name} (Anonimizzato con Rizzo-PII)` : name;
 
         chip.innerHTML = `
             <i data-lucide="${iconName}" class="${isLoading ? 'spin' : ''}"></i>
-            <span class="attachment-name" title="${name}">${name}</span>
+            <span class="attachment-name" title="${this.escapeHtml(displayTitle)}">${this.escapeHtml(name)}</span>
             ${isLoading ? '' : '<button type="button" class="attachment-remove" title="Rimuovi">&times;</button>'}
         `;
         if (!isLoading) {
@@ -1269,7 +1479,7 @@ class AgyChat {
 
     buildPromptWithAttachments(text) {
         if (!this.pendingAttachments.length) return text;
-        const list = this.pendingAttachments.map(a => `- ${a.path}`).join('\n');
+        const list = this.pendingAttachments.map(a => `- ${a.path}${a.isPii ? ' (anonimizzato con Rizzo-PII)' : ''}`).join('\n');
         const header = `📎 File allegati:\n${list}`;
         return text ? `${header}\n\n${text}` : header;
     }
@@ -1289,7 +1499,10 @@ class AgyChat {
         if (welcome) welcome.remove();
 
         if (this.socket && this.socket.connected) {
-            this.socket.emit('chat-prompt', promptText);
+            this.socket.emit('chat-prompt', promptText, {
+                model: this.activeModelId,
+                effort: this.activeEffort
+            });
         } else if (window.agyTerminal) {
             window.agyTerminal.send(promptText + '\r');
         }
