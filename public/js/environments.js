@@ -1,6 +1,5 @@
 /**
  * AGYUI - Environments, Wizards & Shared Setup Controller
- * Matches and exceeds the CloudCLI UX architecture:
  * - Environments Dashboard & Quota
  * - 3-Step Create Environment Wizard (Blank / GitHub Clone, Slug, Tools)
  * - 2-Step Onboarding Setup Wizard (Git config, Agent connections)
@@ -16,9 +15,10 @@ class AgyEnvironments {
         this.currentWizardStep = 1;
         this.selectedStartMode = 'blank'; // 'blank' | 'github'
         this.selectedTools = ['Node.js 22', 'Python 3', 'Git + SSH', 'Build tools', 'Antigravity CLI'];
+        // Nota: questa lista è solo un'etichetta salvata col workspace (README), non installa nulla:
+        // l'ambiente self-hosted gira in modalità "host", usa quello che è già presente sulla macchina.
         this.availableTools = [
-            'Node.js 22', 'Python 3', 'Git + SSH', 'Build tools',
-            'Google Antigravity CLI', 'Claude Code', 'Cursor Agent', 'OpenAI Codex',
+            'Node.js 22', 'Python 3', 'Git + SSH', 'Build tools', 'Google Antigravity CLI',
             'Docker & Compose', 'PostgreSQL 16', 'Redis 7', 'Rust & Cargo', 'Go 1.22', 'Bun'
         ];
         this.currentOnboardingStep = 1;
@@ -117,7 +117,7 @@ class AgyEnvironments {
                     <div class="env-card-header">
                         <div class="env-card-title-group">
                             <h3 class="env-title">${this.escapeHtml(env.name)}</h3>
-                            <span class="env-slug">${this.escapeHtml(env.slug || env.url || 'cloudcli')}</span>
+                            <span class="env-slug">${this.escapeHtml(env.slug || env.url || 'workspace')}</span>
                         </div>
                         <div class="env-card-header-actions">
                             <button class="icon-btn-subtle" title="Elimina Ambiente" onclick="window.agyEnvironments.confirmDelete('${env.id}', '${this.escapeHtml(env.name)}')">
@@ -794,13 +794,12 @@ class AgyEnvironments {
                         <!-- STEP 3: Environment Settings -->
                         <div id="wizard-step-3" class="wizard-step-content hidden">
                             <h3 class="wizard-section-title font-display">Environment Settings</h3>
-                            <p class="wizard-section-desc">Confirm the public URL and optionally add project-specific tools.</p>
+                            <p class="wizard-section-desc">Confirm the folder identifier and optionally note project-specific tools.</p>
 
                             <div class="form-group" style="margin-top: 16px;">
-                                <label class="form-label font-mono text-xs">URL - This is the public address for your environment.</label>
+                                <label class="form-label font-mono text-xs">Slug - used as the local project folder name.</label>
                                 <div class="url-input-wrapper">
                                     <input type="text" id="wizard-slug-input" placeholder="project-slug" class="form-input font-mono">
-                                    <span class="url-suffix font-mono">.cloudcli.ai</span>
                                 </div>
                                 <div class="url-status-badge">
                                     <i data-lucide="check-circle-2" class="text-success"></i>
@@ -811,7 +810,7 @@ class AgyEnvironments {
                             <div class="software-summary-box">
                                 <label class="form-label font-mono text-xs">Software</label>
                                 <p class="software-desc-text font-mono text-xs text-muted">
-                                    Base image includes Node.js 22, Python 3, Git + SSH, Build tools, Claude Code, Codex, Gemini, Cursor agent.
+                                    Runs directly on this machine (host mode): whatever is already installed here, plus Google Antigravity CLI (agy).
                                 </p>
                                 <button type="button" class="add-tools-link-btn" onclick="window.agyEnvironments.openExtraToolsModal()">
                                     <i data-lucide="plus"></i> Add extra tools

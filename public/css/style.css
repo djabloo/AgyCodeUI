@@ -4434,6 +4434,64 @@ input:checked + .slider:before {
     margin-bottom: 24px;
 }
 
+.assistant-selector-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.welcome-model-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: rgba(13, 18, 31, 0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    padding: 6px;
+    max-height: 280px;
+    overflow-y: auto;
+    text-align: left;
+}
+
+.welcome-model-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-main, #e2e8f0);
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.welcome-model-menu-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.welcome-model-menu-item.is-active {
+    color: #06b6d4;
+    font-weight: 600;
+}
+
+.welcome-model-menu-item i {
+    width: 14px;
+    height: 14px;
+}
+
+.welcome-model-menu-loading {
+    padding: 12px;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    text-align: center;
+}
+
 .assistant-selector-pill {
     width: 100%;
     background: rgba(13, 18, 31, 0.9);
