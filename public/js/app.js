@@ -107,7 +107,9 @@ class AgyApp {
             const res = await fetch('/api/auth/me', { headers });
             if (res.ok) {
                 const data = await res.json();
-                if (data.user) {
+                // In self-hosted /api/auth/me risponde comunque con uno user fittizio
+                // ('local-admin', solo per popolare Impostazioni): non e' SaaS reale.
+                if (data.user && data.user.id !== 'local-admin') {
                     this.isSaasMode = true;
                     localStorage.setItem('agy_user', JSON.stringify({
                         ...data.user,
