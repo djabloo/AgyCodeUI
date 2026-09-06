@@ -36,6 +36,14 @@ class AgyApp {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
+        // Deep-link da Dashboard SaaS: /app/?tab=terminal apre subito il terminale
+        // (bottone "SSH" nella Dashboard, non c'e' un vero accesso SSH multi-tenant).
+        const tabParam = urlParams.get('tab');
+        if (tabParam === 'terminal') {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            setTimeout(() => this.switchTab('terminal-tab'), 400);
+        }
+
         if (authErrorParam) {
             const errorEl = document.getElementById('auth-error');
             if (errorEl) {
