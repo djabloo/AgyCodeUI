@@ -146,6 +146,9 @@ class AgyEnvironments {
                         <button class="btn btn-dark env-ssh-btn" onclick="window.agyEnvironments.openSshModal('${env.id}', '${this.escapeHtml(env.name)}')" title="Accesso SSH diretto">
                             <i data-lucide="terminal"></i> SSH
                         </button>
+                        <button class="btn btn-dark env-pii-btn" onclick="window.agyEnvironments.openPiiModal('${env.id}', '${this.escapeHtml(env.name)}', '${env.path}')" title="Anonimizza documenti (PII) per questo ambiente">
+                            <i data-lucide="shield-check"></i> PII
+                        </button>
                     </div>
                 </div>
             `;
@@ -693,6 +696,112 @@ class AgyEnvironments {
     }
 
     // ==========================================
+    // 🛡️ PII REDACTION MODAL (rizzo-pii)
+    // ==========================================
+
+    async openPiiModal(envId, envName, envPath) {
+        const modal = document.getElementById('pii-redact-modal');
+        if (!modal) return;
+
+        this.piiTargetPath = envPath;
+
+        const titleEl = document.getElementById('pii-modal-env-title');
+        if (titleEl) titleEl.textContent = `Anonimizza Documenti — ${envName}`;
+
+        const fileInput = document.getElementById('pii-file-input');
+        if (fileInput) fileInput.value = '';
+        document.getElementById('pii-result-box')?.classList.add('hidden');
+        document.getElementById('pii-error-box')?.classList.add('hidden');
+        document.getElementById('pii-unavailable-notice')?.classList.add('hidden');
+
+        modal.classList.remove('hidden');
+        if (window.lucide) window.lucide.createIcons();
+
+        try {
+            const res = await fetch('/api/pii/health', { headers: this.getAuthHeaders() });
+            if (!res.ok) {
+                document.getElementById('pii-unavailable-notice')?.classList.remove('hidden');
+            }
+        } catch (e) {
+            document.getElementById('pii-unavailable-notice')?.classList.remove('hidden');
+        }
+    }
+
+    closePiiModal() {
+        const modal = document.getElementById('pii-redact-modal');
+        if (modal) modal.classList.add('hidden');
+        this.piiTargetPath = null;
+    }
+
+    async submitPiiRedact() {
+        const fileInput = document.getElementById('pii-file-input');
+        const resultBox = document.getElementById('pii-result-box');
+        const errorBox = document.getElementById('pii-error-box');
+        const submitBtn = document.getElementById('pii-submit-btn');
+
+        resultBox?.classList.add('hidden');
+        errorBox?.classList.add('hidden');
+
+        const file = fileInput?.files?.[0];
+        if (!file) {
+            if (errorBox) {
+                errorBox.textContent = 'Seleziona prima un file (.pdf, .txt o .md).';
+                errorBox.classList.remove('hidden');
+            }
+            return;
+        }
+        if (!this.piiTargetPath) {
+            if (errorBox) {
+                errorBox.textContent = 'Ambiente non valido.';
+                errorBox.classList.remove('hidden');
+            }
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i data-lucide="loader"></i> Anonimizzazione in corso...';
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        try {
+            const buffer = await file.arrayBuffer();
+            const headers = this.getAuthHeaders();
+            headers['X-File-Name'] = encodeURIComponent(file.name);
+            headers['X-Workspace-Path'] = encodeURIComponent(this.piiTargetPath);
+            headers['Content-Type'] = 'application/octet-stream';
+
+            const res = await fetch('/api/pii/redact', {
+                method: 'POST',
+                headers,
+                body: buffer
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || `Errore ${res.status}`);
+            }
+
+            if (resultBox) {
+                resultBox.textContent = `Fatto: salvato come "${data.path}" (${(data.size / 1024).toFixed(1)} KB), pronto per l'agente.`;
+                resultBox.classList.remove('hidden');
+            }
+            if (fileInput) fileInput.value = '';
+        } catch (e) {
+            if (errorBox) {
+                errorBox.textContent = e.message || 'Errore durante l\'anonimizzazione.';
+                errorBox.classList.remove('hidden');
+            }
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="shield-check"></i> Anonimizza e Salva';
+                if (window.lucide) window.lucide.createIcons();
+            }
+        }
+    }
+
+    // ==========================================
     // SHORTCUTS & HELPERS
     // ==========================================
 
@@ -852,7 +961,7 @@ class AgyEnvironments {
             <div id="onboarding-setup-modal" class="modal hidden">
                 <div class="modal-card modal-onboarding">
                     <div class="onboarding-top-bar">
-                        <span class="onboarding-brand font-display">CloudCLI UI</span>
+                        <span class="onboarding-brand font-display">AGY UI</span>
                         <button class="icon-btn close-modal-btn" onclick="window.agyEnvironments.closeOnboardingModal()">
                             <i data-lucide="x"></i>
                         </button>
@@ -972,6 +1081,42 @@ class AgyEnvironments {
                         </button>
                         <button class="btn btn-primary" onclick="window.agyEnvironments.launchWebSsh()">
                             <i data-lucide="external-link"></i> Apri Web Terminal
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PII REDACTION MODAL (rizzo-pii) -->
+            <div id="pii-redact-modal" class="modal hidden">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <i data-lucide="shield-check" class="text-accent"></i>
+                        <h2 id="pii-modal-env-title">Anonimizza Documenti</h2>
+                        <button class="icon-btn close-modal-btn" onclick="window.agyEnvironments.closePiiModal()">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <p class="text-muted text-xs">
+                        Carica un PDF, un .txt o un .md: i dati personali (nomi, CF, IBAN, indirizzi...)
+                        vengono rilevati ed oscurati in locale, senza uscire da questa macchina.
+                        Il file censurato viene salvato in <code>pii-clean/</code> nell'ambiente, pronto per l'agente.
+                    </p>
+
+                    <div id="pii-unavailable-notice" class="hidden" style="margin:10px 0; padding:10px; border-radius:8px; background:rgba(220,38,38,0.1); color:#dc2626; font-size:12px;">
+                        Servizio di anonimizzazione non raggiungibile al momento.
+                    </div>
+
+                    <div class="form-group" style="margin-top:10px;">
+                        <input type="file" id="pii-file-input" accept=".pdf,.txt,.md" class="form-input">
+                    </div>
+
+                    <div id="pii-result-box" class="hidden" style="margin-top:10px; padding:10px; border-radius:8px; background:rgba(16,185,129,0.1); color:#059669; font-size:12px;"></div>
+                    <div id="pii-error-box" class="hidden" style="margin-top:10px; padding:10px; border-radius:8px; background:rgba(220,38,38,0.1); color:#dc2626; font-size:12px;"></div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" onclick="window.agyEnvironments.closePiiModal()">Chiudi</button>
+                        <button id="pii-submit-btn" class="btn btn-primary" onclick="window.agyEnvironments.submitPiiRedact()">
+                            <i data-lucide="shield-check"></i> Anonimizza e Salva
                         </button>
                     </div>
                 </div>

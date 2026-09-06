@@ -13,6 +13,7 @@ const createWorkspacesRouter = require('./api/workspaces');
 const createAgentsRouter = require('./api/agents');
 const createWorkflowsRouter = require('./api/workflows');
 const createMetricsRouter = require('./api/metrics');
+const createPiiRouter = require('./api/pii');
 
 const PORT = process.env.PORT || 3080;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -202,6 +203,7 @@ app.use('/api/workspaces', requireAuth, createWorkspacesRouter(sessionManager, p
 app.use('/api/agents', requireAuth, createAgentsRouter(sessionManager, pty, io));
 app.use('/api/workflows', requireAuth, createWorkflowsRouter(sessionManager, pty, io));
 app.use('/api/metrics', requireAuth, createMetricsRouter(sessionManager, pty));
+app.use('/api/pii', requireAuth, createPiiRouter());
 
 // Servire i file statici del client
 app.use(express.static(path.join(__dirname, '../public')));

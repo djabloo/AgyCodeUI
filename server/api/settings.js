@@ -232,15 +232,8 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
     // 3. AI Agents Connect / Login Endpoints
     router.get('/agents', async (req, res) => {
         try {
-            const homeDir = os.homedir();
-            const claudeConfigPath = path.join(homeDir, '.claude.json');
-            const cursorConfigPath = path.join(homeDir, '.cursor');
-            const codexConfigPath = path.join(homeDir, '.codex');
-
-            const hasClaude = fs.existsSync(claudeConfigPath);
-            const hasCursor = fs.existsSync(cursorConfigPath);
-            const hasCodex = fs.existsSync(codexConfigPath) || !!process.env.OPENAI_API_KEY;
-
+            // AGY UI gira solo su Google Antigravity (agy): nessun altro agente/CLI
+            // e' installato o supportato, quindi non se ne elencano altri qui.
             const agents = [
                 {
                     id: 'antigravity',
@@ -251,46 +244,6 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                     status: 'connected',
                     statusText: 'Configurato ed attivo',
                     color: 'cyan'
-                },
-                {
-                    id: 'claude-code',
-                    name: 'Claude Code',
-                    provider: 'anthropic',
-                    icon: 'sparkles',
-                    badge: hasClaude ? 'Authenticated' : 'Not configured',
-                    status: hasClaude ? 'connected' : 'disconnected',
-                    statusText: hasClaude ? 'Autenticato con successo' : 'Claude CLI non autenticato',
-                    color: 'amber'
-                },
-                {
-                    id: 'cursor',
-                    name: 'Cursor Agent',
-                    provider: 'cursor',
-                    icon: 'box',
-                    badge: hasCursor ? 'Active' : 'Not logged in',
-                    status: hasCursor ? 'connected' : 'disconnected',
-                    statusText: hasCursor ? 'Agent attivo' : 'Non autenticato',
-                    color: 'purple'
-                },
-                {
-                    id: 'openai-codex',
-                    name: 'OpenAI Codex',
-                    provider: 'openai',
-                    icon: 'cpu',
-                    badge: hasCodex ? 'Active' : 'Not configured',
-                    status: hasCodex ? 'connected' : 'disconnected',
-                    statusText: hasCodex ? 'Chiave API impostata' : 'Codex non configurato',
-                    color: 'emerald'
-                },
-                {
-                    id: 'opencode',
-                    name: 'OpenCode',
-                    provider: 'opencode',
-                    icon: 'code-2',
-                    badge: 'Optional',
-                    status: 'disconnected',
-                    statusText: 'OpenCode non configurato',
-                    color: 'indigo'
                 }
             ];
 
