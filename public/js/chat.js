@@ -333,37 +333,56 @@ class AgyChat {
         }
     }
 
-    async createNewSession() {
+    /**
+     * "Nuova Chat": reset solo locale, nessuna sessione salvata finché non parte
+     * il primo messaggio (vedi persistDraftSession, chiamato da sendPrompt).
+     * Prima creava subito una riga vuota in cronologia ad ogni apertura.
+     */
+    createNewSession() {
+        this.currentSession = null;
+        this.renderMessages();
+        this.updateActiveSessionHeader();
+        this.renderSessionsList();
+        if (this.chatInputEl) {
+            this.chatInputEl.value = '';
+            this.chatInputEl.style.height = 'auto';
+            this.chatInputEl.focus();
+        }
+        if (window.innerWidth <= 768) {
+            this.closeSidebar();
+        }
+    }
+
+    /**
+     * Crea davvero la sessione sul server. Chiamato solo al primo messaggio inviato
+     * mentre non c'è una sessione corrente (draft), mai alla semplice apertura di "Nuova Chat".
+     */
+    async persistDraftSession() {
         const token = localStorage.getItem('agy_pin') || '';
         try {
             const currentWs = window.agySidebar?.currentWorkspace?.path || '';
             const res = await fetch('/api/sessions', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': token ? `Bearer ${token}` : ''
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     title: 'Nuova Sessione AGY',
-                    workspace: currentWs 
+                    workspace: currentWs
                 })
             });
             if (res.ok) {
                 const data = await res.json();
                 this.currentSession = data.session;
                 await this.fetchSessions();
-                this.renderMessages();
-                if (this.chatInputEl) {
-                    this.chatInputEl.value = '';
-                    this.chatInputEl.focus();
-                }
-                if (window.innerWidth <= 768) {
-                    this.closeSidebar();
-                }
+                this.updateActiveSessionHeader();
+                return true;
             }
         } catch (e) {
             alert('Errore creazione sessione: ' + e.message);
         }
+        return false;
     }
 
     async renameSession(sessionId) {
@@ -420,8 +439,68 @@ class AgyChat {
     }
 
     updateActiveSessionHeader() {
-        if (this.activeSessionTitleEl && this.currentSession) {
-            this.activeSessionTitleEl.textContent = this.currentSession.title || (window.agyI18n ? window.agyI18n.t('activeSessionTitle') : 'Nuova Sessione');
+        if (!this.activeSessionTitleEl) return;
+        const fallback = window.agyI18n ? window.agyI18n.t('activeSessionTitle') : 'Nuova Sessione';
+        this.activeSessionTitleEl.textContent = this.currentSession ? (this.currentSession.title || fallback) : fallback;
+    }
+
+    // ── Menu modello nella schermata "nuova chat" (dropdown, non naviga alle Impostazioni) ──
+
+    async toggleModelMenu(event) {
+        if (event) event.stopPropagation();
+        const menu = document.getElementById('welcome-model-menu');
+        if (!menu) return;
+        if (!menu.classList.contains('hidden')) {
+            menu.classList.add('hidden');
+            return;
+        }
+        menu.innerHTML = '<div class="welcome-model-menu-loading">Caricamento modelli…</div>';
+        menu.classList.remove('hidden');
+        try {
+            const token = localStorage.getItem('agy_pin') || '';
+            const res = await fetch('/api/settings/info', { headers: { 'Authorization': token } });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const models = data.models || [];
+            menu.innerHTML = models.map(m => `
+                <button type="button" class="welcome-model-menu-item ${m.name === this.activeModelName ? 'is-active' : ''}" onclick="window.agyChat.selectWelcomeModel('${this.escapeHtml(m.id)}', '${this.escapeHtml(m.name)}')">
+                    <span>${this.escapeHtml(m.name)}</span>
+                    ${m.name === this.activeModelName ? '<i data-lucide="check"></i>' : ''}
+                </button>
+            `).join('') || '<div class="welcome-model-menu-loading">Nessun modello disponibile</div>';
+            if (window.lucide) window.lucide.createIcons();
+        } catch (e) {
+            menu.innerHTML = '<div class="welcome-model-menu-loading">Errore caricamento modelli</div>';
+        }
+        // Chiude il menu se si clicca fuori (un solo listener attivo alla volta)
+        setTimeout(() => {
+            document.addEventListener('click', function onDocClick(ev) {
+                if (!menu.contains(ev.target)) {
+                    menu.classList.add('hidden');
+                    document.removeEventListener('click', onDocClick);
+                }
+            });
+        }, 0);
+    }
+
+    async selectWelcomeModel(modelId, modelName) {
+        const menu = document.getElementById('welcome-model-menu');
+        if (menu) menu.classList.add('hidden');
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            const res = await fetch('/api/settings/permissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({ model: modelId })
+            });
+            if (res.ok) {
+                this.activeModelName = modelName;
+                this.updateModelPillUI();
+                const heroName = document.getElementById('hero-selected-model-name');
+                if (heroName) heroName.textContent = modelName;
+            }
+        } catch (e) {
+            console.error('[Chat] Errore cambio modello:', e);
         }
     }
 
@@ -495,15 +574,18 @@ class AgyChat {
                         <h2 class="choose-assistant-title font-display">Choose Your AI Assistant</h2>
                         <p class="choose-assistant-sub">Select a provider to start a new conversation</p>
 
-                        <div class="assistant-selector-pill" onclick="window.agyApp.switchTab('settings-tab')" title="Clicca per cambiare modello">
-                            <div class="assistant-pill-left">
-                                <span class="assistant-logo-icon">🪐</span>
-                                <div class="assistant-name-group">
-                                    <span class="assistant-name" id="hero-selected-model-name">${this.escapeHtml(this.activeModelName)}</span>
-                                    <span class="assistant-sublabel font-mono text-[11px] text-muted">Click to change model</span>
+                        <div class="assistant-selector-wrap">
+                            <div class="assistant-selector-pill" onclick="window.agyChat.toggleModelMenu(event)" title="Clicca per cambiare modello">
+                                <div class="assistant-pill-left">
+                                    <span class="assistant-logo-icon">🪐</span>
+                                    <div class="assistant-name-group">
+                                        <span class="assistant-name" id="hero-selected-model-name">${this.escapeHtml(this.activeModelName)}</span>
+                                        <span class="assistant-sublabel font-mono text-[11px] text-muted">Click to change model</span>
+                                    </div>
                                 </div>
+                                <i data-lucide="chevron-down" class="assistant-chevron"></i>
                             </div>
-                            <i data-lucide="chevron-down" class="assistant-chevron"></i>
+                            <div id="welcome-model-menu" class="welcome-model-menu hidden"></div>
                         </div>
 
                         <p class="assistant-ready-note font-mono text-xs text-muted">
@@ -1192,9 +1274,16 @@ class AgyChat {
         return text ? `${header}\n\n${text}` : header;
     }
 
-    sendPrompt(promptText) {
+    async sendPrompt(promptText) {
         if (!promptText || !promptText.trim()) return;
-        
+
+        // Prima chat scritta davvero: la sessione va creata ORA, non quando si è
+        // aperta la schermata "Nuova Chat" (altrimenti restano righe vuote in cronologia).
+        if (!this.currentSession) {
+            const ok = await this.persistDraftSession();
+            if (!ok) return;
+        }
+
         // Remove welcome screen
         const welcome = this.chatMessagesEl ? this.chatMessagesEl.querySelector('.chat-welcome') : null;
         if (welcome) welcome.remove();
