@@ -29,6 +29,6 @@ Thumbs.db
 # Backups
 *.bak*
 
-# Server SaaS privato: repo separato e annidato (djabloo/AGYUI), non fa parte
-# di questo repo pubblico. Ha il suo .git, tracciato lì, ignorato qui.
+# Il server SaaS (djabloo/AGYUI, privato) vive in /opt/agyui-server, repo e cartella
+# separati: non deve tornare qui dentro (è successo una volta, poi rimosso).
 saas/
