@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/djabloo/AgyCodeUI/discussions
+    about: Fai domande, chiedi consigli di installazione o proponi idee informali.
+  - name: 💬 Discord Community
+    url: https://discord.gg/agyui
+    about: Chatta in tempo reale con la community e gli sviluppatori.
+  - name: 📖 Documentazione Progetto
+    url: https://github.com/djabloo/AgyCodeUI#readme
+    about: Consulta la guida completa all'installazione e all'uso.

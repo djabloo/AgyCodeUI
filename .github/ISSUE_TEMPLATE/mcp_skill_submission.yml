@@ -1,0 +1,51 @@
+name: 🧩 Condividi MCP Server o Custom Skill
+description: Segnala o proponi un nuovo server MCP o una Custom Skill per Google Antigravity.
+title: "[ECOSYSTEM]: "
+labels: ["ecosystem", "mcp-skill"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Condividi il tuo server MCP o la tua Custom Skill con tutta la community di AGYUI!
+
+  - type: dropdown
+    id: submission_type
+    attributes:
+      label: Tipo di Risorsa
+      options:
+        - "Server MCP (Model Context Protocol)"
+        - "Custom Skill (SKILL.md folder)"
+        - "Plugin per agy CLI"
+    validations:
+      required: true
+
+  - type: input
+    id: resource_name
+    attributes:
+      label: Nome della Risorsa
+      placeholder: es. mcp-postgres-analytics oppure skill-docker-deploy
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrizione e Funzionalità
+      description: Cosa permette di fare questa risorsa a Google Antigravity?
+    validations:
+      required: true
+
+  - type: input
+    id: repo_url
+    attributes:
+      label: Repository o Link Sorgente
+      placeholder: https://github.com/autore/mcp-server-xyz
+    validations:
+      required: true
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Esempio di Configurazione JSON / Shell
+      description: Incolla la configurazione per `agy mcp add` o il comando di avvio.
+      render: json

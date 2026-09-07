@@ -1,0 +1,50 @@
+name: 💡 Proposta di Funzionalità (Feature Request)
+description: Proponi una nuova idea, un miglioramento all'interfaccia o una nuova funzionalità.
+title: "[FEATURE]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hai un'idea per migliorare AgyCodeUI? Ci piacerebbe ascoltarla! Per discussioni informali o brainstorming, considera anche [GitHub Discussions (Ideas & RFC)](https://github.com/djabloo/AgyCodeUI/discussions).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Il Problema o Caso d'Uso
+      description: La tua richiesta è collegata a un problema o a una limitazione attuale?
+      placeholder: Vorrei poter... perché attualmente...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: La Soluzione Desiderata
+      description: Una descrizione chiara e concisa di cosa vorresti che venisse implementato.
+      placeholder: Aggiungere un toggle rapido per...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Considerate
+      description: Hai provato soluzioni alternative o workaround temporanei?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Area Interessata
+      options:
+        - "Chat & Prompting Interface"
+        - "Terminale PTY (xterm.js)"
+        - "PWA & Mobile UI"
+        - "Integrazione Modelli AI & Reasoning"
+        - "MCP Servers & Custom Skills"
+        - "Sicurezza & Autenticazione"
+        - "Altro"
+    validations:
+      required: true

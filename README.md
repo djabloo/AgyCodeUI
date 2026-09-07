@@ -5,6 +5,8 @@
 [![Socket.io](https://img.shields.io/badge/Socket.io-v4.8-black.svg)](https://socket.io)
 [![PWA Ready](https://img.shields.io/badge/PWA-Ready-purple.svg)](public/manifest.json)
 [![Security: Hardened](https://img.shields.io/badge/Security-Hardened-red.svg)](#-sicurezza-hardened--difesa-in-profondit)
+[![GitHub Discussions](https://img.shields.io/badge/Discussions-Join-teal.svg)](https://github.com/djabloo/AgyCodeUI/discussions)
+[![Community](https://img.shields.io/badge/Community-Welcome-orange.svg)](COMMUNITY.md)
 
 Un'interfaccia web e mobile moderna, reattiva e orientata alla sicurezza per interagire con **Google Antigravity CLI (`agy`)** da qualsiasi browser o smartphone, sia in esecuzione su una VPS remota sia in locale.
 
@@ -241,6 +243,17 @@ Tutte le richieste API autenticate richiedono l'header `Authorization: Bearer <P
 | `POST` | `/api/settings/plugins/install` | Installazione nuovo plugin CLI |
 | `POST` | `/api/settings/plugins/import` | Importazione plugin da Gemini / Claude |
 | `DELETE`| `/api/settings/plugins/:name` | Disinstallazione plugin |
+
+---
+
+## 👥 Community & Supporto
+
+La community di **AgyCodeUI** e **AGYUI.ai** è aperta a tutti gli sviluppatori:
+- 💬 **Domande & Idee**: partecipa alle conversazioni su [GitHub Discussions](https://github.com/djabloo/AgyCodeUI/discussions)
+- 🐛 **Segnalazioni**: apri un report strutturato su [GitHub Issues](https://github.com/djabloo/AgyCodeUI/issues)
+- 🤝 **Linee Guida**: consulta la nostra [Guida ai Contributi](CONTRIBUTING.md) e il [Codice di Condotta](CODE_OF_CONDUCT.md)
+- 🧭 **Panoramica Community**: consulta [COMMUNITY.md](COMMUNITY.md) per tutti i canali e le risorse
+- 🪐 **Cloud Platform & Demo**: [agyui.ai](https://agyui.ai) / [agy.proseo.it](https://agy.proseo.it)
 
 ---
 
