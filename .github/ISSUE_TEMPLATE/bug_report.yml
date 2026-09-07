@@ -1,0 +1,76 @@
+name: 🐛 Bug Report
+description: Segnala un malfunzionamento, un errore o un problema inatteso in AgyCodeUI.
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Grazie per la segnalazione! Prima di aprire questa issue, verifica che il problema non sia già stato segnalato in [Issues](https://github.com/djabloo/AgyCodeUI/issues) o discusso in [Discussions](https://github.com/djabloo/AgyCodeUI/discussions).
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrizione del Bug
+      description: Spiega in modo chiaro e conciso cosa è andato storto.
+      placeholder: Quando clicco su... il terminale PTY si chiude con...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Passaggi per Riprodurre il Problema
+      description: Elenca i passaggi esatti per riprodurre il comportamento.
+      placeholder: |
+        1. Avvia AgyCodeUI con `npm start`
+        2. Accedi inserendo il PIN
+        3. Seleziona il modello X
+        4. Invia il prompt Y
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento Atteso
+      description: Cosa ti aspettavi che accadesse invece?
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log di Errore / Output Console
+      description: Incolla l'output della console del server (Node) o della console del browser (F12).
+      render: shell
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Tipo di Ambiente
+      options:
+        - "Cloud / VPS remota (es. Caddy + HTTPS)"
+        - "Locale su macchina desktop (localhost:3080)"
+        - "Docker Container"
+        - "Altro"
+    validations:
+      required: true
+
+  - type: input
+    id: os_browser
+    attributes:
+      label: Sistema Operativo e Browser
+      description: Es. Ubuntu 24.04 / Chrome 128 / iOS Safari PWA
+      placeholder: Ubuntu 24.04, Chrome 128
+    validations:
+      required: true
+
+  - type: input
+    id: agy_version
+    attributes:
+      label: Versione di agy CLI e Node.js
+      description: Esegui `agy --version` e `node -v` nel terminale.
+      placeholder: agy v1.1.22, Node v22.14.0
+    validations:
+      required: false
