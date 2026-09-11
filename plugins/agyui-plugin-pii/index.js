@@ -647,7 +647,7 @@ const SHELL = `
   <div class="agypii-top">
     <div class="agypii-brand">
       <span class="agypii-mark">__SHIELD__</span>
-      <span>AGYUI PII<small>motore Rizzo-PII · in locale, niente esce da qui</small></span>
+      <span>PII<small>motore Rizzo-PII · in locale, niente esce da qui</small></span>
     </div>
     <span class="agypii-pill" id="agypii-health"><span class="agypii-dot"></span> controllo motore…</span>
   </div>
