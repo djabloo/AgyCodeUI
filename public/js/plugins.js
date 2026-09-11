@@ -54,27 +54,27 @@ class AgyPlugins {
             tabBtn.className = "nav-tab plugin-nav-tab";
             tabBtn.setAttribute("data-tab", `plugin-tab-${p.name}`);
             tabBtn.title = p.displayName;
+            tabBtn.setAttribute("aria-label", p.displayName);
             tabBtn.onclick = () => this.switchPluginTab(p.name);
 
-            // Icona tab
-            const iconSpan = document.createElement("span");
-            iconSpan.className = "plugin-tab-icon";
-            iconSpan.style.display = "inline-flex";
-            iconSpan.style.alignItems = "center";
-            iconSpan.style.marginRight = "5px";
+            // Icona tab: inserita DIRETTAMENTE nel tabBtn (NON dentro uno span!)
+            // così su mobile non viene nascosta dalla regola CSS ".nav-tab span { display: none !important; }"
+            let iconMarkup = '<i data-lucide="package"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg></i>';
 
             if (p.name.includes("terminal")) {
-                iconSpan.innerHTML = '<i data-lucide="terminal"></i>';
+                iconMarkup = '<i data-lucide="terminal"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-terminal"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" x2="20" y1="19" y2="19"></line></svg></i>';
             } else if (p.name.includes("stats") || p.name.includes("starter")) {
-                iconSpan.innerHTML = '<i data-lucide="bar-chart-2"></i>';
-            } else {
-                iconSpan.innerHTML = '<i data-lucide="package"></i>';
+                iconMarkup = '<i data-lucide="bar-chart-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bar-chart-2"><line x1="18" x2="18" y1="20" y2="10"></line><line x1="12" x2="12" y1="20" y2="4"></line><line x1="6" x2="6" y1="20" y2="14"></line></svg></i>';
             }
+
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = iconMarkup;
+            const iconEl = tempDiv.firstElementChild;
 
             const labelSpan = document.createElement("span");
             labelSpan.textContent = p.displayName;
 
-            tabBtn.appendChild(iconSpan);
+            tabBtn.appendChild(iconEl);
             tabBtn.appendChild(labelSpan);
             nav.appendChild(tabBtn);
 
