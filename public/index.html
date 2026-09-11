@@ -530,8 +530,7 @@
                             <div id="chat-attachments-bar" class="attachments-bar hidden"></div>
                             <form class="input-form-modern" onsubmit="event.preventDefault(); window.agyChat.submitPrompt();">
                                 <input type="file" id="chat-attach-input" multiple hidden>
-                                <input type="file" id="chat-pii-input" accept=".pdf,.txt,.md,.json,.csv,.log" hidden>
-                                
+
                                 <div class="composer-textarea-row">
                                     <textarea
                                         id="chat-prompt-input"
@@ -547,9 +546,21 @@
                                         <button type="button" id="chat-attach-btn" class="toolbar-icon-btn" title="Allega file" onclick="document.getElementById('chat-attach-input').click()">
                                             <i data-lucide="paperclip"></i>
                                         </button>
-                                        <button type="button" id="chat-pii-btn" class="toolbar-icon-btn" title="Anonimizza documento con Rizzo-PII ed allega" onclick="document.getElementById('chat-pii-input').click()">
-                                            <i data-lucide="shield-check" style="color: #10b981;"></i>
-                                        </button>
+                                        <div class="chat-pii-folder-wrapper" style="position: relative; display: inline-block;">
+                                            <button type="button" id="chat-pii-btn" class="toolbar-icon-btn" title="Documenti anonimizzati (cartella pii-clean)" onclick="window.agyChat.togglePiiFolderMenu(event)">
+                                                <i data-lucide="folder-lock" style="color: #10b981;"></i>
+                                            </button>
+                                            <div id="chat-pii-folder-menu" class="chat-model-popover hidden" onclick="event.stopPropagation()">
+                                                <div class="chat-model-popover-header">
+                                                    <div class="chat-model-popover-title">
+                                                        <i data-lucide="folder-lock"></i>
+                                                        <span>Documenti anonimizzati</span>
+                                                    </div>
+                                                    <button type="button" class="chat-model-popover-close" onclick="window.agyChat.closePiiFolderMenu()">&times;</button>
+                                                </div>
+                                                <div id="chat-pii-folder-list" class="welcome-model-menu" style="position: static; max-height: 260px;"></div>
+                                            </div>
+                                        </div>
                                         <button type="button" id="chat-screenshot-btn" class="toolbar-icon-btn" title="Cattura screenshot schermo" onclick="window.agyChat.captureScreenshot()">
                                             <i data-lucide="camera"></i>
                                         </button>
