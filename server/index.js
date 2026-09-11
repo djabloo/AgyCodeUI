@@ -14,6 +14,9 @@ const createAgentsRouter = require('./api/agents');
 const createWorkflowsRouter = require('./api/workflows');
 const createMetricsRouter = require('./api/metrics');
 const createPiiRouter = require('./api/pii');
+const PluginManager = require('./pluginManager');
+const createPluginsRouter = require('./api/plugins');
+const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 3080;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -85,6 +88,10 @@ const transcriptSync = new TranscriptSync({ sessionManager, agentRunner });
 agentRunner.onTurnComplete = (session) => setTimeout(() => transcriptSync.syncSession(session, true), 400);
 transcriptSync.start();
 
+// Inizializza PluginManager per estensioni web e server PTY dei plugin
+const pluginManager = new PluginManager();
+pluginManager.init();
+
 // Gestione sicurezza PIN con Timing-Safe comparison e Rate Limiting
 const authAttempts = new Map(); // ip -> { count, until }
 
@@ -124,6 +131,8 @@ function requireAuth(req, res, next) {
     let token = '';
     if (authHeader && typeof authHeader === 'string') {
         token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+    } else if (req.query && req.query.token) {
+        token = String(req.query.token).trim();
     }
     if (token && pinOk(token)) {
         return next();
@@ -205,6 +214,7 @@ app.use('/api/agents', requireAuth, createAgentsRouter(sessionManager, pty, io))
 app.use('/api/workflows', requireAuth, createWorkflowsRouter(sessionManager, pty, io));
 app.use('/api/metrics', requireAuth, createMetricsRouter(sessionManager, pty));
 app.use('/api/pii', requireAuth, createPiiRouter(pty));
+app.use('/api/plugins', createPluginsRouter(pluginManager, requireAuth));
 
 // Servire i file statici del client
 app.use(express.static(path.join(__dirname, '../public')));
@@ -283,6 +293,32 @@ pty.onReset(() => {
 const activeAtBoot = sessionManager.getActiveSession();
 pty.conversationId = activeAtBoot && activeAtBoot.conversationId ? activeAtBoot.conversationId : null;
 pty.start();
+
+// Gestione WebSocket Upgrade per i Plugin (/plugin-ws/:name)
+const pluginWss = new WebSocketServer({ noServer: true });
+server.on('upgrade', (request, socket, head) => {
+    let pathname = '';
+    try {
+        pathname = new URL(request.url, `http://${request.headers.host || 'localhost'}`).pathname;
+    } catch (_) {}
+    if (pathname && pathname.startsWith('/plugin-ws/')) {
+        if (AUTH_PIN) {
+            const urlObj = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+            const token = urlObj.searchParams.get('token') || request.headers['authorization']?.replace('Bearer ', '');
+            if (!token || !pinOk(token)) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+        }
+        pluginWss.handleUpgrade(request, socket, head, (clientWs) => {
+            pluginManager.handleWsProxy(clientWs, pathname);
+        });
+    }
+});
+
+process.on('SIGINT', () => { pluginManager.shutdown(); process.exit(0); });
+process.on('SIGTERM', () => { pluginManager.shutdown(); process.exit(0); });
 
 // Avvia il server HTTP
 server.listen(PORT, HOST, () => {

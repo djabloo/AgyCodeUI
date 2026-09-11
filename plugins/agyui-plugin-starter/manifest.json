@@ -1,0 +1,13 @@
+{
+  "name": "agyui-plugin-starter",
+  "displayName": "Project Stats",
+  "version": "1.0.0",
+  "description": "A starter plugin that shows project stats and demonstrates the full plugin API.",
+  "author": "AGYUI",
+  "icon": "icon.svg",
+  "type": "module",
+  "slot": "tab",
+  "entry": "dist/index.js",
+  "server": "dist/server.js",
+  "permissions": []
+}

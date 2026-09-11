@@ -20,6 +20,20 @@ class AgyApp {
             window.lucide.createIcons();
         }
 
+        if (window.agyPlugins) {
+            window.agyPlugins.init();
+        }
+
+        const navTabs = document.querySelector('.nav-tabs');
+        if (navTabs) {
+            navTabs.addEventListener('wheel', (e) => {
+                if (e.deltaY !== 0) {
+                    e.preventDefault();
+                    navTabs.scrollLeft += e.deltaY;
+                }
+            }, { passive: false });
+        }
+
         if (this.promptInput) {
             this.promptInput.addEventListener('input', () => {
                 this.promptInput.style.height = 'auto';
@@ -79,6 +93,7 @@ class AgyApp {
 
                 this.connectSocket(token);
                 if (window.agyFiles) window.agyFiles.loadDir('');
+                if (window.agyPlugins) window.agyPlugins.init();
                 if (window.lucide) window.lucide.createIcons();
                 return;
             }
@@ -326,6 +341,7 @@ class AgyApp {
                 localStorage.setItem('agy_pin', pin);
                 this.connectSocket(pin);
                 if (window.agyFiles) window.agyFiles.loadDir('');
+                if (window.agyPlugins) window.agyPlugins.init();
             } else {
                 this.authError.textContent = 'PIN errato. Riprova.';
                 this.authError.classList.remove('hidden');

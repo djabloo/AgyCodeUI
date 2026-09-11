@@ -4,8 +4,8 @@
   "description": "Mobile-friendly Web UI & Remote Manager for Antigravity CLI",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0e17",
-  "theme_color": "#0d1117",
+  "background_color": "#091329",
+  "theme_color": "#091329",
   "icons": [
     {
       "src": "/favicon.svg",

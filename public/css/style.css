@@ -658,16 +658,28 @@ html, body {
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
     overflow-x: auto;
-    scrollbar-width: none;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
     max-width: 100%;
     min-width: 0;
+    flex: 1 1 auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
 }
 
 .nav-tabs::-webkit-scrollbar {
-    display: none;
+    height: 3px;
+}
+
+.nav-tabs::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
 }
 
 .nav-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -2706,17 +2718,6 @@ input:checked + .slider:before {
 /* 📱 Responsive Media Queries */
 .spin-animation {
     animation: agy-spin 0.6s linear infinite !important;
-}
-
-.chip-terminal-shortcut {
-    border-color: rgba(99, 102, 241, 0.4) !important;
-    background: rgba(99, 102, 241, 0.15) !important;
-    color: #a5b4fc !important;
-    font-weight: 600;
-}
-.chip-terminal-shortcut:hover, .chip-terminal-shortcut:active {
-    background: rgba(99, 102, 241, 0.3) !important;
-    color: #ffffff !important;
 }
 
 @media (max-width: 768px) {
@@ -6331,3 +6332,330 @@ body.theme-light {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+/* ==========================================================================
+   🧩 Plugin Architecture & Settings (matching CloudCLI / AGYUI screenshots)
+   ========================================================================== */
+
+.nav-tab-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border-color, rgba(255, 255, 255, 0.12));
+    margin: auto 4px;
+    align-self: center;
+}
+
+.plugins-settings-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 4px;
+}
+
+.plugin-install-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.plugin-input-group {
+    display: flex;
+    align-items: center;
+    background: rgba(18, 20, 29, 0.85);
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+    border-radius: var(--radius-md, 8px);
+    padding: 3px 4px 3px 12px;
+    gap: 10px;
+    transition: border-color 0.2s ease;
+}
+
+.plugin-input-group:focus-within {
+    border-color: var(--primary, #6366f1);
+}
+
+.plugin-input-group .input-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted, #71717a);
+    flex-shrink: 0;
+}
+
+.plugin-input-group input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main, #f4f4f5);
+    font-size: 0.88rem;
+    font-family: var(--font-mono, monospace);
+}
+
+.plugin-input-group input::placeholder {
+    color: var(--text-muted, #71717a);
+}
+
+.plugin-input-group .btn {
+    padding: 6px 18px;
+    font-size: 0.84rem;
+}
+
+.plugin-security-hint {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.78rem;
+    color: var(--text-muted, #8b949e);
+    padding-left: 2px;
+}
+
+.plugin-security-hint i {
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted, #8b949e);
+    flex-shrink: 0;
+}
+
+.plugin-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.plugin-group-header h4 {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text-muted, #8b949e);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.plugin-group-header p {
+    font-size: 0.8rem;
+    color: var(--text-muted, #71717a);
+    margin: 0;
+}
+
+.plugin-cards-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.plugin-card-full {
+    display: flex;
+    background: rgba(18, 20, 28, 0.75);
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 8px);
+    padding: 16px 18px;
+    gap: 16px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.plugin-card-full.active-border {
+    border-left: 3px solid #10b981;
+}
+
+.plugin-card-left-icon {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 2px;
+    color: var(--text-main, #d1d5db);
+}
+
+.plugin-card-left-icon i {
+    width: 26px;
+    height: 26px;
+    stroke-width: 1.75;
+}
+
+.plugin-card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.plugin-card-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.plugin-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-bright, #ffffff);
+}
+
+.plugin-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    line-height: 1.2;
+}
+
+.badge-version {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-muted, #a1a1aa);
+    font-family: var(--font-mono, monospace);
+}
+
+.badge-slot {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted, #8b949e);
+}
+
+.status-running {
+    color: #10b981;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.status-running .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    display: inline-block;
+}
+
+.status-stopped {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.status-stopped .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+    display: inline-block;
+}
+
+.status-disabled {
+    color: #71717a;
+    font-weight: 600;
+}
+
+.status-disabled .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #71717a;
+    display: inline-block;
+}
+
+.plugin-card-controls {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.plugin-action-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #71717a);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.plugin-action-icon-btn:hover {
+    color: var(--text-bright, #ffffff);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.plugin-action-icon-btn i {
+    width: 16px;
+    height: 16px;
+}
+
+/* Switch toggle (iOS / modern style) */
+.switch-toggle {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 20px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.switch-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.15);
+    transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    border-radius: 20px;
+}
+
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    border-radius: 50%;
+}
+
+.switch-toggle input:checked + .switch-slider {
+    background-color: #10b981;
+}
+
+.switch-toggle input:checked + .switch-slider:before {
+    transform: translateX(18px);
+}
+
+.plugin-desc {
+    font-size: 0.84rem;
+    color: var(--text-muted, #a1a1aa);
+    line-height: 1.45;
+    margin: 3px 0 6px 0;
+}
+
+.plugin-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.77rem;
+    color: var(--text-muted, #71717a);
+}
+
+.plugin-repo {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.plugin-repo i {
+    width: 12px;
+    height: 12px;
+}
+

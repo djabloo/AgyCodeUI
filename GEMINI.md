@@ -19,11 +19,13 @@ in alternativa al terminale nudo.
 server/                 backend (Express + Socket.io + node-pty)
   index.js              server, auth PIN, socket (terminal-input/output, chat-prompt, chat-cancel)
   ptyManager.js          processo agy interattivo nel terminale; --conversation <id> per seguire la chat
+  pluginManager.js       gestione ciclo di vita plugin, discovery, spawn backend su porte effimere e WS proxy
   agentRunner.js         Chat: per ogni prompt lancia `agy -p=<testo> --output-format stream-json` e traduce gli eventi
   sessionManager.js      sessioni chat (sessions.json), messaggi strutturati (content/thinking/toolCalls)
   transcriptSync.js      specchia in chat la trascrizione agy (~/.gemini/antigravity-cli/brain/<conv>/.system_generated/logs/transcript.jsonl)
-  api/                   files (tree/content/upload), sessions, settings, workspaces, agents, workflows, metrics
-public/                 frontend vanilla JS (index.html, js/*.js, css/style.css)
+  api/                   files, sessions, settings, workspaces, agents, workflows, metrics, plugins (asset, rpc, toggle)
+plugins/                cartella dei plugin AGYUI installati (agyui-plugin-terminal, agyui-plugin-starter)
+public/                 frontend vanilla JS (index.html, js/plugins.js, js/*.js, css/style.css)
 ```
 
 ## 3. Chat e terminale (decisioni prese)
@@ -61,9 +63,7 @@ public/                 frontend vanilla JS (index.html, js/*.js, css/style.css)
   - **Titolo responsive**: `.header-session-title-group` vincolato con troncamento a riga singola ed ellipsis (`text-overflow: ellipsis`),
     nascondendo il sottotitolo su schermi stretti per evitare l'avvolgimento del testo su 4-5 righe.
   - **Navigazione sempre visibile**: le tab di navigazione (`.nav-tabs`) mantengono `flex-shrink: 0` su mobile con touch target confortevoli
-    (36x34px), garantendo che l'icona del **Terminale** sia sempre accessibile e visibile.
-  - **Scorciatoie terminale dedicate**: aggiunto pulsante diretto al terminale nel footer del drawer laterale (`drawer-footer-links`)
-    e chip di accesso rapido `[💻 Terminale]` sopra la barra di input della chat.
+    (36x34px), garantendo che la tab del **Terminale** sia sempre accessibile ed esclusiva nell'header superiore (rimosse le chiamate ridondanti nel footer drawer e nei chip chat).
   - **Toolbar chat fluida**: barra degli strumenti del composer con scorrimento orizzontale touch per evitare il taglio del badge
     modello su smartphone, e badge statistici numerici nascosti su mobile.
 - **Risoluzione Refresh Sidebar & Sincronizzazione Brain**:
@@ -73,6 +73,15 @@ public/                 frontend vanilla JS (index.html, js/*.js, css/style.css)
   - Lato server, `sessionManager.discoverBrainSessions()` effettua la scansione automatica di `~/.gemini/antigravity-cli/brain/`
     importando qualsiasi conversazione creata direttamente da CLI o da terminale, sincronizzando titolo e metadata.
   - `sessionManager.load()` preserva in modo sicuro l'`activeSessionId` senza sovrascriverlo con la prima sessione.
+- **Sistema Plugin Modulare AGYUI**:
+  - Cartella dedicata `plugins/` in cui risiedono i plugin conformi al manifest (`manifest.json`).
+  - **Plugin Ufficiali**:
+    - `agyui-plugin-terminal`: Terminale web avanzato basato su xterm.js con multi-tab, visualizzato nell'interfaccia come **XTerm** (per distinguerlo chiaramente dal terminale integrato di AGY), supporto nativo comandi CLI agy e sopravvivenza dei processi PTY alle disconnessioni.
+    - `agyui-plugin-starter`: **Project Stats**, dashboard analitica di codice, file, dimensioni e ripartizione estensioni calcolate via endpoint RPC.
+  - **Backend Isolato & Proxying**: ogni plugin con script `server` viene eseguito come processo child Node.js su porta effimera locale (`127.0.0.1`), comunicando la prontezza tramite `{"ready": true, "port": ...}`. Il backend di AGYUI inoltra i WebSockets (`/plugin-ws/:name`) e le chiamate RPC (`/api/plugins/:name/rpc/*`) verso la porta corretta.
+  - **Caricamento Moduli Dinamico**: gli asset statici dei plugin sono esposti pubblicamente su `/api/plugins/:name/assets/*` permettendo il dynamic ES module `import()` diretto dal browser senza blocchi di autenticazione.
+  - **Navbar Orizzontale Flessibile**: la barra comandi superiore (`.nav-tabs`) include supporto per scorrimento orizzontale via rotellina del mouse (`wheel` event), scrollbar sottile e `flex-shrink: 0` sui singoli tab per evitare compressioni grafiche.
+  - **Pulizia UI**: rimossa l'icona circolare cloud ridondante in alto a destra. Rimossi tutti i riferimenti di branding a terze parti a favore dell'identità AGYUI proprietaria.
 
 ## 4. Esecuzione self-hosted
 
