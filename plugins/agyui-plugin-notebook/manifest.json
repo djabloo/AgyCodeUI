@@ -1,0 +1,13 @@
+{
+  "name": "agyui-plugin-notebook",
+  "displayName": "Notebook",
+  "version": "1.0.0",
+  "description": "Gemini Notebook (NotebookLM) dentro l'interfaccia AGYUI: crea notebook, aggiungi fonti, fai domande, genera podcast/report/quiz. Basato su nlm (gemini-notebook-mcp-cli), self-hosted, un solo account Google.",
+  "author": "AGYUI",
+  "icon": "icon.svg",
+  "type": "module",
+  "slot": "tab",
+  "entry": "index.js",
+  "server": "server.js",
+  "permissions": []
+}
