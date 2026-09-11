@@ -1387,7 +1387,7 @@ class AgyChat {
                 headers: { 'Authorization': token ? `Bearer ${token}` : '' }
             });
             if (res.status === 404) {
-                list.innerHTML = '<div class="welcome-model-menu-loading">Nessun documento anonimizzato ancora.<br>Usa il tab AGYUI PII o "PII" negli Ambienti.</div>';
+                list.innerHTML = '<div class="welcome-model-menu-loading">Nessun documento anonimizzato ancora.<br>Usa il tab PII o il bottone PII negli Ambienti.</div>';
                 return;
             }
             if (!res.ok) throw new Error('HTTP ' + res.status);
