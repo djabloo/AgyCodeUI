@@ -25,7 +25,6 @@ class AgyChat {
         this.pendingAttachments = [];
         this.attachmentsBarEl = document.getElementById('chat-attachments-bar');
         this.attachInputEl = document.getElementById('chat-attach-input');
-        this.piiInputEl = document.getElementById('chat-pii-input');
         this.attachBtnEl = document.getElementById('chat-attach-btn');
         this.piiBtnEl = document.getElementById('chat-pii-btn');
         this.screenshotBtnEl = document.getElementById('chat-screenshot-btn');
@@ -1254,9 +1253,6 @@ class AgyChat {
         if (!this.attachInputEl) {
             this.attachInputEl = document.getElementById('chat-attach-input');
         }
-        if (!this.piiInputEl) {
-            this.piiInputEl = document.getElementById('chat-pii-input');
-        }
         if (!this.attachmentsBarEl) {
             this.attachmentsBarEl = document.getElementById('chat-attachments-bar');
         }
@@ -1265,13 +1261,6 @@ class AgyChat {
             this.attachInputEl.addEventListener('change', (e) => {
                 Array.from(e.target.files || []).forEach(f => this.uploadAndAttach(f));
                 this.attachInputEl.value = '';
-            });
-        }
-
-        if (this.piiInputEl) {
-            this.piiInputEl.addEventListener('change', (e) => {
-                Array.from(e.target.files || []).forEach(f => this.uploadPiiAndAttach(f));
-                this.piiInputEl.value = '';
             });
         }
 
@@ -1357,35 +1346,76 @@ class AgyChat {
         }
     }
 
-    async uploadPiiAndAttach(file) {
-        if (!file) return;
-        const chipId = `pii-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        this.renderAttachmentChip(chipId, file.name, true, null, true);
-
-        try {
-            const pin = localStorage.getItem('agy_pin') || '';
-            const buffer = await file.arrayBuffer();
-            const headers = {
-                'Authorization': pin,
-                'Content-Type': 'application/octet-stream',
-                'X-File-Name': encodeURIComponent(file.name)
-            };
-
-            const res = await fetch('/api/pii/redact', {
-                method: 'POST',
-                headers,
-                body: buffer
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Anonimizzazione fallita');
-
-            this.pendingAttachments.push({ path: data.path, name: data.name, isPii: true });
-            this.renderAttachmentChip(chipId, data.name, false, data.path, true);
-        } catch (err) {
-            console.error('[Chat] Errore PII:', err);
-            this.removeAttachmentChip(chipId);
-            alert('Errore anonimizzazione PII: ' + err.message);
+    // Sfoglia i documenti gia' anonimizzati (pii-clean/) e allega quello scelto:
+    // niente da anonimizzare qui, il file esiste gia' (creato dal plugin AGYUI PII
+    // o dal pannello Ambienti). Sostituisce la vecchia integrazione di upload diretto.
+    async togglePiiFolderMenu(event) {
+        if (event) event.stopPropagation();
+        const menu = document.getElementById('chat-pii-folder-menu');
+        if (!menu) return;
+        if (!menu.classList.contains('hidden')) {
+            this.closePiiFolderMenu();
+            return;
         }
+        menu.classList.remove('hidden');
+        if (window.lucide) window.lucide.createIcons();
+        await this.loadPiiFolder();
+
+        setTimeout(() => {
+            document.addEventListener('click', function onDocClick(ev) {
+                if (!menu.contains(ev.target)) {
+                    menu.classList.add('hidden');
+                    document.removeEventListener('click', onDocClick);
+                }
+            });
+        }, 0);
+    }
+
+    closePiiFolderMenu() {
+        const menu = document.getElementById('chat-pii-folder-menu');
+        if (menu) menu.classList.add('hidden');
+    }
+
+    async loadPiiFolder() {
+        const list = document.getElementById('chat-pii-folder-list');
+        if (!list) return;
+        list.innerHTML = '<div class="welcome-model-menu-loading">Caricamento\u2026</div>';
+
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            const res = await fetch('/api/files/tree?path=pii-clean', {
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            });
+            if (res.status === 404) {
+                list.innerHTML = '<div class="welcome-model-menu-loading">Nessun documento anonimizzato ancora.<br>Usa il tab AGYUI PII o "PII" negli Ambienti.</div>';
+                return;
+            }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const files = (data.items || []).filter(i => !i.isDir);
+            if (!files.length) {
+                list.innerHTML = '<div class="welcome-model-menu-loading">La cartella pii-clean/ \u00e8 vuota.</div>';
+                return;
+            }
+            list.innerHTML = files.map(f => `
+                <button type="button" class="welcome-model-menu-item" onclick="window.agyChat.attachPiiFile('${this.escapeHtml(f.path)}', '${this.escapeHtml(f.name)}')">
+                    <span style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                        <i data-lucide="shield-check" style="color:#10b981; flex-shrink:0;"></i>
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.escapeHtml(f.name)}</span>
+                    </span>
+                </button>
+            `).join('');
+            if (window.lucide) window.lucide.createIcons();
+        } catch (e) {
+            list.innerHTML = '<div class="welcome-model-menu-loading">Errore caricamento cartella.</div>';
+        }
+    }
+
+    attachPiiFile(path, name) {
+        this.pendingAttachments.push({ path, name, isPii: true });
+        const chipId = `pii-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        this.renderAttachmentChip(chipId, name, false, path, true);
+        this.closePiiFolderMenu();
     }
 
     async captureScreenshot() {
