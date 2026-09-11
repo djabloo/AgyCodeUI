@@ -1,0 +1,12 @@
+{
+  "name": "agyui-plugin-pii",
+  "displayName": "AGYUI PII",
+  "version": "1.0.0",
+  "description": "Anonimizzazione di testi e documenti dentro l'interfaccia AGYUI: rilevamento entita', PDF redatto, dizionario reversibile e salvataggio in pii-clean/ per l'agente. Motore Rizzo-PII, in locale.",
+  "author": "AGYUI",
+  "icon": "icon.svg",
+  "type": "module",
+  "slot": "tab",
+  "entry": "index.js",
+  "permissions": []
+}
