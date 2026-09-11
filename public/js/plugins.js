@@ -63,6 +63,8 @@ class AgyPlugins {
 
             if (p.name.includes("terminal")) {
                 iconMarkup = '<i data-lucide="terminal"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-terminal"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" x2="20" y1="19" y2="19"></line></svg></i>';
+            } else if (p.name.includes("pii")) {
+                iconMarkup = '<i data-lucide="shield-check"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-check"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg></i>';
             } else if (p.name.includes("stats") || p.name.includes("starter")) {
                 iconMarkup = '<i data-lucide="bar-chart-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bar-chart-2"><line x1="18" x2="18" y1="20" y2="10"></line><line x1="12" x2="12" y1="20" y2="4"></line><line x1="6" x2="6" y1="20" y2="14"></line></svg></i>';
             }
@@ -222,7 +224,9 @@ class AgyPlugins {
             const statusClass = isRunning ? "status-running" : (p.enabled ? "status-stopped" : "status-disabled");
             const iconMarkup = p.name.includes("terminal")
                 ? '<i data-lucide="terminal"></i>'
-                : ((p.name.includes("stats") || p.name.includes("starter")) ? '<i data-lucide="bar-chart-2"></i>' : '<i data-lucide="package"></i>');
+                : (p.name.includes("pii")
+                    ? '<i data-lucide="shield-check"></i>'
+                    : ((p.name.includes("stats") || p.name.includes("starter")) ? '<i data-lucide="bar-chart-2"></i>' : '<i data-lucide="package"></i>'));
 
             return `
                 <div class="plugin-card-full ${p.enabled ? "active-border" : ""}">

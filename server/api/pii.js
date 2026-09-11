@@ -130,6 +130,61 @@ function createPiiRouter(ptyManager) {
         }
     });
 
+    // ── Passthrough verso il motore rizzo-pii (usato dal plugin AGYUI PII) ──
+    // Whitelist esplicita: il servizio e' condiviso, quindi POST /settings e
+    // /config restano fuori (cambierebbero le preferenze per tutti). Le stesse
+    // opzioni viaggiano per-richiesta con exclude_tags / include_mapping.
+    // Gemello di questo blocco nel gateway SaaS: /opt/agyui-server/gateway/index.js
+    const ENGINE_ROUTES = [
+        { method: 'GET', re: /^health$/ },
+        { method: 'GET', re: /^settings$/ },
+        { method: 'POST', re: /^analyze$/ },
+        { method: 'POST', re: /^preview$/ },
+        { method: 'POST', re: /^pdf$/ },
+        { method: 'POST', re: /^pdf\/preview$/ },
+        { method: 'GET', re: /^doc\/[A-Za-z0-9_-]+\/page\/\d+\.png$/ },
+        { method: 'GET', re: /^doc\/[A-Za-z0-9_-]+\/file\.pdf$/ }
+    ];
+
+    router.all('/engine/*', express.raw({ type: () => true, limit: '30mb' }), async (req, res) => {
+        const subPath = String(req.params[0] || '').replace(/^\/+/, '');
+        if (!ENGINE_ROUTES.some(r => r.method === req.method && r.re.test(subPath))) {
+            return res.status(403).json({ error: 'Endpoint del motore PII non consentito' });
+        }
+
+        // express.json() a monte puo' aver gia' consumato il body: rimetterlo com'era.
+        const headers = {};
+        let body;
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            if (Buffer.isBuffer(req.body) && req.body.length) {
+                body = req.body;
+                if (req.headers['content-type']) headers['content-type'] = req.headers['content-type'];
+            } else if (req.body && typeof req.body === 'object') {
+                body = JSON.stringify(req.body);
+                headers['content-type'] = 'application/json';
+            }
+        }
+
+        let up;
+        try {
+            up = await fetch(`${RIZZO_PII_URL}/${subPath}`, {
+                method: req.method,
+                headers,
+                body,
+                signal: AbortSignal.timeout(10 * 60 * 1000)
+            });
+        } catch (e) {
+            return res.status(503).json({ error: 'Servizio PII non raggiungibile' });
+        }
+
+        res.status(up.status);
+        for (const h of ['content-type', 'content-disposition', 'x-pii-redactions', 'x-pii-residual', 'x-pii-skipped', 'x-pii-notfound']) {
+            const v = up.headers.get(h);
+            if (v) res.set(h, v);
+        }
+        res.send(Buffer.from(await up.arrayBuffer()));
+    });
+
     return router;
 }
 
