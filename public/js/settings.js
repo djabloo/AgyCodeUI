@@ -1092,6 +1092,11 @@ class AgySettings {
 
     // 5. Plugins
     async loadPlugins() {
+        if (window.agyPlugins) {
+            await window.agyPlugins.loadPlugins();
+            window.agyPlugins.renderSettingsView();
+            return;
+        }
         const token = localStorage.getItem('agy_pin') || '';
         const listEl = document.getElementById('plugins-list');
         if (!listEl) return;

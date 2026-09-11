@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0d1117">
+    <meta name="theme-color" content="#091329">
     <title>Antigravity Code UI (agycodeui)</title>
 
     <!-- Favicon & App Icons -->
@@ -327,10 +327,6 @@
 
             <!-- Drawer Bottom Links -->
             <div class="drawer-footer-links">
-                <button class="drawer-footer-btn" onclick="window.agyApp.switchTab('terminal-tab'); window.agyChat.closeSidebar();" title="Apri Terminale CLI">
-                    <i data-lucide="terminal"></i>
-                    <span data-i18n="navTerminal">Terminale</span>
-                </button>
                 <button class="drawer-footer-btn" onclick="window.agySidebar.openReportIssueModal()">
                     <i data-lucide="bug"></i>
                     <span data-i18n="drawerReportIssue">Segnala Problema</span>
@@ -451,9 +447,6 @@
                     </nav>
 
                     <div class="header-right">
-                        <button class="icon-btn nav-env-btn" title="Dashboard Ambienti" onclick="window.agyEnvironments.switchView('environments')">
-                            <i data-lucide="cloud"></i>
-                        </button>
                         <button class="icon-btn btn-restart-cli" title="Riavvia Sessione CLI" onclick="window.agyApp.restartSession()">
                             <i data-lucide="refresh-cw"></i>
                         </button>
@@ -491,9 +484,6 @@
 
                         <!-- Quick Slash Commands & Action Chips Bar -->
                         <div class="chat-action-chips" id="chat-action-chips">
-                            <button class="chip-btn chip-terminal-shortcut" onclick="window.agyApp.switchTab('terminal-tab')" title="Apri Terminale Interattivo">
-                                <span>💻</span> Terminale
-                            </button>
                             <button class="chip-btn" onclick="window.agyChat.insertPrompt('/goal ')">
                                 <span>🎯</span> /goal
                             </button>
@@ -1443,6 +1433,7 @@
     <script src="js/fileExplorer.js"></script>
     <script src="js/chat.js"></script>
     <script src="js/settings.js"></script>
+    <script src="js/plugins.js"></script>
     <script src="js/environments.js"></script>
     <script src="js/sidebarModules.js"></script>
     <script src="js/app.js"></script>

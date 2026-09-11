@@ -1,0 +1,13 @@
+{
+  "name": "agyui-plugin-terminal",
+  "displayName": "XTerm",
+  "version": "1.2.0",
+  "description": "Full-featured web terminal with multi-tab support, powered by xterm.js",
+  "author": "AGYUI",
+  "icon": "icon.svg",
+  "type": "module",
+  "slot": "tab",
+  "entry": "dist/index.js",
+  "server": "dist/server.js",
+  "permissions": []
+}
