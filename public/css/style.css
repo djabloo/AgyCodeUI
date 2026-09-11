@@ -694,9 +694,12 @@ html, body {
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.nav-tab i {
+.nav-tab i,
+.nav-tab svg {
     width: 15px;
     height: 15px;
+    display: block;
+    flex-shrink: 0;
 }
 
 .nav-tab:hover {
@@ -2756,8 +2759,17 @@ input:checked + .slider:before {
     .nav-tabs {
         gap: 3px;
         padding: 2px 3px;
-        flex-shrink: 0;
+        flex: 1 1 auto;
+        min-width: 0;
         max-width: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .nav-tabs::-webkit-scrollbar {
+        display: none;
     }
 
     .nav-tab {
@@ -2765,15 +2777,19 @@ input:checked + .slider:before {
         min-width: 36px;
         height: 34px;
         justify-content: center;
+        flex-shrink: 0;
     }
 
     .nav-tab span {
         display: none !important;
     }
 
-    .nav-tab i {
+    .nav-tab i,
+    .nav-tab svg {
         width: 17px;
         height: 17px;
+        display: block;
+        flex-shrink: 0;
     }
 
     .header-right {
@@ -2975,10 +2991,14 @@ input:checked + .slider:before {
         padding: 5px 6px;
         min-width: 32px;
         height: 32px;
+        flex-shrink: 0;
     }
-    .nav-tab i {
+    .nav-tab i,
+    .nav-tab svg {
         width: 16px;
         height: 16px;
+        display: block;
+        flex-shrink: 0;
     }
 }
 
