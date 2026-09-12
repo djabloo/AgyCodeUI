@@ -188,9 +188,12 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 
 // Endpoint di stato
 app.get('/api/status', requireAuth, (req, res) => {
+    // pty.getStatus() include gia' "workspace" (this.currentWorkspaceDir, aggiornato
+    // da /api/workspaces/switch): ridichiararlo qui con la sola env var statica lo
+    // sovrascriveva sempre, quindi /api/status mentiva sul workspace attivo appena
+    // l'utente ne selezionava uno diverso da quello di default (es. multi-ambiente SaaS).
     res.json({
         ...pty.getStatus(),
-        workspace: process.env.WORKSPACE_DIR || process.cwd(),
         command: process.env.CLI_COMMAND || 'agy',
         authRequired: !!AUTH_PIN,
         activeSession: sessionManager.getActiveSession()
