@@ -1362,6 +1362,9 @@ class AgySettings {
                     policySelect.value = data.executionPolicy;
                 }
 
+                const enabledToggle = document.getElementById('browser-enabled-toggle');
+                if (enabledToggle) enabledToggle.checked = !!data.enabled;
+
                 this.actuationRules = data.actuationRules || [];
                 this.renderActuationRulesList();
             }
@@ -1386,6 +1389,23 @@ class AgySettings {
             });
         } catch (e) {
             console.error('[Settings] Errore salvataggio policy browser:', e);
+        }
+    }
+
+    async toggleBrowserEnabled(enabled) {
+        const token = localStorage.getItem('agy_pin') || '';
+        try {
+            await fetch('/api/settings/browser/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify({ enabled })
+            });
+            if (window.agyBrowserTab) window.agyBrowserTab.refresh();
+        } catch (e) {
+            console.error('[Settings] Errore salvataggio stato browser:', e);
         }
     }
 

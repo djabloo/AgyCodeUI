@@ -967,6 +967,7 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
         try {
             const browserSettingsFile = path.join(dataDir, 'browser-settings.json');
             let stored = {
+                enabled: false,
                 executionPolicy: 'request_review', // 'request_review' | 'allow_always' | 'disallow'
                 actuationRules: [
                     { id: 'rule-1', type: 'allow', pattern: 'https://*.google.com/*' },
@@ -1013,6 +1014,7 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                 installed: chromeInstalled,
                 version: chromeVersion,
                 path: chromePath,
+                enabled: !!stored.enabled,
                 executionPolicy: stored.executionPolicy,
                 actuationRules: stored.actuationRules
             });
@@ -1023,9 +1025,10 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
 
     router.post('/browser/settings', (req, res) => {
         try {
-            const { executionPolicy, actuationRules } = req.body || {};
+            const { enabled, executionPolicy, actuationRules } = req.body || {};
             const browserSettingsFile = path.join(dataDir, 'browser-settings.json');
             let stored = {
+                enabled: false,
                 executionPolicy: 'request_review',
                 actuationRules: []
             };
@@ -1034,6 +1037,7 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                 try { stored = JSON.parse(fs.readFileSync(browserSettingsFile, 'utf8')); } catch (e) {}
             }
 
+            if (typeof enabled === 'boolean') stored.enabled = enabled;
             if (executionPolicy) stored.executionPolicy = executionPolicy;
             if (Array.isArray(actuationRules)) stored.actuationRules = actuationRules;
 
