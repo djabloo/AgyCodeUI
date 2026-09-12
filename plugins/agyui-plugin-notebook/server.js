@@ -156,7 +156,31 @@ function runAgy(prompt, { cwd, conversationId }) {
 }
 
 // ── estrazione testo semplice da HTML per le fonti URL (nessuna dipendenza nuova) ──
-async function fetchUrlAsText(url) {
+// youtube.com/watch, youtu.be/, youtube.com/shorts, m.youtube.com: pagine SPA
+// pesantemente lato-client, il semplice fetch+strip-tag qui sotto recupera solo
+// il guscio HTML iniziale (cookie banner, nav, JSON-LD) e non il contenuto del
+// video - producendo una fonte "riempita" di rumore invece che di contenuto
+// utile. Per questi URL si delega ad agy (che ha capacita' reali di
+// navigazione web) il compito di aprire il video e riassumerne il contenuto.
+const YOUTUBE_RE = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i;
+
+async function fetchYoutubeAsText(url, workspace) {
+  const prompt = `Usa le tue capacità di navigazione web per aprire questo video YouTube: ${url}\n` +
+    `Scrivi in italiano, in questo ordine: il titolo del video, il canale, poi un riassunto dettagliato ` +
+    `del contenuto (usa la trascrizione/i sottotitoli se riesci a recuperarli, altrimenti la descrizione ` +
+    `e le informazioni disponibili sulla pagina). Rispondi SOLO con questo testo, senza premesse, ` +
+    `commenti aggiuntivi o markdown decorativo.`;
+  const result = await runAgy(prompt, { cwd: workspace });
+  if (result.error) throw new Error(result.error);
+  const text = (result.response || '').trim();
+  if (!text) throw new Error('agy non è riuscito a recuperare il contenuto del video');
+  const title = text.split('\n')[0].replace(/^#+\s*/, '').replace(/^titolo:\s*/i, '').trim().slice(0, 90) || 'Video YouTube';
+  return { title, text: `Fonte (video YouTube): ${url}\n\n${text}` };
+}
+
+async function fetchUrlAsText(url, workspace) {
+  if (YOUTUBE_RE.test(url)) return fetchYoutubeAsText(url, workspace);
+
   const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error('HTTP ' + res.status + ' su ' + url);
   const html = await res.text();
@@ -293,7 +317,7 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'POST' && parts.length === 3 && parts[2] === 'sources') {
         try {
           if (body.url) {
-            const { title, text } = await fetchUrlAsText(body.url);
+            const { title, text } = await fetchUrlAsText(body.url, workspace);
             const name = safeFileName(title, 'pagina-web') + '-' + crypto.randomBytes(3).toString('hex') + '.txt';
             await fsp.writeFile(path.join(sourcesDir, name), text, 'utf8');
             return sendJson(res, 200, { name });
@@ -312,6 +336,15 @@ const server = http.createServer(async (req, res) => {
         } catch (e) {
           return sendJson(res, 502, { error: e.message });
         }
+      }
+
+      // GET /notebooks/:id/sources/:name/content — testo grezzo per la preview
+      if (req.method === 'GET' && parts.length === 5 && parts[2] === 'sources' && parts[4] === 'content') {
+        const name = safeFileName(decodeURIComponent(parts[3]));
+        const filePath = path.join(sourcesDir, name);
+        if (!fs.existsSync(filePath)) return sendJson(res, 404, { error: 'File non trovato' });
+        const content = await fsp.readFile(filePath, 'utf8');
+        return sendJson(res, 200, { name, content });
       }
 
       // DELETE /notebooks/:id/sources/:name

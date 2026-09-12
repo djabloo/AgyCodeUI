@@ -77,8 +77,9 @@ const CSS = `
 .agynb-btn.primary { border:none; color:#fff; background:linear-gradient(135deg, var(--accent-cyan,#06b6d4), var(--accent-violet,#8b5cf6)); }
 .agynb-btn svg { width:14px; height:14px; flex-shrink:0; }
 
-.agynb-src { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:9px;
+.agynb-src { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:9px; cursor:pointer;
   background:rgba(255,255,255,.02); border:1px solid var(--border-color,rgba(255,255,255,.06)); margin-bottom:6px; }
+.agynb-src:hover { border-color:var(--border-light,rgba(255,255,255,.15)); }
 .agynb-src .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.78rem; }
 .agynb-src .agynb-del { background:none; border:none; color:var(--text-muted,#94a3b8); cursor:pointer; flex-shrink:0; }
 .agynb-src .agynb-del svg { width:14px; height:14px; }
@@ -340,9 +341,9 @@ function renderSourcesList() {
     return;
   }
   box.innerHTML = st.sources.map((s) => `
-    <div class="agynb-src">
+    <div class="agynb-src" onclick="window.agyNotebookPlugin.openSource('${esc(s.name)}')">
       <span class="t" title="${esc(s.name)}">${esc(s.name)}</span>
-      <button class="agynb-del" title="Rimuovi" onclick="window.agyNotebookPlugin.deleteSource('${esc(s.name)}')">${ICONS.trash}</button>
+      <button class="agynb-del" title="Rimuovi" onclick="event.stopPropagation(); window.agyNotebookPlugin.deleteSource('${esc(s.name)}')">${ICONS.trash}</button>
     </div>
   `).join('');
   if (window.lucide) window.lucide.createIcons();
@@ -356,6 +357,28 @@ async function deleteSource(name) {
     loadSources();
   } catch (e) {
     alert('Errore rimozione: ' + e.message);
+  }
+}
+
+async function openSource(name) {
+  const nb = activeNotebook();
+  if (!nb) return;
+  const viewer = $('#agynb-viewer');
+  const titleEl = $('#agynb-viewer-title');
+  const bodyEl = $('#agynb-viewer-body');
+  const downloadBtn = $('#agynb-viewer-download');
+  titleEl.textContent = name;
+  bodyEl.innerHTML = '<p style="color:var(--text-muted)">Caricamento…</p>';
+  viewer.classList.add('on');
+  if (downloadBtn) downloadBtn.style.display = 'none';
+
+  try {
+    const data = await call('GET', `/notebooks/${encodeURIComponent(nb.id)}/sources/${encodeURIComponent(name)}/content`);
+    bodyEl.innerHTML = `<pre style="white-space:pre-wrap; font-family:inherit;">${esc(data.content)}</pre>`;
+  } catch (e) {
+    bodyEl.innerHTML = `<p style="color:#fca5a5">${esc(e.message)}</p>`;
+  } finally {
+    if (downloadBtn) downloadBtn.style.display = '';
   }
 }
 
@@ -710,7 +733,7 @@ export async function mount(container, api) {
   $('#agynb-side-close').onclick = () => setSideOpen(false);
   $('#agynb-side-open').onclick = () => setSideOpen(true);
 
-  window.agyNotebookPlugin = { selectNotebook, deleteNotebook, deleteSource, deleteArtifact, openArtifact };
+  window.agyNotebookPlugin = { selectNotebook, deleteNotebook, deleteSource, openSource, deleteArtifact, openArtifact };
 
   await resolveWorkspace();
   checkHealth();

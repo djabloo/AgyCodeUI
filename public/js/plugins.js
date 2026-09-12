@@ -100,7 +100,7 @@ class AgyPlugins {
                 pane.id = `plugin-tab-${p.name}`;
                 pane.className = "tab-pane plugin-tab-pane";
                 pane.innerHTML = `
-                    <div id="plugin-container-${p.name}" class="plugin-container" style="width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden;"></div>
+                    <div id="plugin-container-${p.name}" class="plugin-container" style="width:100%; height:100%; min-width:0; display:flex; flex-direction:column; overflow:hidden;"></div>
                 `;
                 main.appendChild(pane);
             }

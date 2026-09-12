@@ -878,6 +878,7 @@ html, body {
 .main-content {
     flex: 1;
     min-height: 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -888,6 +889,7 @@ html, body {
     display: none;
     flex: 1;
     min-height: 0;
+    min-width: 0;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
