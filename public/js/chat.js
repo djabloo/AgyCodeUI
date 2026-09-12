@@ -1669,6 +1669,7 @@ class AgyChat {
     }
 
     closeSidebar() {
+        const isMobile = window.innerWidth <= 768;
         if (!this.sidebarBackdropEl) {
             this.sidebarBackdropEl = document.getElementById('sidebar-backdrop');
         }
@@ -1677,6 +1678,13 @@ class AgyChat {
         }
         if (this.sidebarEl) {
             this.sidebarEl.classList.remove('open');
+            // Su desktop la sidebar e' nascosta dalla classe "collapsed" (width:0), non da
+            // "open" (che serve solo al drawer overlay mobile): togliendo solo "open" qui,
+            // il pulsante "Chiudi Menu" non aveva alcun effetto visibile su schermi larghi.
+            if (!isMobile) {
+                this.sidebarEl.classList.add('collapsed');
+                localStorage.setItem('agy_sidebar_collapsed', 'true');
+            }
         }
         if (this.sidebarBackdropEl) {
             this.sidebarBackdropEl.classList.remove('visible');

@@ -76,8 +76,22 @@ class AgyPlugins {
             const labelSpan = document.createElement("span");
             labelSpan.textContent = p.displayName;
 
+            // X per chiudere il tab (disabilita il plugin) senza dover passare dalle
+            // Impostazioni: su mobile in verticale ogni tab fisso occupa spazio prezioso,
+            // quindi un plugin non usato si puo' togliere al volo. Riabilitabile da
+            // Impostazioni > Plugin (stesso switch enable/disable, nessuna nuova via).
+            const closeBtn = document.createElement("span");
+            closeBtn.className = "nav-tab-close";
+            closeBtn.title = `Chiudi ${p.displayName}`;
+            closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+            closeBtn.onclick = (ev) => {
+                ev.stopPropagation();
+                this.closePluginTab(p.name);
+            };
+
             tabBtn.appendChild(iconEl);
             tabBtn.appendChild(labelSpan);
+            tabBtn.appendChild(closeBtn);
             nav.appendChild(tabBtn);
 
             // Crea tab pane nel DOM se non esiste
@@ -263,6 +277,15 @@ class AgyPlugins {
                 </div>
             `;
         }).join("");
+    }
+
+    async closePluginTab(name) {
+        // Se il tab del plugin era quello attivo, torna alla Chat prima di rimuoverlo
+        // (altrimenti resterebbe visibile un tab-pane orfano senza nav-tab selezionato).
+        if (window.agyApp && window.agyApp.activeTab === `plugin-tab-${name}`) {
+            window.agyApp.switchTab("chat-tab");
+        }
+        await this.togglePlugin(name, false);
     }
 
     async togglePlugin(name, enabled) {

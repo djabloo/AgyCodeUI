@@ -715,6 +715,32 @@ html, body {
     box-shadow: 0 2px 12px rgba(99, 102, 241, 0.2);
 }
 
+/* X per chiudere un tab plugin (Notebook, PII, ecc.) */
+.nav-tab-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 2px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-tab-close svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    display: block;
+}
+
+.nav-tab-close:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #ffffff;
+}
+
 .header-right {
     display: flex;
     align-items: center;
@@ -2792,6 +2818,21 @@ input:checked + .slider:before {
         flex-shrink: 0;
     }
 
+    /* La X di chiusura tab plugin e' anch'essa uno <span>: la regola sopra la
+       nasconderebbe insieme all'etichetta testuale. Va riesclusa esplicitamente
+       e ridimensionata, perche' e' proprio su mobile che serve per liberare spazio. */
+    .nav-tab .nav-tab-close {
+        display: flex !important;
+        width: 16px;
+        height: 16px;
+        margin-left: 1px;
+    }
+
+    .nav-tab .nav-tab-close svg {
+        width: 11px;
+        height: 11px;
+    }
+
     .header-right {
         gap: 4px;
         flex-shrink: 0;
@@ -2999,6 +3040,14 @@ input:checked + .slider:before {
         height: 16px;
         display: block;
         flex-shrink: 0;
+    }
+    .nav-tab .nav-tab-close {
+        width: 15px;
+        height: 15px;
+    }
+    .nav-tab .nav-tab-close svg {
+        width: 10px;
+        height: 10px;
     }
 }
 

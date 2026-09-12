@@ -6,18 +6,24 @@
  */
 
 const CSS = `
-.agynb { display:flex; height:100%; overflow:hidden; font-family: var(--font-family, sans-serif); color: var(--text-main, #cbd5e1); }
+.agynb { display:flex; height:100%; overflow:hidden; position:relative; font-family: var(--font-family, sans-serif); color: var(--text-main, #cbd5e1); }
 .agynb * { box-sizing:border-box; }
 
 .agynb-side { width:260px; flex:0 0 auto; display:flex; flex-direction:column; min-height:0;
   border-right:1px solid var(--border-color, rgba(255,255,255,.08)); background: var(--bg-card, rgba(13,18,31,.85)); }
 .agynb-side-top { padding:14px; border-bottom:1px solid var(--border-color, rgba(255,255,255,.08)); }
+.agynb-brand-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .agynb-brand { display:flex; align-items:center; gap:9px; font-family:var(--font-display, sans-serif);
   font-weight:800; font-size:1rem; color:var(--text-bright,#fff); margin-bottom:8px; }
 .agynb-brand .agynb-mark { width:26px; height:26px; border-radius:8px; display:grid; place-items:center;
   background:linear-gradient(135deg, rgba(6,182,212,.22), rgba(139,92,246,.22));
   border:1px solid rgba(6,182,212,.35); color:var(--accent,#06b6d4); flex-shrink:0; }
 .agynb-brand .agynb-mark svg { width:15px; height:15px; }
+.agynb-side-close, .agynb-side-open { display:none; align-items:center; justify-content:center;
+  background:none; border:none; color:var(--text-muted,#94a3b8); cursor:pointer; padding:4px; flex-shrink:0; }
+.agynb-side-close svg, .agynb-side-open svg { width:16px; height:16px; flex-shrink:0; }
+.agynb-side-open { position:absolute; top:10px; left:10px; z-index:4; background:var(--bg-card,rgba(13,18,31,.9));
+  border:1px solid var(--border-color,rgba(255,255,255,.08)); border-radius:8px; width:34px; height:34px; }
 .agynb-health { display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono,monospace);
   font-size:.66rem; color:var(--text-muted,#94a3b8); }
 .agynb-dot { width:6px; height:6px; border-radius:50%; background:var(--text-muted,#94a3b8); flex-shrink:0; }
@@ -113,6 +119,18 @@ const CSS = `
 .agynb-msgbar.ok { background:rgba(16,185,129,.1); color:#6ee7b7; border:1px solid rgba(16,185,129,.28); }
 .agynb-spin { animation:agynb-rot 1s linear infinite; }
 @keyframes agynb-rot { to { transform:rotate(360deg); } }
+
+/* Sotto i 768px lista e contenuto non stanno affiancati (spazio insufficiente
+   in verticale su telefono): la lista diventa un overlay a tutta larghezza,
+   apribile/chiudibile, invece del layout fisso a due colonne di desktop. */
+@media (max-width: 768px) {
+  .agynb-side { position:absolute; inset:0; z-index:5; width:100%; }
+  .agynb-side.agynb-side-hidden { display:none; }
+  .agynb-side-close { display:flex; }
+  .agynb-side-open { display:none; }
+  .agynb-side-open.show { display:flex; }
+  .agynb-main { width:100%; }
+}
 `;
 
 const ICONS = {
@@ -128,7 +146,9 @@ const ICONS = {
   table: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>',
   download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
-  loader: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>'
+  loader: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>'
 };
 
 const STUDIO_TYPES = [
@@ -148,7 +168,11 @@ const st = {
   sources: [],
   studio: [],
   chatLog: [],
-  busy: false
+  busy: false,
+  // Sotto i 768px la lista notebook e il contenuto (Fonti/Chat/Studio) non
+  // stanno affiancati: la lista diventa un overlay a tutta larghezza che si
+  // apre/chiude, invece di stare sempre visibile come su desktop.
+  sideOpen: true
 };
 
 let root = null;
@@ -258,7 +282,18 @@ function selectNotebook(id) {
   st.sources = [];
   st.studio = [];
   st.chatLog = [];
+  // Su mobile la lista e' un overlay: appena l'utente scegli un notebook, la
+  // chiudiamo per lasciare tutto lo spazio al contenuto (Fonti/Chat/Studio).
+  if (window.innerWidth <= 768) setSideOpen(false);
   loadNotebooks();
+}
+
+function setSideOpen(open) {
+  st.sideOpen = open;
+  const side = $('#agynb-side');
+  const openBtn = $('#agynb-side-open');
+  if (side) side.classList.toggle('agynb-side-hidden', !open);
+  if (openBtn) openBtn.classList.toggle('show', !open);
 }
 
 async function createNotebook() {
@@ -627,15 +662,19 @@ function switchTab(tab) {
 
 const SHELL = `
 <div class="agynb">
-  <div class="agynb-side">
+  <div class="agynb-side" id="agynb-side">
     <div class="agynb-side-top">
-      <div class="agynb-brand"><span class="agynb-mark">__ICON__</span><span>Notebook</span></div>
+      <div class="agynb-brand-row">
+        <div class="agynb-brand"><span class="agynb-mark">__ICON__</span><span>Notebook</span></div>
+        <button class="agynb-side-close" id="agynb-side-close" title="Chiudi lista">__CLOSE__</button>
+      </div>
       <span class="agynb-health" id="agynb-health"><span class="agynb-dot"></span> verifica…</span>
       <button class="agynb-newbtn" id="agynb-new">__PLUS__ Nuovo notebook</button>
     </div>
     <div class="agynb-nblist" id="agynb-nblist"></div>
   </div>
   <div class="agynb-main" id="agynb-main"></div>
+  <button class="agynb-side-open" id="agynb-side-open" title="Notebook">__LIST__</button>
 </div>
 <div class="agynb-viewer" id="agynb-viewer">
   <div class="agynb-viewer-card">
@@ -661,12 +700,15 @@ export async function mount(container, api) {
     document.head.appendChild(style);
   }
 
-  container.innerHTML = SHELL.replace('__ICON__', ICONS.notebook).replace('__PLUS__', ICONS.plus);
+  container.innerHTML = SHELL.replace('__ICON__', ICONS.notebook).replace('__PLUS__', ICONS.plus)
+    .replace('__CLOSE__', ICONS.close).replace('__LIST__', ICONS.list);
   root = container;
 
   $('#agynb-new').onclick = createNotebook;
   $('#agynb-viewer-close').onclick = closeViewer;
   $('#agynb-viewer').onclick = (e) => { if (e.target.id === 'agynb-viewer') closeViewer(); };
+  $('#agynb-side-close').onclick = () => setSideOpen(false);
+  $('#agynb-side-open').onclick = () => setSideOpen(true);
 
   window.agyNotebookPlugin = { selectNotebook, deleteNotebook, deleteSource, deleteArtifact, openArtifact };
 
