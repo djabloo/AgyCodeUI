@@ -2,7 +2,7 @@
   "name": "agyui-plugin-notebook",
   "displayName": "Notebook",
   "version": "1.0.0",
-  "description": "Gemini Notebook (NotebookLM) dentro l'interfaccia AGYUI: crea notebook, aggiungi fonti, fai domande, genera podcast/report/quiz. Basato su nlm (gemini-notebook-mcp-cli), self-hosted, un solo account Google.",
+  "description": "Notebook di ricerca nativo AGYUI: raccogli fonti (testo, URL, file), fai domande vincolate a quelle fonti, genera Report/Quiz/Flashcard/Mappa mentale/Tabella dati. Motore: agy (Google Antigravity), gia' autenticato in ogni ambiente self-hosted e SaaS.",
   "author": "AGYUI",
   "icon": "icon.svg",
   "type": "module",

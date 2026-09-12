@@ -142,12 +142,13 @@ class PluginManager {
     }
 
     buildPluginEnv(name) {
-        return {
-            PATH: process.env.PATH,
-            HOME: process.env.HOME,
-            NODE_ENV: process.env.NODE_ENV || "production",
-            PLUGIN_NAME: name
-        };
+        // Eredita tutto l'ambiente del processo agycodeui (CLI_COMMAND, WORKSPACE_DIR,
+        // CLI_ARGS, ecc.): un plugin abilitato dall'utente gira gia' come lui con
+        // pieno accesso al filesystem, quindi non e' un nuovo confine di fiducia.
+        // Prima venivano passate solo 4 variabili: qualunque plugin che avesse
+        // bisogno di sapere il comando CLI configurato (es. per invocare "agy" in
+        // modo non interattivo) vedeva sempre il default 'agy', ignorando CLI_COMMAND.
+        return { ...process.env, PLUGIN_NAME: name };
     }
 
     startPluginServer(name, pluginDir, serverEntry) {

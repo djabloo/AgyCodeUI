@@ -74,15 +74,26 @@ function createPluginsRouter(pluginManager, requireAuth) {
         const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : "";
         const targetPath = subPath + queryString;
 
+        // Il body di POST/PUT/etc. arriva gia' consumato da express.json() (montato
+        // globalmente in index.js prima di questo router): lo stream grezzo di req
+        // e' esaurito, quindi req.pipe(proxyReq) non scrive mai nulla e non chiude
+        // mai la richiesta a valle, restando appesa a tempo indeterminato. Se
+        // req.body e' stato popolato dal parser, lo si riserializza qui.
+        const hasParsedBody = req.body && typeof req.body === "object" && Object.keys(req.body).length > 0;
+        const bodyBuffer = hasParsedBody ? Buffer.from(JSON.stringify(req.body)) : null;
+
+        const headers = { ...req.headers, host: `127.0.0.1:${port}` };
+        if (bodyBuffer) {
+            headers["content-type"] = "application/json";
+            headers["content-length"] = String(bodyBuffer.length);
+        }
+
         const proxyReq = http.request({
             hostname: "127.0.0.1",
             port: port,
             path: targetPath,
             method: req.method,
-            headers: {
-                ...req.headers,
-                host: `127.0.0.1:${port}`
-            }
+            headers
         }, (proxyRes) => {
             res.writeHead(proxyRes.statusCode, proxyRes.headers);
             proxyRes.pipe(res);
@@ -95,10 +106,14 @@ function createPluginsRouter(pluginManager, requireAuth) {
             }
         });
 
-        if (req.method !== "GET" && req.method !== "HEAD") {
-            req.pipe(proxyReq);
-        } else {
+        if (req.method === "GET" || req.method === "HEAD") {
             proxyReq.end();
+        } else if (bodyBuffer) {
+            proxyReq.end(bodyBuffer);
+        } else {
+            // Nessun body JSON gia' consumato: puo' darsi che express.json() lo abbia
+            // saltato (es. Content-Type diverso) e lo stream grezzo sia ancora intatto.
+            req.pipe(proxyReq);
         }
     });
 
