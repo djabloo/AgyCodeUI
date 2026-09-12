@@ -178,14 +178,21 @@ function setMsg(kind, text) {
 // method cannot have body") - per quei metodi il workspace va in query string,
 // esattamente come si aspetta server.js (che legge searchParams solo per GET).
 async function call(method, path, body) {
+  // Il parametro si chiama "wspath" e non "workspace" di proposito: nel SaaS
+  // ogni richiesta passa anche dal gateway (agyui-server), che usa GIA' un
+  // parametro/query "workspace" per instradare al container giusto (uno slug
+  // tipo "default", non un percorso). Chiamandolo uguale, il gateway lo
+  // intercettava prima ancora di arrivare qui e provava a instradare verso uno
+  // slug inesistente (il nostro percorso assoluto) -> 404 solo in SaaS, mai in
+  // self-hosted (li' non c'e' nessun gateway davanti). Vedi memoria progetto.
   const isRead = method === 'GET' || method === 'HEAD';
   let finalPath = path;
   let finalBody = null;
   if (isRead) {
     const sep = path.includes('?') ? '&' : '?';
-    finalPath = path + sep + 'workspace=' + encodeURIComponent(st.workspace || '');
+    finalPath = path + sep + 'wspath=' + encodeURIComponent(st.workspace || '');
   } else {
-    finalBody = Object.assign({ workspace: st.workspace }, body || {});
+    finalBody = Object.assign({ wspath: st.workspace }, body || {});
   }
   const data = await rpc(method, finalPath, finalBody);
   if (data && data.error) throw new Error(data.error);

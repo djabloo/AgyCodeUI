@@ -212,7 +212,11 @@ const server = http.createServer(async (req, res) => {
     const parts = pathname.split('/').filter(Boolean);
     const wantsBody = req.method !== 'GET' && req.method !== 'HEAD';
     const body = wantsBody ? await readJsonBody(req) : {};
-    const workspace = resolveWorkspace(wantsBody ? body.workspace : searchParams.get('workspace'));
+    // Chiave "wspath", non "workspace": nel SaaS la richiesta passa anche dal
+    // gateway, che usa GIA' un parametro "workspace" (uno slug per instradare
+    // al container giusto) - chiamandolo uguale il gateway lo intercettava prima
+    // di arrivare qui. Vedi lo stesso commento in index.js.
+    const workspace = resolveWorkspace(wantsBody ? body.wspath : searchParams.get('wspath'));
 
     // GET /health?workspace=... — verifica che il comando agy risponda
     if (req.method === 'GET' && pathname === '/health') {
