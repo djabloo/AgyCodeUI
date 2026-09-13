@@ -110,7 +110,9 @@ const CSS = `
 .agynb-viewer { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:50; display:none; align-items:center; justify-content:center; padding:24px; }
 .agynb-viewer.on { display:flex; }
 .agynb-viewer-card { background:var(--bg-card,#0d1219); border:1px solid var(--border-color,rgba(255,255,255,.08));
-  border-radius:var(--radius-lg,16px); width:min(760px,100%); max-height:85vh; display:flex; flex-direction:column; overflow:hidden; }
+  border-radius:var(--radius-lg,16px); width:min(760px,100%); max-height:85vh; display:flex; flex-direction:column; overflow:hidden; transition:width .2s ease; }
+.agynb-viewer-card.wide { width:min(1100px, 95vw); max-height:92vh; }
+.agynb-viewer-iframe { width:100%; height:75vh; border:none; border-radius:8px; background:var(--bg-main,#06080F); display:block; }
 .agynb-viewer-head { display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
   border-bottom:1px solid var(--border-color,rgba(255,255,255,.08)); }
 .agynb-viewer-head span { font-weight:700; font-size:.86rem; color:var(--text-bright,#fff); }
@@ -120,6 +122,46 @@ const CSS = `
 .agynb-viewer-body th, .agynb-viewer-body td { border:1px solid var(--border-color,rgba(255,255,255,.1)); padding:6px 10px; font-size:.78rem; }
 .agynb-viewer-body pre { background:var(--bg-main,#06080F); padding:12px; border-radius:8px; overflow-x:auto; }
 .agynb-viewer-body .mermaid { background:#fff; border-radius:10px; padding:14px; }
+/* AI Flashcards Interattive */
+.agynb-fc-wrap { display:flex; flex-direction:column; gap:16px; align-items:center; width:100%; max-width:680px; margin:0 auto; user-select:none; }
+.agynb-fc-topbar { display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px; }
+.agynb-fc-progress-wrap { flex:1; height:6px; background:rgba(255,255,255,.08); border-radius:9999px; overflow:hidden; }
+.agynb-fc-progress-bar { height:100%; width:0%; background:linear-gradient(90deg, #06b6d4, #8b5cf6); transition:width .3s ease; }
+.agynb-fc-viewmode { display:flex; gap:6px; }
+.agynb-fc-viewmode button { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); color:var(--text-muted,#94a3b8); padding:4px 10px; border-radius:6px; font-size:.74rem; cursor:pointer; font-weight:600; }
+.agynb-fc-viewmode button.active { background:rgba(6,182,212,.15); color:#38BDF8; border-color:rgba(6,182,212,.3); }
+
+.agynb-fc-scene { width:100%; height:320px; perspective:1200px; cursor:pointer; }
+.agynb-fc-card { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .5s cubic-bezier(0.4, 0, 0.2, 1); border-radius:16px; }
+.agynb-fc-card.flipped { transform:rotateY(180deg); }
+
+.agynb-fc-face { position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; border-radius:16px; padding:28px 24px; display:flex; flex-direction:column; justify-content:space-between; border:1px solid rgba(255,255,255,.1); box-shadow:0 12px 32px rgba(0,0,0,.4); }
+.agynb-fc-front { background:linear-gradient(145deg, #131B2E 0%, #0A0F1D 100%); color:#F8FAFC; }
+.agynb-fc-back { background:linear-gradient(145deg, #0D2026 0%, #081418 100%); color:#F8FAFC; transform:rotateY(180deg); border-color:rgba(6,182,212,.35); }
+
+.agynb-fc-badge { display:inline-flex; align-items:center; gap:6px; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; padding:4px 10px; border-radius:9999px; align-self:flex-start; font-family:var(--font-mono,monospace); }
+.agynb-fc-front .agynb-fc-badge { background:rgba(99,102,241,.18); color:#A5B4FC; border:1px solid rgba(99,102,241,.3); }
+.agynb-fc-back .agynb-fc-badge { background:rgba(16,185,129,.18); color:#6EE7B7; border:1px solid rgba(16,185,129,.3); }
+
+.agynb-fc-content { font-size:1.15rem; font-weight:600; line-height:1.6; text-align:center; margin:auto 0; padding:10px; max-height:180px; overflow-y:auto; user-select:text; -webkit-user-select:text; }
+.agynb-fc-back .agynb-fc-content { font-size:1.02rem; font-weight:400; color:#E2E8F0; }
+
+.agynb-fc-hint { font-size:.74rem; color:var(--text-muted,#94a3b8); text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; }
+
+.agynb-fc-controls { display:flex; align-items:center; justify-content:space-between; width:100%; gap:10px; }
+.agynb-fc-btn { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color:var(--text-bright,#fff); padding:8px 16px; border-radius:9999px; font-size:.82rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .2s ease; }
+.agynb-fc-btn:hover:not(:disabled) { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.25); transform:translateY(-1px); }
+.agynb-fc-btn:disabled { opacity:.4; cursor:not-allowed; }
+.agynb-fc-btn.flip { background:linear-gradient(135deg, rgba(6,182,212,.2), rgba(99,102,241,.2)); border-color:rgba(6,182,212,.4); }
+.agynb-fc-counter { font-family:var(--font-mono,monospace); font-size:.82rem; color:var(--text-muted,#94a3b8); font-weight:600; }
+
+.agynb-fc-listview { width:100%; display:flex; flex-direction:column; gap:12px; user-select:text; -webkit-user-select:text; }
+.agynb-fc-item { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:16px; transition:border-color .2s ease; }
+.agynb-fc-item:hover { border-color:rgba(6,182,212,.25); }
+.agynb-fc-item-num { font-family:var(--font-mono,monospace); font-size:.7rem; color:var(--text-muted,#94a3b8); margin-bottom:4px; font-weight:700; text-transform:uppercase; }
+.agynb-fc-item-q { font-weight:700; color:#38BDF8; font-size:.9rem; margin-bottom:8px; line-height:1.5; }
+.agynb-fc-item-a { color:#E2E8F0; font-size:.84rem; line-height:1.6; }
+
 .agynb-viewer-foot { padding:10px 16px; border-top:1px solid var(--border-color,rgba(255,255,255,.08)); display:flex; justify-content:flex-end; }
 
 .agynb-msgbar { padding:10px 12px; border-radius:var(--radius-md,10px); font-size:.76rem; margin-top:10px; display:none; }
@@ -157,11 +199,16 @@ const ICONS = {
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
   loader: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>'
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  infographic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 16V8"/><path d="M12 16v-4"/><path d="M17 16v-7"/></svg>',
+  presentation: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>',
+  external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
 };
 
 const STUDIO_TYPES = [
   { kind: 'report', label: 'Report', icon: 'doc' },
+  { kind: 'presentation', label: 'Presentazione', icon: 'presentation' },
+  { kind: 'infographic', label: 'Infografica', icon: 'infographic' },
   { kind: 'quiz', label: 'Quiz', icon: 'quiz' },
   { kind: 'flashcards', label: 'Flashcard', icon: 'cards' },
   { kind: 'mindmap', label: 'Mappa mentale', icon: 'map' },
@@ -372,11 +419,15 @@ async function openSource(name) {
   const nb = activeNotebook();
   if (!nb) return;
   const viewer = $('#agynb-viewer');
+  const card = $('#agynb-viewer-card');
+  const extBtn = $('#agynb-viewer-external');
   const titleEl = $('#agynb-viewer-title');
   const bodyEl = $('#agynb-viewer-body');
   const downloadBtn = $('#agynb-viewer-download');
   titleEl.textContent = name;
   bodyEl.innerHTML = '<p style="color:var(--text-muted)">Caricamento…</p>';
+  if (card) card.classList.remove('wide');
+  if (extBtn) { extBtn.style.display = 'none'; extBtn.onclick = null; }
   viewer.classList.add('on');
   if (downloadBtn) downloadBtn.style.display = 'none';
 
@@ -581,20 +632,242 @@ async function loadMermaid() {
   return mermaidLib;
 }
 
+let flashcardsKeyHandler = null;
+
+function parseFlashcards(content) {
+  const cards = [];
+  const lines = (content || '').split('\n');
+  let curF = null;
+  let curB = null;
+  let target = null;
+
+  for (const rawLine of lines) {
+    const l = rawLine.trim();
+    const fMatch = l.match(/^(?:\*\*Fronte:\*\*|Fronte:|Front:|\*\*Front:\*\*)\s*(.*)/i);
+    const rMatch = l.match(/^(?:\*\*Retro:\*\*|Retro:|Back:|\*\*Back:\*\*)\s*(.*)/i);
+
+    if (fMatch) {
+      if (curF && curB) {
+        cards.push({ front: curF.trim(), back: curB.trim() });
+        curB = null;
+      }
+      curF = fMatch[1];
+      target = 'front';
+    } else if (rMatch) {
+      curB = rMatch[1];
+      target = 'back';
+    } else if (l) {
+      if (target === 'front' && curF !== null) {
+        curF += '\n' + l;
+      } else if (target === 'back' && curB !== null) {
+        curB += '\n' + l;
+      }
+    }
+  }
+  if (curF && curB) {
+    cards.push({ front: curF.trim(), back: curB.trim() });
+  }
+  return cards;
+}
+
+function renderFlashcardsViewer(container, markdownContent) {
+  const cards = parseFlashcards(markdownContent);
+  if (!cards.length) {
+    container.innerHTML = md(markdownContent);
+    return;
+  }
+
+  let curIdx = 0;
+  let isFlipped = false;
+  let viewMode = 'deck'; // 'deck' | 'list'
+
+  function update() {
+    if (viewMode === 'list') {
+      container.innerHTML = `
+        <div class="agynb-fc-wrap">
+          <div class="agynb-fc-topbar">
+            <span class="agynb-fc-counter">${cards.length} flashcard create</span>
+            <div class="agynb-fc-viewmode">
+              <button id="agynb-fc-mode-deck">Deck 3D</button>
+              <button id="agynb-fc-mode-list" class="active">Elenco</button>
+            </div>
+          </div>
+          <div class="agynb-fc-listview">
+            ${cards.map((c, i) => `
+              <div class="agynb-fc-item">
+                <div class="agynb-fc-item-num">Carta ${i + 1} di ${cards.length}</div>
+                <div class="agynb-fc-item-q">Domanda: ${esc(c.front)}</div>
+                <div class="agynb-fc-item-a">Risposta: ${esc(c.back)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      const btnDeck = $('#agynb-fc-mode-deck');
+      if (btnDeck) btnDeck.onclick = () => { viewMode = 'deck'; update(); };
+      return;
+    }
+
+    const card = cards[curIdx];
+    const pct = Math.round(((curIdx + 1) / cards.length) * 100);
+
+    container.innerHTML = `
+      <div class="agynb-fc-wrap">
+        <div class="agynb-fc-topbar">
+          <span class="agynb-fc-counter">Carta ${curIdx + 1} di ${cards.length}</span>
+          <div class="agynb-fc-progress-wrap">
+            <div class="agynb-fc-progress-bar" style="width:${pct}%"></div>
+          </div>
+          <div class="agynb-fc-viewmode">
+            <button id="agynb-fc-mode-deck" class="active">Deck 3D</button>
+            <button id="agynb-fc-mode-list">Elenco</button>
+          </div>
+        </div>
+
+        <div class="agynb-fc-scene" id="agynb-fc-scene" title="Clicca per girare">
+          <div class="agynb-fc-card ${isFlipped ? 'flipped' : ''}" id="agynb-fc-card">
+            <div class="agynb-fc-face agynb-fc-front">
+              <span class="agynb-fc-badge">Domanda / Concetto</span>
+              <div class="agynb-fc-content">${esc(card.front)}</div>
+              <div class="agynb-fc-hint">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                Clicca o premi Spazio per girare la carta
+              </div>
+            </div>
+            <div class="agynb-fc-face agynb-fc-back">
+              <span class="agynb-fc-badge">Risposta / Soluzione</span>
+              <div class="agynb-fc-content">${esc(card.back)}</div>
+              <div class="agynb-fc-hint">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                Clicca o premi Spazio per tornare alla domanda
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="agynb-fc-controls">
+          <button class="agynb-fc-btn" id="agynb-fc-prev" ${curIdx === 0 ? 'disabled' : ''}>
+            ← Precedente
+          </button>
+          <button class="agynb-fc-btn flip" id="agynb-fc-flip">
+            ${isFlipped ? 'Mostra Domanda' : 'Gira Carta (Spazio)'}
+          </button>
+          <button class="agynb-fc-btn" id="agynb-fc-next" ${curIdx === cards.length - 1 ? 'disabled' : ''}>
+            Successiva →
+          </button>
+        </div>
+      </div>
+    `;
+
+    const sceneEl = $('#agynb-fc-scene');
+    if (sceneEl) {
+      sceneEl.onclick = () => {
+        isFlipped = !isFlipped;
+        const cardEl = $('#agynb-fc-card');
+        if (cardEl) cardEl.classList.toggle('flipped', isFlipped);
+        const flipBtn = $('#agynb-fc-flip');
+        if (flipBtn) flipBtn.textContent = isFlipped ? 'Mostra Domanda' : 'Gira Carta (Spazio)';
+      };
+    }
+
+    const flipBtn = $('#agynb-fc-flip');
+    if (flipBtn) {
+      flipBtn.onclick = (e) => {
+        e.stopPropagation();
+        isFlipped = !isFlipped;
+        const cardEl = $('#agynb-fc-card');
+        if (cardEl) cardEl.classList.toggle('flipped', isFlipped);
+        flipBtn.textContent = isFlipped ? 'Mostra Domanda' : 'Gira Carta (Spazio)';
+      };
+    }
+
+    const prevBtn = $('#agynb-fc-prev');
+    if (prevBtn) {
+      prevBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (curIdx > 0) { curIdx--; isFlipped = false; update(); }
+      };
+    }
+
+    const nextBtn = $('#agynb-fc-next');
+    if (nextBtn) {
+      nextBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (curIdx < cards.length - 1) { curIdx++; isFlipped = false; update(); }
+      };
+    }
+
+    const modeListBtn = $('#agynb-fc-mode-list');
+    if (modeListBtn) {
+      modeListBtn.onclick = () => { viewMode = 'list'; update(); };
+    }
+  }
+
+  update();
+
+  if (flashcardsKeyHandler) {
+    window.removeEventListener('keydown', flashcardsKeyHandler);
+  }
+  flashcardsKeyHandler = (e) => {
+    if (!$('#agynb-viewer')?.classList.contains('on') || viewMode !== 'deck') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+
+    if (e.code === 'Space' || e.key === ' ') {
+      e.preventDefault();
+      isFlipped = !isFlipped;
+      const cardEl = $('#agynb-fc-card');
+      if (cardEl) cardEl.classList.toggle('flipped', isFlipped);
+      const flipBtn = $('#agynb-fc-flip');
+      if (flipBtn) flipBtn.textContent = isFlipped ? 'Mostra Domanda' : 'Gira Carta (Spazio)';
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      if (curIdx < cards.length - 1) { curIdx++; isFlipped = false; update(); }
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (curIdx > 0) { curIdx--; isFlipped = false; update(); }
+    }
+  };
+  window.addEventListener('keydown', flashcardsKeyHandler);
+}
+
 async function openArtifact(name) {
   const nb = activeNotebook();
   if (!nb) return;
   const viewer = $('#agynb-viewer');
+  const card = $('#agynb-viewer-card');
   const titleEl = $('#agynb-viewer-title');
   const bodyEl = $('#agynb-viewer-body');
+  const extBtn = $('#agynb-viewer-external');
   titleEl.textContent = name;
   bodyEl.innerHTML = '<p style="color:var(--text-muted)">Caricamento…</p>';
+  if (card) card.classList.remove('wide');
+  if (extBtn) { extBtn.style.display = 'none'; extBtn.onclick = null; }
   viewer.classList.add('on');
   $('#agynb-viewer-download').onclick = () => downloadArtifact(name);
 
   try {
     const data = await call('GET', `/notebooks/${encodeURIComponent(nb.id)}/studio/${encodeURIComponent(name)}/content`);
-    if (name.startsWith('mindmap-')) {
+    if (name.startsWith('infographic-') || name.startsWith('presentation-') || name.endsWith('.html')) {
+      if (card) card.classList.add('wide');
+      const blob = new Blob([data.content], { type: 'text/html; charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      if (extBtn) {
+        extBtn.style.display = 'inline-flex';
+        extBtn.onclick = () => window.open(blobUrl, '_blank');
+      }
+      // NO "allow-same-origin" insieme ad "allow-scripts": un blob: URL creato da
+      // questa pagina erediterebbe la NOSTRA origine, e allow-same-origin darebbe
+      // allo script generato da agy accesso a localStorage/cookie e a chiamate
+      // fetch() autenticate verso il nostro stesso backend. Le fonti di un
+      // notebook possono contenere testo arbitrario (pagine web, PDF caricati):
+      // un prompt-injection nella fonte potrebbe convincere agy a includere uno
+      // script che esfiltra agy_pin. Senza allow-same-origin l'iframe resta a
+      // origine opaca (null) - la navigazione a slide/JS decorativo dentro il
+      // documento generato continua a funzionare, l'accesso alla pagina host no.
+      bodyEl.innerHTML = `<iframe class="agynb-viewer-iframe" sandbox="allow-scripts allow-modals" src="${blobUrl}"></iframe>`;
+    } else if (name.startsWith('flashcards-')) {
+      renderFlashcardsViewer(bodyEl, data.content);
+    } else if (name.startsWith('mindmap-')) {
       const match = data.content.match(/```mermaid\n([\s\S]*?)```/);
       const code = match ? match[1].trim() : data.content.trim();
       try {
@@ -614,6 +887,16 @@ async function openArtifact(name) {
 
 function closeViewer() {
   $('#agynb-viewer').classList.remove('on');
+  if (flashcardsKeyHandler) {
+    window.removeEventListener('keydown', flashcardsKeyHandler);
+    flashcardsKeyHandler = null;
+  }
+  const card = $('#agynb-viewer-card');
+  if (card) card.classList.remove('wide');
+  const extBtn = $('#agynb-viewer-external');
+  if (extBtn) { extBtn.style.display = 'none'; extBtn.onclick = null; }
+  const bodyEl = $('#agynb-viewer-body');
+  if (bodyEl) bodyEl.innerHTML = '';
 }
 
 async function downloadArtifact(name) {
@@ -621,7 +904,8 @@ async function downloadArtifact(name) {
   if (!nb) return;
   try {
     const data = await call('GET', `/notebooks/${encodeURIComponent(nb.id)}/studio/${encodeURIComponent(name)}/content`);
-    const blob = new Blob([data.content], { type: 'text/markdown' });
+    const mime = (name.startsWith('infographic-') || name.startsWith('presentation-') || name.endsWith('.html')) ? 'text/html' : 'text/markdown';
+    const blob = new Blob([data.content], { type: mime });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = name;
@@ -733,10 +1017,13 @@ const SHELL = `
   <button class="agynb-side-open" id="agynb-side-open" title="Notebook">__LIST__</button>
 </div>
 <div class="agynb-viewer" id="agynb-viewer">
-  <div class="agynb-viewer-card">
+  <div class="agynb-viewer-card" id="agynb-viewer-card">
     <div class="agynb-viewer-head">
       <span id="agynb-viewer-title"></span>
-      <button class="agynb-viewer-close" id="agynb-viewer-close">&times;</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="agynb-btn" id="agynb-viewer-external" style="display:none; padding:4px 9px; font-size:.74rem;">${ICONS.external} Nuova scheda</button>
+        <button class="agynb-viewer-close" id="agynb-viewer-close">&times;</button>
+      </div>
     </div>
     <div class="agynb-viewer-body" id="agynb-viewer-body"></div>
     <div class="agynb-viewer-foot">

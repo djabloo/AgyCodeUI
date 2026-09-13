@@ -28,13 +28,16 @@ parse di qualcosa che un modello ha "inventato" in stdout.
 |---|---|
 | **Fonti** | URL (il testo viene estratto), file caricato, o testo incollato |
 | **Chat** | domande vincolate esplicitamente alle fonti del notebook — la prima domanda imposta il contesto, le successive continuano la stessa conversazione agy (`--conversation`) |
-| **Studio** | Report, Quiz, Flashcard, Mappa mentale (renderizzata con Mermaid), Tabella dati |
+| **Studio** | Report, Presentazione (slide deck HTML5 interattivo con navigazione/fullscreen e PDF), Infografica (HTML5/SVG autonoma e stampabile in PDF), Quiz, Flashcard, Mappa mentale (renderizzata con Mermaid), Tabella dati |
 
 ## Cosa manca (scelta di scope, non limite tecnico)
 
-Niente Audio/Video/Presentazione/Infografica: richiederebbero sintesi
-vocale o generazione video/immagini, che `agy` non fa. Aggiungerli in
-futuro è un servizio a parte, non un'estensione naturale di questo plugin.
+Niente Audio/Video: richiederebbero sintesi vocale o rendering
+video pesante, che `agy` non fa. Aggiungerli in futuro è un servizio
+a parte, non un'estensione naturale di questo plugin.
+Sia l'**Infografica** che la **Presentazione (slide deck)** sono
+invece supportate nativamente come documenti HTML5 autonomi con layout
+moderni, controlli da tastiera, fullscreen e stili per esportazione PDF.
 
 ## Note tecniche
 

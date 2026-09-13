@@ -205,6 +205,39 @@ const STUDIO_TYPES = {
     ext: 'md',
     prompt: (srcRel, outRel) => `Leggi tutti i file dentro la cartella "${srcRel}" (ignora eventuali sottocartelle non pertinenti). Scrivi un report professionale in italiano, formato Markdown, che riassuma i temi principali, i punti chiave e le conclusioni rilevabili SOLO da quei file (non aggiungere conoscenza esterna). Usa titoli, sezioni e un elenco puntato dove utile. Salva il risultato ESATTAMENTE nel file "${outRel}" (sovrascrivilo se esiste già). Non modificare nessun altro file. Al termine rispondi solo "Fatto."`
   },
+  infographic: {
+    ext: 'html',
+    prompt: (srcRel, outRel) => `Leggi tutti i file dentro "${srcRel}". Genera un'infografica esecutiva, visiva e professionale basata ESCLUSIVAMENTE su quel contenuto.
+Il formato deve essere un singolo file HTML5 completo e autonomo, con CSS moderno incorporato in un tag <style> (nessuna dipendenza esterna obbligatoria) e layout responsive.
+L'infografica deve includere:
+1. Header accattivante con Titolo, Sottotitolo e badge tematico.
+2. Griglia di 3-4 KPI o metriche chiave in evidenza (valori grandi, percentuali o numeri rilevanti estratti dalle fonti).
+3. Sezione concettuale a card o comparativa (es. Problema vs Soluzione, oppure i Pilastri Chiave con icone SVG inline).
+4. Pipeline o Flusso a step (sequenza logica/operativa a blocchi con frecce o numerazione).
+5. Sezione "Takeaways / Sintesi Strategica" (card riassuntive).
+6. Stile CSS curato: palette scura elegante o neutra pulita, tipografia leggibile, card con bordi sottili e contrasti marcati, e regole @media print per una stampa/salvataggio PDF perfetta.
+Salva il file ESATTAMENTE in "${outRel}" (sovrascrivilo se esiste). Non modificare altri file. Al termine rispondi solo "Fatto."`
+  },
+  presentation: {
+    ext: 'html',
+    prompt: (srcRel, outRel) => `Leggi tutti i file dentro "${srcRel}". Genera una presentazione professionale di diapositive (slide deck di 7-10 slide) basata ESCLUSIVAMENTE su quel contenuto.
+Il formato deve essere un singolo file HTML5 completo e autonomo, con CSS e JavaScript vanilla incorporati (nessuna dipendenza esterna obbligatoria).
+La presentazione deve includere:
+1. Struttura delle slide:
+   - Slide 1: Copertina con Titolo, Sottotitolo e contesto.
+   - Slide 2: Agenda dei temi principali.
+   - Slide 3-7: Slide di contenuto tematiche (es. Il Problema, La Soluzione, Dati & Metriche con card numeriche, Architettura/Processo a step, Casi studio).
+   - Slide 8: Conclusioni e Key Takeaways strategici.
+   - Slide 9: Slide di chiusura / Q&A.
+2. Controlli e navigazione slide:
+   - Navigazione con frecce da tastiera (Freccia destra/spazio = avanti, freccia sinistra = indietro).
+   - Pulsanti visivi a schermo "← Precedente" e "Successiva →", contatore slide (es. "Slide 3 / 9") e barra di avanzamento.
+   - Tasto "F" per attivare o disattivare la modalità schermo intero (fullscreen).
+3. Stile visivo:
+   - Formato 16:9 con centratura fluida, tema scuro moderno ed elegante (#0D1219, contrasti elevati, accenti ciano/ambra/viola), card ben spaziate.
+   - Regole @media print per stampare o salvare tutte le slide in un unico PDF (una slide per pagina, page-break-after: always; break-after: page).
+Salva il file ESATTAMENTE in "${outRel}" (sovrascrivilo se esiste). Non modificare altri file. Al termine rispondi solo "Fatto."`
+  },
   quiz: {
     ext: 'md',
     prompt: (srcRel, outRel) => `Leggi tutti i file dentro "${srcRel}". Genera un quiz di 8 domande a risposta multipla (4 opzioni ciascuna, una sola corretta) basato ESCLUSIVAMENTE sul contenuto di quei file. Formato Markdown: per ogni domanda numerata, le 4 opzioni come elenco puntato (a, b, c, d), poi una riga "**Risposta corretta:** lettera" e una breve spiegazione. Scrivi il risultato ESATTAMENTE nel file "${outRel}" (sovrascrivilo se esiste). Non modificare altri file. Al termine rispondi solo "Fatto."`
