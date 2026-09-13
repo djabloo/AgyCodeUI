@@ -223,11 +223,16 @@ const STUDIO_TYPES = {
   }
 };
 
-function studioPromptFor(kind, sourcesDirAbs, workspace, outRel) {
+function studioPromptFor(kind, sourcesDirAbs, outAbs) {
   const t = STUDIO_TYPES[kind];
   if (!t) return null;
-  const srcRel = path.relative(workspace, sourcesDirAbs).replace(/\\/g, '/');
-  return t.prompt(srcRel, outRel);
+  // Percorsi ASSOLUTI, non relativi al workspace: agy mantiene una propria idea
+  // interna di "cartella corrente" che puo' andare alla deriva durante una
+  // conversazione lunga (osservato: finisce per puntare dentro la sua stessa
+  // cartella di configurazione ~/.gemini/antigravity-cli, bloccata da una
+  // regola di sicurezza hardcoded) - un percorso relativo si spezza in quel
+  // caso, uno assoluto no. Vedi lo stesso ragionamento nel prompt di /query.
+  return t.prompt(sourcesDirAbs, outAbs);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -370,10 +375,15 @@ const server = http.createServer(async (req, res) => {
         if (!sourceFiles.length) return sendJson(res, 400, { error: 'Aggiungi almeno una fonte prima di fare domande' });
 
         const meta = await readMeta();
-        const srcRel = path.relative(workspace, sourcesDir).replace(/\\/g, '/');
         const isFirst = !meta.conversationId;
+        // Percorso ASSOLUTO, non relativo al workspace: durante una conversazione
+        // lunga agy puo' perdere l'ancoraggio alla cartella di lavoro iniziale
+        // (osservato in produzione: un percorso relativo come ".agy-notebook/id/sources"
+        // veniva risolto dentro ~/.gemini/antigravity-cli invece che nel workspace,
+        // bloccato poi da una regola di sicurezza hardcoded che protegge quella
+        // cartella). Un percorso assoluto non dipende da quello stato interno.
         const prompt = isFirst
-          ? `Da questo momento sei l'assistente di ricerca di un notebook. Rispondi SEMPRE usando esclusivamente il contenuto dei file nella cartella "${srcRel}" (fonti: ${sourceFiles.join(', ')}), mai conoscenza esterna, a meno che le fonti stesse non ci rimandino esplicitamente. Se l'informazione richiesta non è nelle fonti, dillo chiaramente invece di inventare. Rispondi in italiano, in modo diretto, senza premesse superflue.\n\nDomanda: ${question}`
+          ? `Da questo momento sei l'assistente di ricerca di un notebook. Rispondi SEMPRE usando esclusivamente il contenuto dei file nella cartella "${sourcesDir}" (fonti: ${sourceFiles.join(', ')}), mai conoscenza esterna, a meno che le fonti stesse non ci rimandino esplicitamente. Se l'informazione richiesta non è nelle fonti, dillo chiaramente invece di inventare. Rispondi in italiano, in modo diretto, senza premesse superflue.\n\nDomanda: ${question}`
           : question;
 
         const result = await runAgy(prompt, { cwd: workspace, conversationId: meta.conversationId });
@@ -416,8 +426,7 @@ const server = http.createServer(async (req, res) => {
 
         const outName = `${kind}-${tsStamp()}.${type.ext}`;
         const outAbs = path.join(studioDir, outName);
-        const outRel = path.relative(workspace, outAbs).replace(/\\/g, '/');
-        const prompt = studioPromptFor(kind, sourcesDir, workspace, outRel);
+        const prompt = studioPromptFor(kind, sourcesDir, outAbs);
 
         const result = await runAgy(prompt, { cwd: workspace });
         if (result.error && !fs.existsSync(outAbs)) return sendJson(res, 502, { error: result.error });
