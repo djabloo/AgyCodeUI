@@ -54,6 +54,10 @@ const CSS = `
   font-family:var(--font-mono,monospace); font-size:.74rem; font-weight:600; color:var(--text-muted,#94a3b8); }
 .agynb-tab:hover { color:var(--text-bright,#fff); }
 .agynb-tab.on { color:var(--accent,#06b6d4); box-shadow:inset 0 -2px 0 var(--accent,#06b6d4); }
+/* Il body dell'app ha "user-select:none" globale (per l'UX di drag/resize del
+   resto dell'interfaccia): senza questa riga il testo del Notebook - risposte,
+   fonti, contenuti - non era selezionabile/copiabile. */
+.agynb-pane, .agynb-viewer-body { user-select:text; -webkit-user-select:text; }
 .agynb-pane { flex:1; overflow-y:auto; padding:18px; display:none; }
 .agynb-pane.on { display:block; }
 .agynb-pane-flex.on { display:flex; flex-direction:column; }
@@ -89,6 +93,10 @@ const CSS = `
 .agynb-msg.q { align-self:flex-end; background:rgba(6,182,212,.12); border:1px solid rgba(6,182,212,.25); }
 .agynb-msg.a { align-self:flex-start; background:rgba(255,255,255,.04); border:1px solid var(--border-color,rgba(255,255,255,.08)); }
 .agynb-msg.a p:first-child { margin-top:0; } .agynb-msg.a p:last-child { margin-bottom:0; }
+.agynb-thinking { display:flex; align-items:center; gap:4px; padding:14px 16px; }
+.agynb-thinking span { width:6px; height:6px; border-radius:50%; background:var(--text-muted,#94a3b8); animation:agynb-think 1.2s ease-in-out infinite; }
+.agynb-thinking span:nth-child(2) { animation-delay:.2s; } .agynb-thinking span:nth-child(3) { animation-delay:.4s; }
+@keyframes agynb-think { 0%, 80%, 100% { opacity:.3; transform:scale(0.8); } 40% { opacity:1; transform:scale(1); } }
 
 .agynb-art { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; cursor:pointer;
   background:rgba(255,255,255,.02); border:1px solid var(--border-color,rgba(255,255,255,.06)); margin-bottom:6px; }
@@ -386,8 +394,22 @@ async function addSourceUrl() {
   const input = $('#agynb-src-url');
   const url = input.value.trim();
   if (!url) return;
-  await addSourceCommon({ url });
-  input.value = '';
+  const btn = $('#agynb-add-url');
+  const original = btn ? btn.innerHTML : '';
+  // Un link YouTube passa da agy (navigazione web + trascrizione): puo' richiedere
+  // anche un minuto, molto piu' di una pagina web normale - senza uno stato di
+  // caricamento visibile sembra che il pulsante non abbia fatto nulla.
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = ICONS.loader.replace('<svg', '<svg class="agynb-spin"') + ' Recupero contenuto…';
+  }
+  setMsg('', '');
+  try {
+    await addSourceCommon({ url }, true);
+    input.value = '';
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
+  }
 }
 
 async function addSourceText() {
@@ -395,9 +417,17 @@ async function addSourceText() {
   const titleInput = $('#agynb-src-text-title');
   const text = ta.value.trim();
   if (!text) return;
-  await addSourceCommon({ text, title: titleInput.value.trim() || undefined });
-  ta.value = '';
-  titleInput.value = '';
+  const btn = $('#agynb-add-text');
+  const original = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = ICONS.loader.replace('<svg', '<svg class="agynb-spin"') + ' Aggiungo…'; }
+  setMsg('', '');
+  try {
+    await addSourceCommon({ text, title: titleInput.value.trim() || undefined }, true);
+    ta.value = '';
+    titleInput.value = '';
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
+  }
 }
 
 async function addSourceFile(file) {
@@ -443,7 +473,10 @@ async function loadChat() {
 function renderChatLog() {
   const box = $('#agynb-chatlog');
   if (!box) return;
-  box.innerHTML = st.chatLog.map((m) => `<div class="agynb-msg ${m.role}">${m.role === 'a' ? md(m.text) : esc(m.text)}</div>`).join('')
+  box.innerHTML = st.chatLog.map((m) => m.thinking
+    ? '<div class="agynb-msg a agynb-thinking"><span></span><span></span><span></span></div>'
+    : `<div class="agynb-msg ${m.role}">${m.role === 'a' ? md(m.text) : esc(m.text)}</div>`
+  ).join('')
     || '<p style="color:var(--text-muted); font-size:.78rem;">Fai una domanda: risponde solo in base alle fonti di questo notebook.</p>';
   box.scrollTop = box.scrollHeight;
 }
@@ -455,7 +488,7 @@ async function sendQuery() {
   if (!nb || !question || st.busy) return;
   input.value = '';
   st.chatLog.push({ role: 'q', text: question });
-  st.chatLog.push({ role: 'a', text: '…' });
+  st.chatLog.push({ role: 'a', text: '', thinking: true });
   renderChatLog();
   st.busy = true;
   const btn = $('#agynb-chat-send');
