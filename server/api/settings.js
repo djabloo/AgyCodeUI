@@ -989,9 +989,13 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
             let chromePath = '';
 
             const candidates = [
+                '/usr/local/bin/google-chrome',
+                '/usr/local/bin/chromium',
+                '/snap/chromium/current/usr/lib/chromium-browser/chrome',
+                '/usr/bin/google-chrome',
+                '/usr/bin/google-chrome-stable',
                 '/snap/bin/chromium',
                 '/usr/bin/chromium-browser',
-                '/usr/bin/google-chrome',
                 '/usr/bin/chromium'
             ];
 
