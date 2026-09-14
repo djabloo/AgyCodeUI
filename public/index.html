@@ -9,9 +9,9 @@
     <title>Antigravity Code UI (agycodeui)</title>
 
     <!-- Favicon & App Icons -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+    <link rel="alternate icon" type="image/x-icon" href="favicon.ico?v=2">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
@@ -266,12 +266,8 @@
         <aside id="sessions-sidebar" class="sessions-sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-title" onclick="window.agyEnvironments.switchView('environments')">
-                    <div class="brand-logo-box">
-                        <div class="brand-logo-box-inner">
-                            <span class="brand-planet-emoji">🪐</span>
-                        </div>
-                    </div>
-                    <span>AGY<span class="gradient-brand-text">UI</span><span class="logo-badge">.ai</span></span>
+                    <img src="/favicon.svg?v=2" alt="" class="brand-logo-box" width="32" height="32">
+                    <span class="lowercase">agycloud</span>
                 </div>
                 <div class="sidebar-header-right">
                     <button class="icon-btn" id="sidebar-refresh-btn" onclick="window.agySidebar.refreshAll()" title="Aggiorna Sessioni e Progetti">
@@ -541,6 +537,16 @@
                                     <div class="toolbar-left-actions">
                                         <button type="button" id="chat-attach-btn" class="toolbar-icon-btn" title="Allega file" onclick="document.getElementById('chat-attach-input').click()">
                                             <i data-lucide="paperclip"></i>
+                                        </button>
+                                        <button type="button" id="chat-gdrive-btn" class="toolbar-icon-btn" title="Allega da Google Drive" onclick="window.agyGoogleDrive && window.agyGoogleDrive.openForChat()">
+                                            <svg width="15" height="15" viewBox="0 0 87.3 78" style="vertical-align: middle;">
+                                                <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                                                <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                                                <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.25z" fill="#ea4335"/>
+                                                <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                                                <path d="m59.8 53h27.5c0-1.55-.4-3.1-1.2-4.5l-25.4-44c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8z" fill="#ffba00"/>
+                                                <path d="m27.5 53-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.9c1.6 0 3.15-.45 4.5-1.2l-13.75-23.8z" fill="#2684fc"/>
+                                            </svg>
                                         </button>
                                         <div class="chat-pii-folder-wrapper" style="position: relative; display: inline-block;">
                                             <button type="button" id="chat-pii-btn" class="toolbar-icon-btn" title="Documenti anonimizzati (cartella pii-clean)" onclick="window.agyChat.togglePiiFolderMenu(event)">
@@ -1443,11 +1449,51 @@
         </div>
     </div>
 
+    <!-- Google Drive Configuration Modal -->
+    <div id="gdrive-config-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="window.agyGoogleDrive.closeConfigModal()"></div>
+        <div class="modal-dialog modal-md" style="max-width: 480px; margin: 60px auto; background: var(--bg-card, #0d121f); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 14px; padding: 22px; position: relative; z-index: 10001; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <svg width="22" height="22" viewBox="0 0 87.3 78">
+                        <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                        <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                        <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.25z" fill="#ea4335"/>
+                        <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                        <path d="m59.8 53h27.5c0-1.55-.4-3.1-1.2-4.5l-25.4-44c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8z" fill="#ffba00"/>
+                        <path d="m27.5 53-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.9c1.6 0 3.15-.45 4.5-1.2l-13.75-23.8z" fill="#2684fc"/>
+                    </svg>
+                    <h3 style="margin: 0; font-size: 1.1rem; color: #fff;">Connetti Google Drive</h3>
+                </div>
+                <button type="button" class="btn-close" style="background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer;" onclick="window.agyGoogleDrive.closeConfigModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.5; margin-bottom: 16px;">
+                    Per allegare file direttamente dal tuo Google Drive, inserisci la tua <strong>Google Picker API Key</strong> (e facoltativamente il Client ID).
+                    I documenti vengono selezionati tramite il selettore nativo di Google con autorizzazione limitata ai soli file scelti (<em>drive.file</em>).
+                </p>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">Google Picker API Key (Obbligatoria)</label>
+                    <input type="text" id="gdrive-api-key-input" class="form-input" placeholder="AIzaSy..." style="width: 100%; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 18px;">
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">Google Client ID (Web Application)</label>
+                    <input type="text" id="gdrive-client-id-input" class="form-input" placeholder="...apps.googleusercontent.com" style="width: 100%; box-sizing: border-box;">
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="btn btn-outline" onclick="window.agyGoogleDrive.closeConfigModal()">Annulla</button>
+                <button type="button" class="btn btn-primary" onclick="window.agyGoogleDrive.saveConfigFromModal()">Salva e Connetti</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/i18n.js"></script>
     <script src="js/terminal.js"></script>
     <script src="js/speech.js"></script>
     <script src="js/fileExplorer.js"></script>
+    <script src="js/gdrive.js"></script>
     <script src="js/chat.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/plugins.js?v=1.2.1"></script>

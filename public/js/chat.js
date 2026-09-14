@@ -743,7 +743,7 @@ class AgyChat {
                         <div class="assistant-selector-wrap">
                             <div class="assistant-selector-pill" onclick="window.agyChat.toggleModelMenu(event)" title="Clicca per cambiare modello">
                                 <div class="assistant-pill-left">
-                                    <span class="assistant-logo-icon">🪐</span>
+                                    <img src="/favicon.svg?v=2" alt="" class="assistant-logo-icon" width="22" height="22">
                                     <div class="assistant-name-group">
                                         <span class="assistant-name" id="hero-selected-model-name">${this.escapeHtml(this.activeModelName)}</span>
                                         <span class="assistant-sublabel font-mono text-[11px] text-muted">Click to change model</span>
@@ -955,7 +955,7 @@ class AgyChat {
         return `
             <div class="chat-message-row ${isUser ? 'is-user' : 'is-assistant'}" id="msg-el-${this.escapeHtml(msg.id)}">
                 <div class="message-avatar ${isUser ? 'user-avatar-badge' : 'assistant-avatar-badge'}" title="${isUser ? 'Tu' : 'Antigravity'}">
-                    ${isUser ? '<span>U</span>' : '<span>🪐</span>'}
+                    ${isUser ? '<span>U</span>' : '<img src="/favicon.svg?v=2" alt="" width="26" height="26" style="border-radius:8px;">'}
                 </div>
                 <div class="message-bubble">
                     ${this.buildBubbleInnerHtml(parsed, msg, isStreaming)}

@@ -4782,7 +4782,8 @@ input:checked + .slider:before {
 }
 
 .assistant-logo-icon {
-    font-size: 1.4rem;
+    border-radius: 7px;
+    flex-shrink: 0;
 }
 
 .assistant-name-group {
