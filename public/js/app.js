@@ -684,8 +684,21 @@ class AgyApp {
     }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+function agyBootApp() {
+    if (window.agyApp) return; // idempotente: evita doppia inizializzazione
     window.agyBrowserTab = new AgyBrowserTab();
     window.agyApp = new AgyApp();
     window.agyApp.init();
-});
+}
+
+// Cloudflare Rocket Loader (attivo su agycloud.ai) riscrive gli attributi "type"
+// dei tag <script> e li esegue col proprio motore in un momento imprecisato,
+// dove fidarsi di document.readyState o di un solo listener "DOMContentLoaded"
+// si è rivelato inaffidabile (l'evento risulta già passato, o readyState mente):
+// l'inizializzazione non partiva mai, senza errori in console (icone/menu
+// invisibili). Fix a prova di tutto: si prova subito, e comunque ci si mette
+// in ascolto sia di DOMContentLoaded sia di load come rete di sicurezza;
+// agyBootApp() è idempotente quindi le chiamate multiple sono innocue.
+agyBootApp();
+window.addEventListener('DOMContentLoaded', agyBootApp);
+window.addEventListener('load', agyBootApp);
