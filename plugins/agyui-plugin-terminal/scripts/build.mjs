@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Build script — run by CloudCLI as `npm run build` right after it installs
+ * Build script — run by AgyCloud as `npm run build` right after it installs
  * the plugin, and by hand during development.
  *
  * Three jobs:
@@ -11,7 +11,7 @@
  *    day — for a tool that runs on localhost, that is a strange dependency.
  * 2. Bundle the backend, leaving node-pty and ws external: those are native /
  *    host-provided and are resolved at runtime by findModule().
- * 3. Repair node-pty if its native binding is missing. CloudCLI installs
+ * 3. Repair node-pty if its native binding is missing. AgyCloud installs
  *    plugin dependencies with `npm install --ignore-scripts`, which skips
  *    node-pty's build step, and node-pty only ships prebuilt binaries for
  *    macOS and Windows — so on Linux the plugin's own copy never loads. This
@@ -47,7 +47,7 @@ function ensureNodePty() {
   console.log('[build] node-pty native binding missing — running "npm rebuild node-pty"');
   const result = spawnSync('npm', ['rebuild', 'node-pty'], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
   if (result.status !== 0 || !nodePtyBindingExists()) {
-    // Not fatal: the server falls back to the CloudCLI host's own node-pty,
+    // Not fatal: the server falls back to the AgyCloud host's own node-pty,
     // which is present on every machine that can run the host at all.
     console.warn('[build] could not build node-pty locally; falling back to the host copy at runtime');
   }

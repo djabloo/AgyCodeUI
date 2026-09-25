@@ -276,11 +276,6 @@ export async function mount(container: HTMLElement, api: PluginAPI): Promise<voi
   toast.setAttribute('role', 'status');
   panes.appendChild(toast);
 
-  const keybar = el('div', 'wt-keybar');
-  keybar.setAttribute('role', 'toolbar');
-  keybar.setAttribute('aria-label', 'Terminal keys');
-  root.appendChild(keybar);
-
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   function showToast(message: string, action?: { label: string; run: () => void }, durationMs = 1800): void {
     toast.replaceChildren(document.createTextNode(message));
@@ -633,7 +628,213 @@ export async function mount(container: HTMLElement, api: PluginAPI): Promise<voi
     }));
   }
 
-  // ── Mobile key bar ─────────────────────────────────────────────────────────
+  // ── Quick Command Bar & Interactive Prompt Input Panel ─────────────────────
+  const quickbar = el('div', 'wt-quickbar');
+  quickbar.setAttribute('role', 'toolbar');
+  quickbar.setAttribute('aria-label', 'Terminal quick actions');
+  const scrollRow = el('div', 'wt-quickbar-scroll');
+  quickbar.appendChild(scrollRow);
+  root.appendChild(quickbar);
+
+  const makeQuickBtn = (label: string, iconSvg?: string, extraClass?: string, onClick?: () => void): HTMLButtonElement => {
+    const btn = el('button', `wt-quick-btn ${extraClass || ''}`.trim());
+    btn.type = 'button';
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    if (iconSvg) {
+      const span = el('span');
+      span.innerHTML = iconSvg;
+      btn.appendChild(span);
+    }
+    const txt = el('span', undefined, label);
+    btn.appendChild(txt);
+    if (onClick) btn.addEventListener('click', onClick);
+    return btn;
+  };
+
+  const makeDivider = (): HTMLElement => el('span', 'wt-quick-divider');
+
+  // Input Panel
+  const inputPanel = el('footer', 'wt-input-panel');
+  const inputForm = el('form', 'wt-input-form');
+  inputPanel.appendChild(inputForm);
+  root.appendChild(inputPanel);
+
+  const voiceBtn = el('button', 'wt-input-btn wt-input-voice');
+  voiceBtn.type = 'button';
+  voiceBtn.id = 'wt-voice-btn';
+  voiceBtn.title = 'Dettatura vocale';
+  voiceBtn.innerHTML = IC.mic;
+  inputForm.appendChild(voiceBtn);
+
+  const promptInput = el('textarea', 'wt-input-textarea');
+  promptInput.id = 'wt-prompt-input';
+  promptInput.rows = 1;
+  promptInput.placeholder = 'Invia al terminale interattivo...';
+  inputForm.appendChild(promptInput);
+
+  const sendBtn = el('button', 'wt-input-btn wt-input-send');
+  sendBtn.type = 'submit';
+  sendBtn.title = 'Invia Prompt';
+  sendBtn.innerHTML = IC.send;
+  inputForm.appendChild(sendBtn);
+
+  const insertPromptText = (text: string, execute = false): void => {
+    if (execute) {
+      const session = activeSession();
+      if (session) {
+        session.sendKey(text);
+        session.focus();
+      }
+      return;
+    }
+    promptInput.value = text;
+    promptInput.focus();
+    promptInput.style.height = 'auto';
+    promptInput.style.height = Math.min(promptInput.scrollHeight, 120) + 'px';
+  };
+
+  // 1. Copia
+  scrollRow.appendChild(makeQuickBtn('Copia', IC.copy, '', () => {
+    const session = activeSession();
+    if (session) {
+      if (session.terminal.hasSelection()) {
+        session.copySelection();
+        showToast('Copiato negli appunti');
+      } else {
+        showToast('Seleziona del testo per copiare');
+      }
+    }
+  }));
+
+  // 2. Incolla
+  scrollRow.appendChild(makeQuickBtn('Incolla', IC.paste, '', () => {
+    activeSession()?.paste().catch((err: Error) => showToast(err.message));
+  }));
+
+  scrollRow.appendChild(makeDivider());
+
+  // 3. Sì (y)
+  scrollRow.appendChild(makeQuickBtn('Sì (y)', IC.check, 'wt-btn-action', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('y\r'); s.focus(); }
+  }));
+
+  // 4. No (n)
+  scrollRow.appendChild(makeQuickBtn('No (n)', IC.x, 'wt-btn-danger', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('n\r'); s.focus(); }
+  }));
+
+  // 5. Invio
+  scrollRow.appendChild(makeQuickBtn('Invio', IC.enter, '', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('\r'); s.focus(); }
+  }));
+
+  // 6. Ctrl+C
+  scrollRow.appendChild(makeQuickBtn('Ctrl+C', IC.alert, 'wt-btn-warning', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('\x03'); s.focus(); }
+  }));
+
+  // 7. Tab
+  scrollRow.appendChild(makeQuickBtn('Tab', undefined, '', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('\t'); s.focus(); }
+  }));
+
+  // 8. Esc
+  scrollRow.appendChild(makeQuickBtn('Esc', undefined, '', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('\x1b'); s.focus(); }
+  }));
+
+  // 9. Arrows: ↑ ↓ ← →
+  scrollRow.appendChild(makeQuickBtn('↑', undefined, '', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('\x1b[A'); s.focus(); }
+  }));
+  scrollRow.appendChild(makeQuickBtn('↓', undefined, '', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('\x1b[B'); s.focus(); }
+  }));
+  scrollRow.appendChild(makeQuickBtn('←', undefined, '', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('\x1b[D'); s.focus(); }
+  }));
+  scrollRow.appendChild(makeQuickBtn('→', undefined, '', () => {
+    const s = activeSession();
+    if (s) { s.sendKey('\x1b[C'); s.focus(); }
+  }));
+
+  scrollRow.appendChild(makeDivider());
+
+  // 10. Slash commands
+  const slashCommands: Array<{ label: string; text: string; execute?: boolean }> = [
+    { label: '/model', text: '/model\r', execute: true },
+    { label: '/goal', text: '/goal ' },
+    { label: '/plan', text: '/plan ' },
+    { label: '/schedule', text: '/schedule ' },
+    { label: '/browser', text: '/browser ' },
+    { label: '/help', text: '/help\r', execute: true },
+    { label: '/learn', text: '/learn ' },
+    { label: '/agents', text: '/agents\r', execute: true },
+    { label: '/mcp', text: '/mcp\r', execute: true },
+  ];
+
+  for (const cmd of slashCommands) {
+    scrollRow.appendChild(makeQuickBtn(cmd.label, undefined, 'wt-btn-outline', () => {
+      insertPromptText(cmd.text, cmd.execute);
+    }));
+  }
+
+  // Handle prompt input submission
+  const submitPrompt = (): void => {
+    const text = promptInput.value.trim();
+    if (text) {
+      const s = activeSession();
+      if (s) {
+        s.sendKey(text + '\r');
+        s.focus();
+      }
+      promptInput.value = '';
+      promptInput.style.height = 'auto';
+    }
+  };
+
+  inputForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitPrompt();
+  });
+
+  promptInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitPrompt();
+    } else if (e.key === 'ArrowUp' && !promptInput.value) {
+      e.preventDefault();
+      activeSession()?.sendKey('\x1b[A');
+    } else if (e.key === 'ArrowDown' && !promptInput.value) {
+      e.preventDefault();
+      activeSession()?.sendKey('\x1b[B');
+    }
+  });
+
+  promptInput.addEventListener('input', () => {
+    promptInput.style.height = 'auto';
+    promptInput.style.height = Math.min(promptInput.scrollHeight, 120) + 'px';
+  });
+
+  // Voice toggle
+  voiceBtn.addEventListener('click', () => {
+    const agySpeech = (window as unknown as { agySpeech?: { toggle(i: string, b: string): void } }).agySpeech;
+    if (agySpeech && typeof agySpeech.toggle === 'function') {
+      agySpeech.toggle('wt-prompt-input', 'wt-voice-btn');
+    } else {
+      showToast('Dettatura vocale non disponibile');
+    }
+  });
+
   function syncModifierButtons(): void {
     const session = activeSession();
     for (const { action, button } of modifierButtons) {
@@ -641,44 +842,6 @@ export async function mount(container: HTMLElement, api: PluginAPI): Promise<voi
       button.classList.toggle('wt-active', !!armed);
       button.setAttribute('aria-pressed', String(!!armed));
     }
-  }
-
-  for (const key of MOBILE_KEYS) {
-    const button = el('button', 'wt-key');
-    button.type = 'button';
-    const name = key.title ?? key.label;
-    button.title = name;
-    button.setAttribute('aria-label', name);
-    button.addEventListener('mousedown', (event) => event.preventDefault());
-    if (key.svg) {
-      const span = el('span');
-      span.innerHTML = key.label; // Constant markup from ui/icons.ts.
-      button.appendChild(span);
-    } else {
-      button.textContent = key.label;
-    }
-
-    if (key.action === 'ctrl' || key.action === 'alt') {
-      modifierButtons.push({ action: key.action, button });
-      button.setAttribute('aria-pressed', 'false');
-      button.addEventListener('click', () => {
-        const session = activeSession();
-        if (!session) return;
-        if (key.action === 'ctrl') session.pendingCtrl = !session.pendingCtrl;
-        else session.pendingAlt = !session.pendingAlt;
-        syncModifierButtons();
-        session.focus();
-      });
-    } else if (key.action === 'paste') {
-      button.addEventListener('click', () => {
-        activeSession()?.paste().catch((err: Error) => showToast(err.message));
-      });
-    } else if (key.action === 'keyboard') {
-      button.addEventListener('click', () => activeSession()?.focus());
-    } else {
-      button.addEventListener('click', () => activeSession()?.sendKey(key.seq!));
-    }
-    keybar.appendChild(button);
   }
 
   for (const session of state.sessions.values()) {

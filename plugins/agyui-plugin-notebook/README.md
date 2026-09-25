@@ -53,4 +53,4 @@ moderni, controlli da tastiera, fullscreen e stili per esportazione PDF.
 
 ## Licenza
 
-MIT, come AGYUI.
+MIT, come AGYCLOUD

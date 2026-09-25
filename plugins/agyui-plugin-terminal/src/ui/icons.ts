@@ -16,4 +16,10 @@ export const IC: Record<string, string> = {
   keyboard: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="4" width="13" height="8" rx="1.2"/><path d="M4 6.5h.01M6.2 6.5h.01M8.4 6.5h.01M10.6 6.5h.01M12.8 6.5h.01M4 9.9h8"/></svg>',
   agy: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="4.2"/><ellipse cx="8" cy="8" rx="7.2" ry="2.4" transform="rotate(-22 8 8)"/></svg>',
   sparkles: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 1.5l1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5 1.5-4z"/></svg>',
+  check: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-6"/></svg>',
+  x: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>',
+  enter: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3v6a2 2 0 01-2 2H3"/><path d="M6 7l-4 4 4 4"/></svg>',
+  alert: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 2 11 2 15 6 15 12 11 16 5 16 1 12 1 6 5 2"/><line x1="8" y1="5.5" x2="8" y2="9"/><line x1="8" y1="12" x2="8.01" y2="12"/></svg>',
+  mic: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2a2 2 0 00-2 2v4a2 2 0 004 0V4a2 2 0 00-2-2z"/><path d="M3.5 7v1a4.5 4.5 0 009 0V7"/><line x1="8" y1="12.5" x2="8" y2="15"/></svg>',
+  send: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 1.5l-6 13-2.5-5.5-5.5-2.5 14-5z"/><line x1="6" y1="9" x2="14.5" y2="1.5"/></svg>',
 };

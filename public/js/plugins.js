@@ -63,6 +63,8 @@ class AgyPlugins {
 
             if (p.name.includes("terminal")) {
                 iconMarkup = '<i data-lucide="terminal"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-terminal"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" x2="20" y1="19" y2="19"></line></svg></i>';
+            } else if (p.name.includes("flow")) {
+                iconMarkup = '<i data-lucide="git-fork"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-git-fork"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="12" r="3"></circle><path d="M9 6h4a5 5 0 0 1 5 5"></path><path d="M9 18h4a5 5 0 0 0 5-5"></path></svg></i>';
             } else if (p.name.includes("pii")) {
                 iconMarkup = '<i data-lucide="shield-check"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-check"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg></i>';
             } else if (p.name.includes("stats") || p.name.includes("starter")) {
@@ -76,22 +78,8 @@ class AgyPlugins {
             const labelSpan = document.createElement("span");
             labelSpan.textContent = p.displayName;
 
-            // X per chiudere il tab (disabilita il plugin) senza dover passare dalle
-            // Impostazioni: su mobile in verticale ogni tab fisso occupa spazio prezioso,
-            // quindi un plugin non usato si puo' togliere al volo. Riabilitabile da
-            // Impostazioni > Plugin (stesso switch enable/disable, nessuna nuova via).
-            const closeBtn = document.createElement("span");
-            closeBtn.className = "nav-tab-close";
-            closeBtn.title = `Chiudi ${p.displayName}`;
-            closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-            closeBtn.onclick = (ev) => {
-                ev.stopPropagation();
-                this.closePluginTab(p.name);
-            };
-
             tabBtn.appendChild(iconEl);
             tabBtn.appendChild(labelSpan);
-            tabBtn.appendChild(closeBtn);
             nav.appendChild(tabBtn);
 
             // Crea tab pane nel DOM se non esiste
@@ -127,7 +115,7 @@ class AgyPlugins {
             if (window.lucide) window.lucide.createIcons();
 
             try {
-                const entryUrl = `/api/plugins/${encodeURIComponent(name)}/assets/${p.entry}`;
+                const entryUrl = `/api/plugins/${encodeURIComponent(name)}/assets/${p.entry}?v=${encodeURIComponent(p.version || Date.now())}`;
                 const mod = await import(entryUrl);
                 container.innerHTML = "";
 
@@ -147,8 +135,11 @@ class AgyPlugins {
         const self = this;
         return {
             get context() {
+                const isLight = document.documentElement.getAttribute("data-theme") === "light" ||
+                                document.body.classList.contains("theme-light") ||
+                                document.body.classList.contains("light-theme");
                 return {
-                    theme: document.body.classList.contains("light-theme") ? "light" : "dark",
+                    theme: isLight ? "light" : "dark",
                     project: { name: "workspace", path: (window.agyApp && window.agyApp.currentWorkspace) || "/home/user" },
                     session: (window.agyChat && window.agyChat.activeSession) ? { id: window.agyChat.activeSession.id, title: window.agyChat.activeSession.title } : null
                 };

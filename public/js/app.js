@@ -509,14 +509,27 @@ class AgyApp {
     }
 
     switchTab(tabId) {
-        this.activeTab = tabId;
-        document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+        // Normalizza alias comuni per prevenire schermata vuota (es. 'chat' -> 'chat-tab')
+        if (tabId === 'chat') tabId = 'chat-tab';
+        else if (tabId === 'terminal') tabId = 'terminal-tab';
+        else if (tabId === 'files') tabId = 'files-tab';
+        else if (tabId === 'settings') tabId = 'settings-tab';
+        else if (tabId === 'prompts') tabId = 'prompts-tab';
 
         const targetPane = document.getElementById(tabId);
         const targetTab = document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
 
-        if (targetPane) targetPane.classList.add('active');
+        // Se il tab non esiste, non disattivare il tab corrente per evitare schermata nera
+        if (!targetPane) {
+            console.warn(`[switchTab] Tab pane non trovato: "${tabId}"`);
+            return;
+        }
+
+        this.activeTab = tabId;
+        document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+
+        targetPane.classList.add('active');
         if (targetTab) targetTab.classList.add('active');
 
         if (window.lucide) window.lucide.createIcons();

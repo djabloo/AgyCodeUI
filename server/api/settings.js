@@ -165,6 +165,8 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                 workspaceDir: env.WORKSPACE_DIR || process.cwd(),
                 cliCommand: env.CLI_COMMAND || 'agy',
                 cliArgs: env.CLI_ARGS || '',
+                googleClientId: env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '',
+                googlePickerApiKey: env.GOOGLE_PICKER_API_KEY || process.env.GOOGLE_PICKER_API_KEY || '',
                 models: models.length > 0 ? models : [
                     { id: 'gemini-3.7-flash-high', name: 'Gemini 3.7 Flash (High)' },
                     { id: 'gemini-3.7-flash-medium', name: 'Gemini 3.7 Flash (Medium)' },
@@ -385,17 +387,42 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                 return res.status(400).json({ error: 'Nome server MCP non valido. Sono ammessi solo caratteri alfanumerici, punti, trattini o underscore.' });
             }
 
+            // Estrazione e isolamento automatico di eventuali variabili o credenziali (-e, --env)
+            // passate per errore nel comando o negli argomenti, per evitare che finiscano in chiaro nei log o nella UI.
+            let cleanCmd = String(commandOrUrl).trim();
+            let cleanArgs = typeof args === 'string' ? args.trim() : '';
+            const allEnvs = [];
+
+            if (envs && Array.isArray(envs)) {
+                envs.forEach(e => {
+                    if (e && typeof e === 'string' && e.trim()) allEnvs.push(e.trim());
+                });
+            }
+
+            const envFlagRegex = /(?:^|\s+)(?:-e|--env)(?:\s+|=)(["'][^"']+["']|[^\s]+)/g;
+
+            cleanCmd = cleanCmd.replace(envFlagRegex, (match, val) => {
+                const cleaned = val.replace(/^["']|["']$/g, '');
+                if (cleaned && !allEnvs.includes(cleaned)) allEnvs.push(cleaned);
+                return '';
+            }).replace(/\s+/g, ' ').trim();
+
+            cleanArgs = cleanArgs.replace(envFlagRegex, (match, val) => {
+                const cleaned = val.replace(/^["']|["']$/g, '');
+                if (cleaned && !allEnvs.includes(cleaned)) allEnvs.push(cleaned);
+                return '';
+            }).replace(/\s+/g, ' ').trim();
+
             const argv = ['mcp', 'add'];
             if (type && type !== 'stdio') {
                 argv.push('--type', String(type).trim());
             }
-            if (envs && Array.isArray(envs)) {
-                envs.forEach(e => {
-                    if (e && typeof e === 'string' && e.trim()) {
-                        argv.push('--env', e.trim());
-                    }
-                });
-            }
+
+            // I flag --env devono sempre precedere il nome del server in agy
+            allEnvs.forEach(e => {
+                argv.push('--env', e);
+            });
+
             if (headers && Array.isArray(headers)) {
                 headers.forEach(h => {
                     if (h && typeof h === 'string' && h.trim()) {
@@ -403,9 +430,18 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                     }
                 });
             }
-            argv.push(validName, String(commandOrUrl).trim());
-            if (args && typeof args === 'string' && args.trim()) {
-                argv.push(...args.trim().split(/\s+/));
+
+            // Separa il comando eseguibile dal resto se inseriti insieme
+            const cmdParts = cleanCmd.split(/\s+/);
+            const executable = cmdParts[0];
+            const cmdArgs = cmdParts.slice(1);
+
+            argv.push(validName, executable);
+            if (cmdArgs.length > 0) {
+                argv.push(...cmdArgs);
+            }
+            if (cleanArgs) {
+                argv.push(...cleanArgs.split(/\s+/));
             }
 
             const result = await runAgy(argv);
@@ -650,6 +686,22 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
 
             updateEnvFile(updates);
             res.json({ success: true, message: 'Impostazioni aggiornate con successo' });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // 9b. Configurazione Google Drive (Picker API Key e Client ID)
+    router.post('/gdrive-config', (req, res) => {
+        try {
+            const { clientId, apiKey } = req.body || {};
+            const updates = {};
+            if (typeof clientId === 'string') updates.GOOGLE_CLIENT_ID = clientId.trim();
+            if (typeof apiKey === 'string') updates.GOOGLE_PICKER_API_KEY = apiKey.trim();
+            if (Object.keys(updates).length > 0) {
+                updateEnvFile(updates);
+            }
+            res.json({ success: true, message: 'Configurazione Google Drive salvata' });
         } catch (e) {
             res.status(500).json({ error: e.message });
         }

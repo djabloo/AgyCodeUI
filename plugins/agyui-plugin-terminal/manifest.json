@@ -3,7 +3,7 @@
   "displayName": "XTerm",
   "version": "1.2.0",
   "description": "Full-featured web terminal with multi-tab support, powered by xterm.js",
-  "author": "AGYUI",
+  "author": "AGYCLOUD",
   "icon": "icon.svg",
   "type": "module",
   "slot": "tab",

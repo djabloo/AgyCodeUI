@@ -1,7 +1,7 @@
 {
   "name": "agyui-plugin-notebook",
   "displayName": "Notebook",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Notebook di ricerca nativo AGYUI: raccogli fonti (testo, URL, file), fai domande vincolate a quelle fonti, genera Report/Quiz/Flashcard/Mappa mentale/Tabella dati. Motore: agy (Google Antigravity), gia' autenticato in ogni ambiente self-hosted e SaaS.",
   "author": "AGYUI",
   "icon": "icon.svg",

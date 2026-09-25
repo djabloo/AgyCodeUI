@@ -202,10 +202,13 @@ const ICONS = {
   list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
   infographic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 16V8"/><path d="M12 16v-4"/><path d="M17 16v-7"/></svg>',
   presentation: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>',
-  external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
+  external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
+  gdrive: '<svg viewBox="0 0 87.3 78" style="width:14px; height:14px; vertical-align:middle;"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.25z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h27.5c0-1.55-.4-3.1-1.2-4.5l-25.4-44c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8z" fill="#ffba00"/><path d="m27.5 53-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.9c1.6 0 3.15-.45 4.5-1.2l-13.75-23.8z" fill="#2684fc"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>'
 };
 
 const STUDIO_TYPES = [
+  { kind: 'audio_overview', label: 'Overview Audio', icon: 'mic' },
   { kind: 'report', label: 'Report', icon: 'doc' },
   { kind: 'presentation', label: 'Presentazione', icon: 'presentation' },
   { kind: 'infographic', label: 'Infografica', icon: 'infographic' },
@@ -847,7 +850,7 @@ async function openArtifact(name) {
 
   try {
     const data = await call('GET', `/notebooks/${encodeURIComponent(nb.id)}/studio/${encodeURIComponent(name)}/content`);
-    if (name.startsWith('infographic-') || name.startsWith('presentation-') || name.endsWith('.html')) {
+    if (name.startsWith('audio_overview-') || name.startsWith('infographic-') || name.startsWith('presentation-') || name.endsWith('.html')) {
       if (card) card.classList.add('wide');
       const blob = new Blob([data.content], { type: 'text/html; charset=utf-8' });
       const blobUrl = URL.createObjectURL(blob);
@@ -946,6 +949,7 @@ function renderMain() {
         <div class="agynb-row" style="margin-bottom:8px;">
           <input type="file" id="agynb-src-file" hidden accept=".pdf,.txt,.md,.docx,.csv">
           <button class="agynb-btn" id="agynb-src-file-label" onclick="document.getElementById('agynb-src-file').click()">${ICONS.upload} Carica file</button>
+          <button class="agynb-btn" id="agynb-src-gdrive" onclick="window.agyGoogleDrive && window.agyGoogleDrive.openForNotebook()">${ICONS.gdrive} Google Drive</button>
         </div>
         <textarea id="agynb-src-text" class="agynb-inp" style="min-height:70px; width:100%; resize:vertical; margin-bottom:6px;" placeholder="Oppure incolla del testo come fonte…"></textarea>
         <div class="agynb-row">
@@ -1053,7 +1057,8 @@ export async function mount(container, api) {
   $('#agynb-side-close').onclick = () => setSideOpen(false);
   $('#agynb-side-open').onclick = () => setSideOpen(true);
 
-  window.agyNotebookPlugin = { selectNotebook, deleteNotebook, deleteSource, openSource, deleteArtifact, openArtifact };
+  window.agyNotebookPlugin = { selectNotebook, deleteNotebook, deleteSource, openSource, deleteArtifact, openArtifact, addSourceFile, activeNotebook };
+  window.agynbAddSourceFile = addSourceFile;
 
   await resolveWorkspace();
   checkHealth();

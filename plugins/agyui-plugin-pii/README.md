@@ -54,4 +54,4 @@ impossibile anche per noi.
 
 ## Licenza
 
-MIT, come AGYUI. Il motore Rizzo-PII ha la propria licenza.
+MIT, come AGYCLOUD. Il motore Rizzo-PII ha la propria licenza.

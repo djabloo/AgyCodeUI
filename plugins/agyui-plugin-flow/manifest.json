@@ -1,0 +1,13 @@
+{
+  "name": "agyui-plugin-flow",
+  "displayName": "Flow",
+  "version": "1.0.0",
+  "description": "Motore decisionale probabilistico typed senza token generati basato su Rizzo Flow. Decisioni istantanee, routing per agenti, rubric e playground interattivo con bridge per la Chat di AGY.",
+  "author": "Rizzo AI Academy & AGYUI",
+  "icon": "icon.svg",
+  "type": "module",
+  "slot": "tab",
+  "entry": "index.js",
+  "server": "server.js",
+  "permissions": []
+}

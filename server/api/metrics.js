@@ -1,71 +1,41 @@
 const express = require('express');
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
-const { execFile } = require('child_process');
-const util = require('util');
-const execFileAsync = util.promisify(execFile);
 
 function createMetricsRouter(sessionManager, ptyManager) {
     const router = express.Router();
 
     router.get('/', async (req, res) => {
         try {
-            const totalMem = os.totalmem();
-            const freeMem = os.freemem();
-            const usedMem = totalMem - freeMem;
-            const memPercent = Math.round((usedMem / totalMem) * 100);
-
-            const cpus = os.cpus();
-            const cpuCount = cpus.length;
-            const loadAvg = os.loadavg();
-
-            let diskInfo = { total: '100 GB', used: '12 GB', percent: 12 };
-            try {
-                const { stdout } = await execFileAsync('df', ['-h', '/']);
-                const lines = stdout.trim().split('\n');
-                if (lines.length > 1) {
-                    const parts = lines[1].split(/\s+/);
-                    if (parts.length >= 5) {
-                        diskInfo = {
-                            total: parts[1],
-                            used: parts[2],
-                            available: parts[3],
-                            percent: parseInt(parts[4].replace('%', ''), 10) || 12
-                        };
-                    }
-                }
-            } catch (e) {}
-
             const sessions = sessionManager ? sessionManager.getSessions() : [];
             let totalMessages = 0;
             sessions.forEach(s => {
-                if (s.messages && Array.isArray(s.messages)) {
-                    totalMessages += s.messages.length;
-                }
+                totalMessages += s.messageCount || (s.messages ? s.messages.length : 0);
             });
+
+            const activeSession = sessionManager?.getActiveSession();
+            const activeMsgCount = activeSession?.messages && Array.isArray(activeSession.messages)
+                ? activeSession.messages.length
+                : 0;
+
+            const wsCount = ptyManager?.workspaces ? Object.keys(ptyManager.workspaces).length : 1;
+            const maxWorkspaces = 10;
+            const quotaPercent = Math.min(100, Math.round((wsCount / maxWorkspaces) * 100));
 
             res.json({
                 success: true,
-                system: {
-                    platform: os.platform(),
-                    arch: os.arch(),
-                    uptime: Math.floor(os.uptime()),
-                    cpuCount,
-                    loadAvg: loadAvg.map(l => Number(l.toFixed(2))),
-                    memory: {
-                        totalMB: Math.round(totalMem / (1024 * 1024)),
-                        usedMB: Math.round(usedMem / (1024 * 1024)),
-                        freeMB: Math.round(freeMem / (1024 * 1024)),
-                        percent: memPercent
-                    },
-                    disk: diskInfo
+                quota: {
+                    workspacesUsed: wsCount,
+                    workspacesMax: maxWorkspaces,
+                    percent: quotaPercent,
+                    tier: 'Standard Cloud Plan',
+                    status: 'Attivo'
                 },
-                agent: {
-                    activeSessionId: sessionManager?.getActiveSession()?.id || null,
+                session: {
+                    activeSessionId: activeSession?.id || null,
+                    activeSessionTitle: activeSession?.title || 'Sessione corrente',
+                    activeMessages: activeMsgCount,
                     totalSessions: sessions.length,
-                    totalMessages,
-                    runnerMode: ptyManager?.runnerMode || 'host',
+                    totalMessages: totalMessages,
+                    runnerMode: (ptyManager?.runnerMode || 'host').toUpperCase(),
                     cliStatus: ptyManager?.getStatus() || { isAlive: true }
                 }
             });

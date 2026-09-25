@@ -1,8 +1,8 @@
-# 🪐 AGY Terminal — Web Terminal Plugin (Antigravity & AGYUI)
+# 🪐 AGY Terminal — Web Terminal Plugin (Antigravity & AGYCLOUD)
 
-Terminale web multi-tab professionale e resiliente per **AGYUI** e **CloudCLI UI**, basato su [xterm.js](https://xtermjs.org/) e [node-pty](https://github.com/microsoft/node-pty) con integrazione nativa per **Google Antigravity CLI (`agy`)**.
+Terminale web multi-tab professionale e resiliente per **AGYCLOUD** , basato su [xterm.js](https://xtermjs.org/) e [node-pty](https://github.com/microsoft/node-pty) con integrazione nativa per **Google Antigravity CLI (`agy`)**.
 
-Apre sessioni shell multiple a schede nel browser, garantisce la sopravvivenza dei processi PTY alle disconnessioni di rete, include scorciatoie dedicate per `agy` e rispetta il design system cosmico Deep Space di AGYUI.
+Apre sessioni shell multiple a schede nel browser, garantisce la sopravvivenza dei processi PTY alle disconnessioni di rete, include scorciatoie dedicate per `agy` e rispetta il design system cosmico Deep Space di AGYCLOUD.
 
 ## 🚀 Caratteristiche Principali
 
@@ -14,7 +14,7 @@ Apre sessioni shell multiple a schede nel browser, garantisce la sopravvivenza d
   - Tab illimitate con processi PTY indipendenti.
   - Sopravvivenza alle disconnessioni (riconnessione automatica senza terminare build o processi in esecuzione).
   - Ring buffer di output (256 KB) per il replay fedele dei log persi offline.
-- **Tema Cosmico AGYUI**:
+- **Tema Cosmico AGYCLOUD**:
   - Tema predefinito **AGY Cosmic Dark** (`#06080F`, accenti Electric Cyan `#06B6D4`, selezione Cosmic Indigo `#6366F1`).
   - Supporto per temi aggiuntivi (VS Dark, One Dark, Dracula, Solarized Dark, Light).
 - **Barra Tastiera Mobile Completa**:
@@ -46,7 +46,7 @@ Open the gear icon in the toolbar:
 
 | Setting | Notes |
 |---|---|
-| Theme | `Auto (match app)` follows CloudCLI's light/dark mode |
+| Theme | `Auto (match app)` follows agycloud's light/dark mode |
 | Font size | 8–32 px, applied to every tab |
 | Cursor | Block, bar or underline |
 | Shell (new tabs) | Any shell discovered on the host; existing tabs are unaffected |
@@ -56,20 +56,20 @@ Open the gear icon in the toolbar:
 
 ## Installation
 
-**From CloudCLI UI (recommended):** open **Settings → Plugins**, paste this repository URL and click
-**Install**. CloudCLI clones the repo, installs dependencies and starts the backend automatically.
+**From agycloud UI (recommended):** open **Settings → Plugins**, paste this repository URL and click
+**Install**. agycloud clones the repo, installs dependencies and starts the backend automatically.
 
 **Manual:**
 
 ```bash
-git clone --depth 1 https://github.com/cloudcli-ai/cloudcli-plugin-terminal.git \
-  ~/.claude-code-ui/plugins/cloudcli-plugin-terminal
-cd ~/.claude-code-ui/plugins/cloudcli-plugin-terminal
+git clone --depth 1 https://github.com/agycloud-ai/AGYcloud-plugin-terminal.git \
+  ~/.agycloud-ai/plugins/AGYcloud-plugin-terminal
+cd ~/.agycloud-ai/plugins/AGYcloud-plugin-terminal
 npm install
 npm run build
 ```
 
-Then restart CloudCLI UI to pick up the new plugin.
+Then restart agycloud UI to pick up the new plugin.
 
 ## Development
 
@@ -107,7 +107,7 @@ That separation is not cosmetic. When both shared one channel and the receiver g
 for a leading `{`, any command whose output was a lone JSON object — `cat package.json`, `jq -c`,
 `docker inspect` — had its output swallowed, and could even forge an `exit` message.
 
-The server sends `hello` first and the client replies with `init`. CloudCLI's WebSocket proxy opens
+The server sends `hello` first and the client replies with `init`. agyCloud's WebSocket proxy opens
 its upstream connection asynchronously and silently drops anything sent before that upstream is
 ready, so `hello` is the client's proof that the whole path is up — and it carries the terminal size
 and project directory into the very first spawn.
@@ -121,7 +121,7 @@ and project directory into the very first spawn.
 | `@xterm/*` | Terminal emulator and addons, bundled into `dist/index.js` at build time |
 | `esbuild` | Bundler |
 
-These are all regular `dependencies` rather than `devDependencies` on purpose: CloudCLI installs
+These are all regular `dependencies` rather than `devDependencies` on purpose: agyCloud installs
 plugins using the host's own environment, and a host running with `NODE_ENV=production` makes npm
 skip `devDependencies` entirely — which would leave `npm run build` with no bundler.
 
@@ -130,16 +130,16 @@ skip `devDependencies` entirely — which would leave `npm run build` with no bu
 - The plugin's WebSocket server binds to `127.0.0.1` on an ephemeral port and **refuses any
   handshake that carries an `Origin` header**. WebSocket connections are not subject to the
   same-origin policy, so without that check any web page the user visited could have scanned
-  loopback ports and opened a shell. Browsers always send `Origin`; the CloudCLI host proxy, being
+  loopback ports and opened a shell. Browsers always send `Origin`; the agyCloud host proxy, being
   a Node client, never does.
 - HTTP requests are likewise refused unless they are Origin-free and addressed to a loopback host,
   which closes the DNS-rebinding variant.
-- Browser → host WebSocket connections are authenticated by CloudCLI's JWT proxy.
+- Browser → host WebSocket connections are authenticated by agyCloud's JWT proxy.
 - The shell a client asks for is validated against the shells discovered on the machine, so the
   picker can never become an arbitrary-exec channel. Requested working directories are checked and
   fall back to `$HOME`.
 - Concurrent PTYs are capped, and detached sessions are reaped after 30 minutes.
-- The plugin server exits when the CloudCLI host process goes away, instead of leaving orphaned
+- The plugin server exits when the agyCloud host process goes away, instead of leaving orphaned
   shells behind.
 - No npm `postinstall` scripts.
 
@@ -148,7 +148,7 @@ at a local prompt.
 
 ## Requirements
 
-- CloudCLI UI **v1.0.0+**
+- Agy Cloud UI **v1.0.0+**
 - Node.js **18+**
 
 ## License

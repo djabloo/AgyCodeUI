@@ -755,7 +755,7 @@ class AgyChat {
                         </div>
 
                         <p class="assistant-ready-note font-mono text-xs text-muted">
-                            Ready to use <span class="text-white font-bold">${this.escapeHtml(this.activeModelName.split(' ')[0])}</span> with default. Start typing your message below.
+                            Ready to use <span class="assistant-name-highlight font-bold">${this.escapeHtml(this.activeModelName.split(' ')[0])}</span> with default. Start typing your message below.
                         </p>
 
                         <div class="shortcut-pill font-mono text-xs text-muted">
@@ -765,31 +765,31 @@ class AgyChat {
 
                     <div class="welcome-suggestions">
                         <button class="suggestion-chip" onclick="window.agyChat.sendPrompt('Ottimizza le performance del backend e implementa un layer di cache Redis distribuita con TTL di 5 minuti.')">
-                            <span style="font-size: 1.1rem;">⚡</span>
-                            <div>
-                                <strong style="display:block; font-size:0.82rem; color:#fff;">Refactoring Redis</strong>
-                                <span style="font-size:0.72rem; color:var(--text-muted);">Cache distribuita & resolver async</span>
+                            <span class="suggestion-chip-icon">⚡</span>
+                            <div class="suggestion-chip-text">
+                                <strong class="suggestion-chip-title">Refactoring Redis</strong>
+                                <span class="suggestion-chip-desc">Cache distribuita & resolver async</span>
                             </div>
                         </button>
                         <button class="suggestion-chip" onclick="window.agyChat.sendPrompt('Esegui una verifica di sicurezza completa contro Path Traversal, Injection e blocco CSWSH sui WebSockets.')">
-                            <span style="font-size: 1.1rem;">🛡️</span>
-                            <div>
-                                <strong style="display:block; font-size:0.82rem; color:#fff;">Security Audit</strong>
-                                <span style="font-size:0.72rem; color:var(--text-muted);">Hardening symlink & rate limiting</span>
+                            <span class="suggestion-chip-icon">🛡️</span>
+                            <div class="suggestion-chip-text">
+                                <strong class="suggestion-chip-title">Security Audit</strong>
+                                <span class="suggestion-chip-desc">Hardening symlink & rate limiting</span>
                             </div>
                         </button>
                         <button class="suggestion-chip" onclick="window.agyChat.sendPrompt('Spawna 3 subagenti paralleli: (1) Ricerca API, (2) Schema database Postgres, (3) Frontend UI.')">
-                            <span style="font-size: 1.1rem;">🤖</span>
-                            <div>
-                                <strong style="display:block; font-size:0.82rem; color:#fff;">Multi-Agent Swarm</strong>
-                                <span style="font-size:0.72rem; color:var(--text-muted);">Esecuzione task paralleli</span>
+                            <span class="suggestion-chip-icon">🤖</span>
+                            <div class="suggestion-chip-text">
+                                <strong class="suggestion-chip-title">Multi-Agent Swarm</strong>
+                                <span class="suggestion-chip-desc">Esecuzione task paralleli</span>
                             </div>
                         </button>
                         <button class="suggestion-chip" onclick="window.agyChat.sendPrompt('Crea uno stack Docker Compose con PostgreSQL, Redis, Node.js runner e reverse proxy Caddy.')">
-                            <span style="font-size: 1.1rem;">🐳</span>
-                            <div>
-                                <strong style="display:block; font-size:0.82rem; color:#fff;">Docker Cloud Stack</strong>
-                                <span style="font-size:0.72rem; color:var(--text-muted);">Sandbox effimera isolata</span>
+                            <span class="suggestion-chip-icon">🐳</span>
+                            <div class="suggestion-chip-text">
+                                <strong class="suggestion-chip-title">Docker Cloud Stack</strong>
+                                <span class="suggestion-chip-desc">Sandbox effimera isolata</span>
                             </div>
                         </button>
                     </div>

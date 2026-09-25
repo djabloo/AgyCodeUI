@@ -24,7 +24,9 @@ class PluginManager {
         if (!fs.existsSync(CONFIG_PATH)) {
             fs.writeFileSync(CONFIG_PATH, JSON.stringify({
                 "agyui-plugin-terminal": { enabled: true },
-                "agyui-plugin-starter": { enabled: true }
+                "agyui-plugin-notebook": { enabled: true },
+                "agyui-plugin-pii": { enabled: true },
+                "agyui-plugin-flow": { enabled: true }
             }, null, 2), "utf-8");
         }
     }

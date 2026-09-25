@@ -12,6 +12,8 @@ agycodeui.md
 # Runtime / Session data
 server/data/*.json
 !server/data/.gitkeep
+.agy-notebook/
+plugins/nanobanana/
 
 # Logs
 logs/

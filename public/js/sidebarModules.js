@@ -377,66 +377,106 @@ class AgySidebarModules {
     // ==========================================
 
     renderMetricsTab(container) {
-        const sys = this.metrics?.system || {
-            cpuCount: 4,
-            loadAvg: [0.15, 0.20, 0.18],
-            memory: { totalMB: 8192, usedMB: 2450, percent: 30 },
-            disk: { total: '100 GB', used: '18 GB', percent: 18 }
+        const quota = this.metrics?.quota || {
+            workspacesUsed: this.workspaces?.length || 1,
+            workspacesMax: 10,
+            percent: Math.min(100, Math.round(((this.workspaces?.length || 1) / 10) * 100)),
+            tier: 'Standard Cloud Plan',
+            status: 'Attivo'
         };
-        const agent = this.metrics?.agent || { totalSessions: 0, totalMessages: 0, runnerMode: 'host' };
+
+        const currentWsName = this.currentWorkspace?.name || 'workspace (default)';
+        const activeSession = window.agyChat?.currentSession || null;
+        const activeSessionTitle = activeSession?.title || this.metrics?.session?.activeSessionTitle || 'Nessuna conversazione attiva';
+        const activeMsgCount = (activeSession?.messages && Array.isArray(activeSession.messages))
+            ? activeSession.messages.length
+            : (this.metrics?.session?.activeMessages || 0);
+
+        const activeModelName = window.agyChat?.activeModelName || 'Gemini 3.8 Flash';
+        const totalSessions = (window.agyChat?.sessions && Array.isArray(window.agyChat.sessions))
+            ? window.agyChat.sessions.length
+            : (this.metrics?.session?.totalSessions || 0);
+        const totalMessages = this.metrics?.session?.totalMessages || 0;
+        const runnerMode = (this.activeRunnerMode || this.metrics?.session?.runnerMode || 'HOST').toUpperCase();
+
+        const safeWsName = this.escapeHtml(currentWsName);
+        const safeActiveTitle = this.escapeHtml(activeSessionTitle);
+        const safeModelName = this.escapeHtml(activeModelName);
 
         container.innerHTML = `
             <div class="metrics-dashboard-panel">
-                <h4 class="font-display font-bold text-xs uppercase tracking-wider text-muted mb-3">Live System Metrics</h4>
+                <h4 class="font-display font-bold text-xs uppercase tracking-wider text-muted mb-3">Sessione & Quota Utente</h4>
 
-                <!-- CPU & Load -->
+                <!-- 1. Quota Ambienti / Workspace -->
                 <div class="metric-card">
                     <div class="metric-card-header">
-                        <span class="metric-label"><i data-lucide="cpu"></i> CPU Core (${sys.cpuCount})</span>
-                        <span class="metric-value font-mono text-accent">Load: ${sys.loadAvg ? sys.loadAvg.join(', ') : '0.2'}</span>
-                    </div>
-                </div>
-
-                <!-- Memory -->
-                <div class="metric-card">
-                    <div class="metric-card-header">
-                        <span class="metric-label"><i data-lucide="activity"></i> RAM Usage</span>
-                        <span class="metric-value font-mono">${sys.memory.usedMB} / ${sys.memory.totalMB} MB (${sys.memory.percent}%)</span>
+                        <span class="metric-label"><i data-lucide="layers"></i> Quota Workspace</span>
+                        <span class="metric-value font-mono text-accent">${quota.workspacesUsed} / ${quota.workspacesMax} (${quota.percent}%)</span>
                     </div>
                     <div class="metric-progress-track">
-                        <div class="metric-progress-bar" style="width: ${sys.memory.percent}%;"></div>
+                        <div class="metric-progress-bar" style="width: ${quota.percent}%;"></div>
+                    </div>
+                    <div class="metric-sub-stats font-mono text-[11px]">
+                        <div class="flex justify-between items-center mt-1">
+                            <span>Ambiente:</span>
+                            <b class="text-bright">${safeWsName}</b>
+                        </div>
+                        <div class="flex justify-between items-center mt-0.5">
+                            <span>Stato Quota:</span>
+                            <span class="text-success font-semibold">● ${quota.status || 'Regolare'}</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Disk Storage -->
+                <!-- 2. Sessione Utente Attiva -->
                 <div class="metric-card">
                     <div class="metric-card-header">
-                        <span class="metric-label"><i data-lucide="hard-drive"></i> Disk Storage</span>
-                        <span class="metric-value font-mono">${sys.disk.used} / ${sys.disk.total} (${sys.disk.percent}%)</span>
+                        <span class="metric-label"><i data-lucide="message-square"></i> Sessione Attiva</span>
+                        <span class="metric-value font-mono text-success">● In Corso</span>
                     </div>
-                    <div class="metric-progress-track">
-                        <div class="metric-progress-bar bg-cyan" style="width: ${sys.disk.percent}%;"></div>
+                    <div class="metric-sub-stats font-mono text-[11px]">
+                        <div class="truncate mt-1" title="${safeActiveTitle}">
+                            Titolo: <b class="text-bright">${safeActiveTitle}</b>
+                        </div>
+                        <div class="flex justify-between items-center mt-0.5">
+                            <span>Messaggi nel contesto:</span>
+                            <b class="text-bright">${activeMsgCount} msg</b>
+                        </div>
+                        <div class="flex justify-between items-center mt-0.5">
+                            <span>Modello AI:</span>
+                            <b class="text-accent">${safeModelName}</b>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Agent Stats -->
+                <!-- 3. Statistiche Globali Attività -->
                 <div class="metric-card">
                     <div class="metric-card-header">
-                        <span class="metric-label"><i data-lucide="bot"></i> Agentic Activity</span>
-                        <span class="metric-value font-mono text-success">● Active</span>
+                        <span class="metric-label"><i data-lucide="bot"></i> Attività Utente</span>
+                        <span class="metric-value font-mono text-cyan">Cloud OS</span>
                     </div>
-                    <div class="metric-sub-stats font-mono text-[11px] text-muted">
-                        <div>Totale Sessioni: <b>${agent.totalSessions}</b></div>
-                        <div>Messaggi Elaborati: <b>${agent.totalMessages}</b></div>
-                        <div>Runner: <b>${agent.runnerMode.toUpperCase()}</b></div>
+                    <div class="metric-sub-stats font-mono text-[11px]">
+                        <div class="flex justify-between items-center mt-1">
+                            <span>Totale Sessioni:</span>
+                            <b class="text-bright">${totalSessions}</b>
+                        </div>
+                        <div class="flex justify-between items-center mt-0.5">
+                            <span>Messaggi Elaborati:</span>
+                            <b class="text-bright">${totalMessages}</b>
+                        </div>
+                        <div class="flex justify-between items-center mt-0.5">
+                            <span>Runner Mode:</span>
+                            <b class="text-accent">${runnerMode}</b>
+                        </div>
                     </div>
                 </div>
 
-                <button class="btn btn-sm btn-outline btn-block mt-3" onclick="window.agySidebar.loadMetrics()">
-                    <i data-lucide="refresh-cw"></i> Aggiorna Metriche
+                <button class="btn btn-sm btn-outline btn-block mt-3" onclick="window.agySidebar.refreshAll()">
+                    <i data-lucide="refresh-cw"></i> Aggiorna Metriche Sessione
                 </button>
             </div>
         `;
+        if (window.lucide) window.lucide.createIcons();
     }
 
     // ==========================================

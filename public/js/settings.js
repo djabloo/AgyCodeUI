@@ -40,7 +40,26 @@ class AgySettings {
         if (tabName === 'mcp') this.loadMcp();
         if (tabName === 'skills') this.loadSkills();
         if (tabName === 'plugins') this.loadPlugins();
+        if (tabName === 'gdrive' && window.agyGoogleDrive) window.agyGoogleDrive.syncSettingsInputs();
         if (tabName === 'account' || tabName === 'permissions') this.loadInfo();
+    }
+
+    async saveGdriveConfigFromTab() {
+        const keyInput = document.getElementById('tab-gdrive-api-key-input');
+        const clientInput = document.getElementById('tab-gdrive-client-id-input');
+
+        const apiKey = keyInput ? keyInput.value.trim() : '';
+        const clientId = clientInput ? clientInput.value.trim() : '';
+
+        if (!apiKey) {
+            alert('Inserisci la Google Picker API Key per salvare.');
+            return;
+        }
+
+        if (window.agyGoogleDrive) {
+            await window.agyGoogleDrive.saveCredentials(apiKey, clientId);
+            alert('Configurazione Google Drive salvata con successo!');
+        }
     }
 
     // 1. Account & Models

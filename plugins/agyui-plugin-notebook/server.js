@@ -155,6 +155,31 @@ function runAgy(prompt, { cwd, conversationId }) {
   });
 }
 
+function runPython(scriptPath, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('python3', [scriptPath, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error('Timeout durante la generazione audio (120s)'));
+    }, 120000);
+
+    child.stdout.on('data', (d) => { stdout += d.toString(); });
+    child.stderr.on('data', (d) => { stderr += d.toString(); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (code === 0) resolve({ stdout, stderr });
+      else reject(new Error(stderr || stdout || `Processo python terminato con codice ${code}`));
+    });
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
+
 // ── estrazione testo semplice da HTML per le fonti URL (nessuna dipendenza nuova) ──
 // youtube.com/watch, youtu.be/, youtube.com/shorts, m.youtube.com: pagine SPA
 // pesantemente lato-client, il semplice fetch+strip-tag qui sotto recupera solo
@@ -201,6 +226,29 @@ async function fetchUrlAsText(url, workspace) {
 
 // ── template Studio: si chiede ad agy di SCRIVERE il file, non di rispondere in chat ──
 const STUDIO_TYPES = {
+  audio_overview: {
+    ext: 'html',
+    prompt: (srcRel, jsonAbs) => `Leggi attentamente tutti i file dentro "${srcRel}". Genera un copione per un episodio podcast "Audio Overview" a 2 voci (Diego ed Elsa) in italiano, brillante, approfondito e colloquiale, che discuta i punti chiave, i concetti e le implicazioni emersi ESCLUSIVAMENTE da quelle fonti.
+Scrivi ESATTAMENTE e SOLO un file JSON valido nel percorso assoluto "${jsonAbs}" con questa identica struttura:
+{
+  "title": "Titolo accattivante dell'episodio",
+  "subtitle": "Breve sintesi dei temi trattati",
+  "takeaways": [
+    "Punto chiave 1 estratto dai documenti",
+    "Punto chiave 2 estratto dai documenti",
+    "Punto chiave 3 estratto dai documenti",
+    "Punto chiave 4 estratto dai documenti"
+  ],
+  "dialogue": [
+    {"speaker": "Diego", "text": "Benvenuti a questo episodio! Oggi analizziamo..."},
+    {"speaker": "Elsa", "text": "Ciao Diego! Esatto, i documenti evidenziano..."},
+    {"speaker": "Diego", "text": "..."},
+    {"speaker": "Elsa", "text": "..."}
+  ]
+}
+Il dialogo deve essere un confronto fluido, intelligente ed esaustivo, con 10-14 battute alternate tra Diego ed Elsa (in italiano naturale e chiaro).
+Salva il JSON ESATTAMENTE nel file "${jsonAbs}" (sovrascrivilo se esiste). Non modificare altri file. Al termine rispondi solo "Fatto."`
+  },
   report: {
     ext: 'md',
     prompt: (srcRel, outRel) => `Leggi tutti i file dentro la cartella "${srcRel}" (ignora eventuali sottocartelle non pertinenti). Scrivi un report professionale in italiano, formato Markdown, che riassuma i temi principali, i punti chiave e le conclusioni rilevabili SOLO da quei file (non aggiungere conoscenza esterna). Usa titoli, sezioni e un elenco puntato dove utile. Salva il risultato ESATTAMENTE nel file "${outRel}" (sovrascrivilo se esiste già). Non modificare nessun altro file. Al termine rispondi solo "Fatto."`
@@ -459,8 +507,58 @@ const server = http.createServer(async (req, res) => {
 
         const outName = `${kind}-${tsStamp()}.${type.ext}`;
         const outAbs = path.join(studioDir, outName);
-        const prompt = studioPromptFor(kind, sourcesDir, outAbs);
 
+        if (kind === 'audio_overview') {
+          const jsonPath = path.join(studioDir, `.temp-dialogue-${tsStamp()}.json`);
+          const prompt = STUDIO_TYPES.audio_overview.prompt(sourcesDir, jsonPath);
+
+          const result = await runAgy(prompt, { cwd: workspace });
+
+          let dialogueData = null;
+          if (fs.existsSync(jsonPath)) {
+            try {
+              const raw = await fsp.readFile(jsonPath, 'utf8');
+              dialogueData = JSON.parse(raw);
+            } catch (e) {
+              console.error('Errore lettura JSON copione:', e);
+            }
+          }
+
+          // Se agy ha restituito il JSON direttamente nella risposta invece che nel file
+          if (!dialogueData && result.response) {
+            const m = result.response.match(/\{[\s\S]*"dialogue"[\s\S]*\}/);
+            if (m) {
+              try {
+                dialogueData = JSON.parse(m[0]);
+                await fsp.writeFile(jsonPath, JSON.stringify(dialogueData, null, 2), 'utf8');
+              } catch (e) {}
+            }
+          }
+
+          if (!dialogueData) {
+            await fsp.unlink(jsonPath).catch(() => {});
+            return sendJson(res, 502, { error: result.error || 'agy non ha generato il copione del podcast' });
+          }
+
+          // Sintesi audio ed esportazione HTML gestite direttamente dal backend Node
+          const scriptPath = path.join(__dirname, 'scripts', 'generate_audio_overview.py');
+          try {
+            await runPython(scriptPath, [jsonPath, outAbs]);
+          } catch (pyErr) {
+            await fsp.unlink(jsonPath).catch(() => {});
+            return sendJson(res, 500, { error: 'Errore durante la sintesi audio: ' + pyErr.message });
+          }
+
+          await fsp.unlink(jsonPath).catch(() => {});
+
+          if (!fs.existsSync(outAbs)) {
+            return sendJson(res, 502, { error: 'Sintesi completata ma il file finale non è presente' });
+          }
+
+          return sendJson(res, 200, { name: outName });
+        }
+
+        const prompt = studioPromptFor(kind, sourcesDir, outAbs);
         const result = await runAgy(prompt, { cwd: workspace });
         if (result.error && !fs.existsSync(outAbs)) return sendJson(res, 502, { error: result.error });
         if (!fs.existsSync(outAbs)) return sendJson(res, 502, { error: 'agy non ha scritto il file atteso' });

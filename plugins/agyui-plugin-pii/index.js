@@ -70,7 +70,9 @@ const CSS = `
   border-radius:var(--radius-md,12px); background:rgba(255,255,255,.015); cursor:pointer;
   transition:border-color .15s, background .15s; }
 .agypii-drop:hover, .agypii-drop.hot { border-color:var(--accent,#06b6d4); background:rgba(6,182,212,.06); }
-.agypii-drop h4 { margin:0; font-family:var(--font-display,sans-serif); font-size:.92rem; color:var(--text-bright,#fff); }
+.agypii-drop svg { width:38px; height:38px; color:var(--accent,#06b6d4); opacity:.85; transition:transform .2s, opacity .2s; }
+.agypii-drop:hover svg, .agypii-drop.hot svg { transform:translateY(-2px); opacity:1; }
+.agypii-drop h4 { margin:4px 0 0; font-family:var(--font-display,sans-serif); font-size:.92rem; color:var(--text-bright,#fff); }
 .agypii-drop p { margin:0; font-size:.74rem; color:var(--text-muted,#94a3b8); }
 .agypii-file { display:flex; align-items:center; gap:10px; margin-top:10px; padding:10px 12px;
   border-radius:var(--radius-md,12px); background:rgba(6,182,212,.07); border:1px solid rgba(6,182,212,.25);

@@ -8,6 +8,22 @@
     <meta name="theme-color" content="#091329">
     <title>Antigravity Code UI (agycodeui)</title>
 
+    <script>
+        (function() {
+            try {
+                var theme = localStorage.getItem('agy_theme') || 'dark';
+                var effective = theme;
+                if (theme === 'system') {
+                    effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-theme', effective);
+                if (effective === 'light') {
+                    document.documentElement.classList.add('theme-light');
+                }
+            } catch(e) {}
+        })();
+    </script>
+
     <!-- Favicon & App Icons -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico?v=2">
@@ -36,7 +52,7 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css?v=1.2.7">
+    <link rel="stylesheet" href="css/style.css?v=1.3.2">
 </head>
 <body>
 
@@ -196,6 +212,7 @@
             <div class="form-group">
                 <label>Variabili d'Ambiente (KEY=value, una per riga)</label>
                 <textarea id="mcp-envs-input" rows="2" placeholder="GITHUB_TOKEN=ghp_xxx&#10;DATABASE_URL=postgres://..."></textarea>
+                <small style="color:var(--text-muted); display:block; margin-top:4px; font-size:0.75rem;">🔒 Le API Key, token OAuth e credenziali inserite qui vengono isolate in modo sicuro nell'ambiente e mai mostrate nel comando o nell'interfaccia.</small>
             </div>
 
             <div class="form-group">
@@ -438,11 +455,7 @@
                         </button>
                     </nav>
 
-                    <div class="header-right">
-                        <button class="icon-btn btn-restart-cli" title="Riavvia Sessione CLI" onclick="window.agyApp.restartSession()">
-                            <i data-lucide="refresh-cw"></i>
-                        </button>
-                    </div>
+                    <div class="header-right"></div>
                 </header>
 
                 <!-- Main Tab Panes -->
@@ -788,6 +801,10 @@
                                 <i data-lucide="user-check"></i>
                                 <span data-i18n="navSettings">Account & Generale</span>
                             </button>
+                            <button class="settings-sub-tab" data-subtab="gdrive" onclick="window.agySettings.switchSubTab('gdrive')">
+                                <i data-lucide="hard-drive"></i>
+                                <span>Google Drive</span>
+                            </button>
                             <button class="settings-sub-tab" data-subtab="models-usage" onclick="window.agySettings.switchSubTab('models-usage')">
                                 <i data-lucide="gauge"></i>
                                 <span data-i18n="settingsTabModelsUsage">Modelli & Consumi</span>
@@ -1005,6 +1022,21 @@
                                     <p class="card-desc" data-i18n="availableModelsDesc">Tocca un modello per impostarlo come predefinito per la CLI:</p>
                                     <div class="models-grid" id="models-list-container">
                                         <!-- Popolato dinamicamente da settings.js -->
+                                    </div>
+                                </div>
+
+                                <div class="settings-card">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                                        <div>
+                                            <h4 style="display: flex; align-items: center; gap: 8px;">
+                                                <svg width="18" height="18" viewBox="0 0 87.3 78"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.25z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h27.5c0-1.55-.4-3.1-1.2-4.5l-25.4-44c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8z" fill="#ffba00"/><path d="m27.5 53-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.9c1.6 0 3.15-.45 4.5-1.2l-13.75-23.8z" fill="#2684fc"/></svg>
+                                                Integrazione Google Drive
+                                            </h4>
+                                            <p class="card-desc">Collega il tuo Google Drive per allegare file, documenti Google Docs e fogli direttamente alla chat o ai notebook.</p>
+                                        </div>
+                                        <button type="button" class="btn btn-outline" onclick="window.agyGoogleDrive && window.agyGoogleDrive.openConfigModal()">
+                                            <i data-lucide="settings"></i> Configura
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1414,6 +1446,50 @@
                                 </div>
                             </div>
 
+                            <!-- Section: Google Drive -->
+                            <div class="settings-section" id="settings-section-gdrive">
+                                <div class="section-header">
+                                    <div class="section-header-title">
+                                        <h3 style="display: flex; align-items: center; gap: 10px;">
+                                            <svg width="24" height="24" viewBox="0 0 87.3 78"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.25z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h27.5c0-1.55-.4-3.1-1.2-4.5l-25.4-44c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8z" fill="#ffba00"/><path d="m27.5 53-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.9c1.6 0 3.15-.45 4.5-1.2l-13.75-23.8z" fill="#2684fc"/></svg>
+                                            Integrazione Google Drive
+                                        </h3>
+                                        <p>Collega Google Drive per allegare file, Google Docs e Google Sheets direttamente all'assistente AI nella Chat.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Credenziali Google API -->
+                                <div class="settings-card">
+                                    <h4>🔑 Configurazione Credenziali</h4>
+                                    <p class="card-desc">Inserisci l'ID Client e la Chiave API generate su Google Cloud Console.</p>
+
+                                    <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 14px;">
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
+                                                Google Client ID (Applicazione Web)
+                                            </label>
+                                            <input type="text" id="tab-gdrive-client-id-input" class="form-input" placeholder="esempio: 123456789-abc.apps.googleusercontent.com" style="width: 100%; box-sizing: border-box;">
+                                        </div>
+
+                                        <div>
+                                            <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
+                                                Google Picker API Key
+                                            </label>
+                                            <input type="text" id="tab-gdrive-api-key-input" class="form-input" placeholder="esempio: AIzaSy..." style="width: 100%; box-sizing: border-box;">
+                                        </div>
+
+                                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+                                            <button type="button" class="btn btn-outline" onclick="window.agyGoogleDrive && window.agyGoogleDrive.openForChat()">
+                                                <i data-lucide="external-link"></i> Testa Connessione
+                                            </button>
+                                            <button type="button" class="btn btn-primary" onclick="window.agySettings && window.agySettings.saveGdriveConfigFromTab()">
+                                                <i data-lucide="check"></i> Salva Credenziali
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </section>
@@ -1452,7 +1528,7 @@
     <!-- Google Drive Configuration Modal -->
     <div id="gdrive-config-modal" class="modal hidden">
         <div class="modal-backdrop" onclick="window.agyGoogleDrive.closeConfigModal()"></div>
-        <div class="modal-dialog modal-md" style="max-width: 480px; margin: 60px auto; background: var(--bg-card, #0d121f); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 14px; padding: 22px; position: relative; z-index: 10001; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-md" style="max-width: 520px; margin: 50px auto; background: var(--bg-card, #0d121f); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 14px; padding: 22px; position: relative; z-index: 10001; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
             <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <svg width="22" height="22" viewBox="0 0 87.3 78">
@@ -1463,22 +1539,18 @@
                         <path d="m59.8 53h27.5c0-1.55-.4-3.1-1.2-4.5l-25.4-44c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8z" fill="#ffba00"/>
                         <path d="m27.5 53-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.9c1.6 0 3.15-.45 4.5-1.2l-13.75-23.8z" fill="#2684fc"/>
                     </svg>
-                    <h3 style="margin: 0; font-size: 1.1rem; color: #fff;">Connetti Google Drive</h3>
+                    <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-bright);">Connetti Google Drive</h3>
                 </div>
                 <button type="button" class="btn-close" style="background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer;" onclick="window.agyGoogleDrive.closeConfigModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.5; margin-bottom: 16px;">
-                    Per allegare file direttamente dal tuo Google Drive, inserisci la tua <strong>Google Picker API Key</strong> (e facoltativamente il Client ID).
-                    I documenti vengono selezionati tramite il selettore nativo di Google con autorizzazione limitata ai soli file scelti (<em>drive.file</em>).
-                </p>
                 <div style="margin-bottom: 14px;">
-                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">Google Picker API Key (Obbligatoria)</label>
-                    <input type="text" id="gdrive-api-key-input" class="form-input" placeholder="AIzaSy..." style="width: 100%; box-sizing: border-box;">
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">Google Client ID (Applicazione Web)</label>
+                    <input type="text" id="gdrive-client-id-input" class="form-input" placeholder="esempio: 123...apps.googleusercontent.com" style="width: 100%; box-sizing: border-box;">
                 </div>
                 <div style="margin-bottom: 18px;">
-                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">Google Client ID (Web Application)</label>
-                    <input type="text" id="gdrive-client-id-input" class="form-input" placeholder="...apps.googleusercontent.com" style="width: 100%; box-sizing: border-box;">
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">Google Picker API Key (Obbligatoria)</label>
+                    <input type="text" id="gdrive-api-key-input" class="form-input" placeholder="esempio: AIzaSy..." style="width: 100%; box-sizing: border-box;">
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
@@ -1489,16 +1561,16 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/i18n.js?v=1.2.7"></script>
-    <script src="js/terminal.js?v=1.2.7"></script>
-    <script src="js/speech.js?v=1.2.7"></script>
-    <script src="js/fileExplorer.js?v=1.2.7"></script>
-    <script src="js/gdrive.js?v=1.2.7"></script>
-    <script src="js/chat.js?v=1.2.7"></script>
-    <script src="js/settings.js?v=1.2.7"></script>
-    <script src="js/plugins.js?v=1.2.7"></script>
-    <script src="js/environments.js?v=1.2.7"></script>
-    <script src="js/sidebarModules.js?v=1.2.7"></script>
-    <script src="js/app.js?v=1.2.7"></script>
+    <script src="js/i18n.js?v=1.3.0"></script>
+    <script src="js/terminal.js?v=1.3.0"></script>
+    <script src="js/speech.js?v=1.3.0"></script>
+    <script src="js/fileExplorer.js?v=1.3.0"></script>
+    <script src="js/gdrive.js?v=1.3.0"></script>
+    <script src="js/chat.js?v=1.3.0"></script>
+    <script src="js/settings.js?v=1.3.0"></script>
+    <script src="js/plugins.js?v=1.3.0"></script>
+    <script src="js/environments.js?v=1.3.0"></script>
+    <script src="js/sidebarModules.js?v=1.3.0"></script>
+    <script src="js/app.js?v=1.3.0"></script>
 </body>
 </html>
