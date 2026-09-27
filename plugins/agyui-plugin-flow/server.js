@@ -1,20 +1,43 @@
 /**
- * AGYUI Plugin: Flow (Rizzo Flow Integration)
+ * AGYUI Plugin: agy-flow — motore decisionale tipizzato con probabilità reali.
  *
- * Backend proxy e bridge per Rizzo Flow (motore decisionale typed a 0 token generati).
- * Comunica con il daemon locale rizzo-flow (porta 8017 di default) o esegue
- * una valutazione probabilistica di fallback locale quando il daemon è offline.
+ * Design ispirato a Rizzo Flow (Rizzo AI Academy): ogni domanda diventa una
+ * scelta a lettere (A, B, C…) e si leggono le probabilità (logprobs) dell'unico
+ * token generato, invece di far scrivere testo al modello. Il modello gira su
+ * OpenRouter con la chiave dell'utente (OPENROUTER_API_KEY: in SaaS arriva dal
+ * pannello BYOK della dashboard, nel self-hosted dal .env), quindi niente modello
+ * locale e niente RAM occupata sul server.
+ *
+ * Fallback opzionale, solo su richiesta esplicita: agy -p, che però non espone
+ * probabilità — le risposte sono marcate come tali.
  */
 
 const http = require('node:http');
+const path = require('node:path');
+const os = require('node:os');
+const { spawn } = require('node:child_process');
+const readline = require('node:readline');
 
-let FLOW_URL = process.env.RIZZO_FLOW_URL || 'http://127.0.0.1:8017';
+const OPENROUTER_API = 'https://openrouter.ai/api/v1';
+
+// Verificati il 2026-09-27: restituiscono logprobs con require_parameters.
+// I modelli "ragionanti" che non permettono di disattivare il ragionamento
+// (gpt-oss, glm-5.3-flash) sprecano l'unico token concesso e non sono adatti.
+const MODELS = [
+  { id: 'mistralai/mistral-nemo', label: 'Mistral Nemo' },
+  { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 8B' },
+  { id: 'deepseek/deepseek-v4-flash', label: 'DeepSeek V4 Flash', reasoningOff: true },
+];
+
+const LETTERS = 'ABCDEFGHIJKLMNOPQRST'; // top_logprobs arriva al massimo a 20
+const MAX_QUESTIONS = 20;
+const REQUEST_TIMEOUT_MS = 20000;
+const AGY_TIMEOUT_MS = parseInt(process.env.FLOW_AGY_TIMEOUT_MS || '180000', 10);
+
+const apiKey = () => (process.env.OPENROUTER_API_KEY || '').trim();
 
 function sendJson(res, status, data) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*'
-  });
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(data));
 }
 
@@ -25,11 +48,7 @@ function readBody(req) {
     req.on('end', () => {
       const raw = Buffer.concat(chunks).toString('utf8');
       if (!raw) return resolve({});
-      try {
-        resolve(JSON.parse(raw));
-      } catch (e) {
-        resolve({ raw });
-      }
+      try { resolve(JSON.parse(raw)); } catch (e) { resolve({}); }
     });
     req.on('error', reject);
   });
@@ -220,228 +239,297 @@ const PRESETS = [
   }
 ];
 
-// ── MOTORE DI VALUTAZIONE PROBABILISTICA LOCALE (FALLBACK / OFFLINE SIMULATOR) ──
-function evaluateSimulatedDecisions(state, questions) {
-  const stateStr = typeof state === 'string' ? state : JSON.stringify(state);
-  const stateLower = stateStr.toLowerCase();
-  const answers = {};
+// ── Domande → opzioni a lettere ──
+// Ogni tipo si riduce a una scelta: le "ancore" delle domande numeriche
+// diventano le opzioni, cosi' anche li' si ottiene una distribuzione.
+function optionsFor(q) {
+  const type = q.type || 'boolean';
+  if (type === 'boolean') {
+    return [{ key: 'true', text: 'Sì / vero' }, { key: 'false', text: 'No / falso' }];
+  }
+  if (type === 'choice') {
+    return (q.options || []).map((o) => ({ key: String(o.id), text: o.description ? `${o.id}: ${o.description}` : String(o.id) }));
+  }
+  if (type === 'score') {
+    return (q.levels || []).map((l, i) => ({ key: String(i), text: String(l) }));
+  }
+  if (type === 'numeric') {
+    return (q.anchors || []).map((a) => ({
+      key: String(a.value),
+      text: `${a.value}${q.unit ? ' ' + q.unit : ''}${a.description ? ': ' + a.description : ''}`,
+    }));
+  }
+  return [];
+}
 
-  const startMs = Date.now();
+function setTypedValue(ans, q, key) {
+  const type = q.type || 'boolean';
+  if (type === 'boolean') ans.value = key === 'true';
+  else if (type === 'score') { ans.value = Number(key); ans.score = Number(key); }
+  else if (type === 'numeric') { ans.value = Number(key); ans.unit = q.unit || ''; }
+  else { ans.value = key; ans.choice = key; }
+}
 
-  for (const [qid, q] of Object.entries(questions)) {
-    const qType = q.type || 'boolean';
-    const instructions = (q.instructions || '').toLowerCase();
+function buildMessages(stateStr, q, opts) {
+  const lines = opts.map((o, i) => `${LETTERS[i]}) ${o.text}`);
+  return [
+    {
+      role: 'system',
+      content: 'Sei un motore decisionale. Valuta lo stato e rispondi alla domanda scegliendo UNA delle opzioni. Rispondi solo con la lettera dell\'opzione, senza nessun altro testo.',
+    },
+    {
+      role: 'user',
+      content: `Stato:\n${stateStr}\n\nDomanda: ${q.instructions || ''}\n\nOpzioni:\n${lines.join('\n')}\n\nRisposta (una sola lettera):`,
+    },
+  ];
+}
 
-    if (qType === 'boolean') {
-      let scoreTrue = 0.5;
-      const positiveWords = ['accedere', 'login', 'urgente', 'blocc', 'sicur', 'produzione', 'errore', 'help', 'manca', 'fail', 'spam', 'phish', 'critico'];
-      const negativeWords = ['nessun', 'funziona', 'regolare', 'basso', 'risolto', 'ok'];
+class FlowError extends Error {
+  constructor(message, status, code) { super(message); this.status = status; this.code = code; }
+}
 
-      positiveWords.forEach(w => { if (stateLower.includes(w)) scoreTrue += 0.08; });
-      negativeWords.forEach(w => { if (stateLower.includes(w)) scoreTrue -= 0.06; });
+async function callOpenRouter(model, messages, nOpts) {
+  const body = {
+    model: model.id,
+    messages,
+    max_tokens: 1,
+    temperature: 0,
+    logprobs: true,
+    top_logprobs: 20,
+    // Solo provider che restituiscono davvero i logprobs: senza, OpenRouter
+    // puo' instradare su un provider che li ignora in silenzio.
+    provider: { require_parameters: true },
+  };
+  // Da mandare SOLO ai modelli ragionanti: sugli altri il parametro fa fallire
+  // la ricerca di un provider compatibile ("No endpoints found").
+  if (model.reasoningOff) body.reasoning = { enabled: false };
 
-      // Calcola probabilità normalizzata
-      scoreTrue = Math.max(0.04, Math.min(0.96, scoreTrue));
-      const scoreFalse = +(1 - scoreTrue).toFixed(4);
-      scoreTrue = +scoreTrue.toFixed(4);
+  const res = await fetch(`${OPENROUTER_API}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey()}`, 'X-Title': 'agy-flow' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* risposta non JSON */ }
+  if (!res.ok || !data || data.error) {
+    const msg = (data && data.error && data.error.message) || `HTTP ${res.status}`;
+    throw new FlowError(msg, res.status);
+  }
 
-      const val = scoreTrue >= 0.5;
-      answers[qid] = {
-        type: 'boolean',
-        value: val,
-        status: 'ok',
-        probability_true_given_available: scoreTrue,
-        probabilities: {
-          true: scoreTrue,
-          false: scoreFalse
-        },
-        uncertainty: {
-          entropy: +(-scoreTrue * Math.log2(scoreTrue) - scoreFalse * Math.log2(scoreFalse)).toFixed(3),
-          margin: +Math.abs(scoreTrue - scoreFalse).toFixed(3)
-        },
-        input_tokens: Math.ceil(stateStr.length / 4) + 24
-      };
-    } else if (qType === 'choice') {
-      const options = q.options || [];
-      if (!options.length) continue;
+  const first = data.choices && data.choices[0] && data.choices[0].logprobs
+    && data.choices[0].logprobs.content && data.choices[0].logprobs.content[0];
+  const top = first && first.top_logprobs;
+  if (!top || !top.length) throw new FlowError('il provider non ha restituito le probabilità', 502);
 
-      let weights = options.map((opt) => {
-        let w = 1.0;
-        const words = (opt.id + ' ' + (opt.description || '')).toLowerCase().split(/[\s,._-]+/);
-        words.forEach(word => {
-          if (word.length > 2 && stateLower.includes(word)) w += 2.5;
-        });
-        return w;
-      });
+  const mass = new Array(nOpts).fill(0);
+  for (const t of top) {
+    const tok = String(t.token || '').trim().replace(/[).:\]]+$/, '').toUpperCase();
+    if (tok.length !== 1) continue;
+    const idx = LETTERS.indexOf(tok);
+    if (idx >= 0 && idx < nOpts) mass[idx] += Math.exp(t.logprob);
+  }
+  return { mass, usage: data.usage || {} };
+}
 
-      const totalWeight = weights.reduce((a, b) => a + b, 0);
-      const rawProbs = weights.map(w => w / totalWeight);
+function buildAnswer(q, opts, mass, usage, modelId) {
+  const coverage = mass.reduce((a, b) => a + b, 0);
+  const probs = mass.map((m) => m / coverage);
+  const probabilities = {};
+  opts.forEach((o, i) => { probabilities[o.key] = +probs[i].toFixed(4); });
 
-      // Softmax sharpening
-      const expProbs = rawProbs.map(p => Math.exp(p * 2.5));
-      const expSum = expProbs.reduce((a, b) => a + b, 0);
-      const probs = expProbs.map(p => +(p / expSum).toFixed(4));
+  const ranked = probs.map((_, i) => i).sort((a, b) => probs[b] - probs[a]);
+  const best = ranked[0];
+  const second = ranked.length > 1 ? probs[ranked[1]] : 0;
+  const entropy = -probs.reduce((s, p) => (p > 0 ? s + p * Math.log2(p) : s), 0);
 
-      let maxIdx = 0;
-      probs.forEach((p, idx) => { if (p > probs[maxIdx]) maxIdx = idx; });
+  const ans = {
+    type: q.type || 'boolean',
+    // coverage = quota di probabilita' finita su lettere valide: se e' bassa il
+    // modello voleva rispondere altro e la distribuzione e' poco affidabile.
+    status: coverage < 0.5 ? 'low_coverage' : 'ok',
+    probabilities,
+    uncertainty: { margin: +(probs[best] - second).toFixed(3), entropy: +entropy.toFixed(3), coverage: +coverage.toFixed(3) },
+    input_tokens: usage.prompt_tokens || null,
+    model: modelId,
+  };
+  setTypedValue(ans, q, opts[best].key);
+  if ((q.type || 'boolean') === 'numeric') {
+    ans.expected = +opts.reduce((s, o, i) => s + Number(o.key) * probs[i], 0).toFixed(2);
+  }
+  return ans;
+}
 
-      const probMap = {};
-      options.forEach((opt, idx) => { probMap[opt.id] = probs[idx]; });
+async function decideQuestion(stateStr, q, preferredModelId) {
+  const type = q.type || 'boolean';
+  const opts = optionsFor(q);
+  if (opts.length < 2) {
+    return { type, status: 'error', error: type === 'numeric' ? 'Servono almeno due "anchors" per una domanda numerica.' : 'Servono almeno due opzioni.' };
+  }
+  if (opts.length > LETTERS.length) return { type, status: 'error', error: `Massimo ${LETTERS.length} opzioni per domanda.` };
 
-      answers[qid] = {
-        type: 'choice',
-        value: options[maxIdx].id,
-        status: 'ok',
-        probabilities: probMap,
-        uncertainty: {
-          margin: +(probs[maxIdx] - (probs.filter((_, i) => i !== maxIdx).sort((a,b)=>b-a)[0] || 0)).toFixed(3)
-        },
-        input_tokens: Math.ceil(stateStr.length / 4) + options.length * 15
-      };
-    } else if (qType === 'score') {
-      const levels = q.levels || [];
-      const numLevels = levels.length || 3;
-      let levelScores = new Array(numLevels).fill(1.0);
+  const preferred = MODELS.find((m) => m.id === preferredModelId);
+  const order = preferred ? [preferred, ...MODELS.filter((m) => m !== preferred)] : MODELS;
+  const messages = buildMessages(stateStr, q, opts);
+  const errors = [];
 
-      if (stateLower.includes('critico') || stateLower.includes('blocc') || stateLower.includes('oggi') || stateLower.includes('elevato')) {
-        levelScores[numLevels - 1] += 3.5;
-      } else if (stateLower.includes('rallentat') || stateLower.includes('medio')) {
-        const mid = Math.floor(numLevels / 2);
-        levelScores[mid] += 3.0;
-      } else {
-        levelScores[0] += 2.0;
-      }
-
-      const tot = levelScores.reduce((a, b) => a + b, 0);
-      const probs = levelScores.map(s => +(s / tot).toFixed(4));
-      let best = 0;
-      probs.forEach((p, i) => { if (p > probs[best]) best = i; });
-
-      const probMap = {};
-      levels.forEach((l, i) => { probMap[String(i)] = probs[i]; });
-
-      answers[qid] = {
-        type: 'score',
-        value: best,
-        status: 'ok',
-        probabilities: probMap,
-        levels: levels,
-        input_tokens: Math.ceil(stateStr.length / 4) + numLevels * 12
-      };
-    } else if (qType === 'numeric') {
-      const anchors = q.anchors || [];
-      let val = anchors.length ? anchors[Math.floor(anchors.length / 2)].value : 5.0;
-      if (stateLower.includes('stasera') || stateLower.includes('poche ore') || stateLower.includes('oggi')) {
-        val = anchors.length ? anchors[0].value : 2.0;
-      }
-      answers[qid] = {
-        type: 'numeric',
-        value: val,
-        unit: q.unit || '',
-        status: 'ok',
-        input_tokens: Math.ceil(stateStr.length / 4) + 30
-      };
+  for (const model of order) {
+    try {
+      const { mass, usage } = await callOpenRouter(model, messages, opts.length);
+      if (mass.every((m) => m === 0)) { errors.push(`${model.label}: risposta fuori dalle opzioni`); continue; }
+      return buildAnswer(q, opts, mass, usage, model.id);
+    } catch (e) {
+      // Chiave non valida o credito esaurito: inutile provare gli altri modelli.
+      if (e.status === 401) throw new FlowError('Chiave OpenRouter non valida o revocata.', 401, 'INVALID_KEY');
+      if (e.status === 402) throw new FlowError('Credito OpenRouter esaurito o limite di spesa raggiunto.', 402, 'NO_CREDIT');
+      errors.push(`${model.label}: ${e.message}`);
     }
   }
 
-  const elapsed = Date.now() - startMs + Math.floor(Math.random() * 25 + 35); // realistico ~50ms
+  const hint = errors.some((m) => /No endpoints found/i.test(m))
+    ? ' Se hai escluso dei provider nelle impostazioni privacy del tuo account OpenRouter, riattivane almeno uno che supporti i logprobs.'
+    : '';
+  return { type, status: 'error', error: errors.join(' · ') + hint };
+}
 
+async function decideWithOpenRouter(state, questions, preferredModelId) {
+  const stateStr = typeof state === 'string' ? state : JSON.stringify(state, null, 2);
+  const t0 = Date.now();
+  const entries = Object.entries(questions);
+  const pairs = await Promise.all(entries.map(async ([qid, q]) => [qid, await decideQuestion(stateStr, q, preferredModelId)]));
+  const answers = Object.fromEntries(pairs);
+  const models = [...new Set(Object.values(answers).map((a) => a.model).filter(Boolean))];
+  const labels = models.map((id) => (MODELS.find((m) => m.id === id) || { label: id }).label);
   return {
     answers,
-    timing: {
-      queue_ms: 1.2,
-      prefill_ms: +(elapsed * 0.85).toFixed(1),
-      total_ms: elapsed
-    },
-    simulated: true,
-    model: "Spark-X2.5-4B (Simulatore locale Rizzo Flow)"
+    engine: 'openrouter',
+    model: labels.join(', ') || null,
+    generated_tokens: entries.length,
+    timing: { total_ms: Date.now() - t0 },
   };
 }
 
-// ── SERVER HTTP PRINCIPALE ──
+// ── Fallback agy (senza probabilita') ──
+function buildAgyEnv() {
+  const envPath = [
+    path.join(os.homedir(), '.local', 'bin'),
+    path.join(os.homedir(), '.gemini', 'antigravity-cli', 'bin'),
+    process.env.PATH || '',
+  ].filter(Boolean).join(path.delimiter);
+  return { ...process.env, PATH: envPath, NO_COLOR: '1', TERM: 'dumb' };
+}
+
+function runAgy(prompt, cwd) {
+  return new Promise((resolve) => {
+    const command = process.env.CLI_COMMAND || 'agy';
+    let child;
+    try {
+      child = spawn(command, [`-p=${prompt}`, '--output-format', 'stream-json'], { cwd, env: buildAgyEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (err) {
+      return resolve({ error: `Impossibile avviare ${command}: ${err.message}` });
+    }
+    let response = '';
+    let stderrBuf = '';
+    const timer = setTimeout(() => { try { child.kill('SIGTERM'); } catch (e) { /* gia' terminato */ } }, AGY_TIMEOUT_MS);
+
+    readline.createInterface({ input: child.stdout }).on('line', (line) => {
+      let ev;
+      try { ev = JSON.parse(line); } catch (e) { return; }
+      if (ev.event === 'step_update' && ev.step_update && ev.step_update.step_type === 'agent_response' && ev.step_update.text_delta) {
+        response += ev.step_update.text_delta;
+      } else if (ev.event === 'result' && ev.result && !response.trim() && ev.result.response) {
+        response = ev.result.response;
+      }
+    });
+    child.stderr.on('data', (d) => { stderrBuf = (stderrBuf + d.toString()).slice(-4000); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (!response.trim()) return resolve({ error: stderrBuf.trim().split('\n').slice(0, 4).join(' ') || `agy terminato con codice ${code}` });
+      resolve({ response });
+    });
+    child.on('error', (err) => { clearTimeout(timer); resolve({ error: err.message }); });
+  });
+}
+
+async function decideWithAgy(state, questions) {
+  const stateStr = typeof state === 'string' ? state : JSON.stringify(state, null, 2);
+  const spec = Object.entries(questions).map(([qid, q]) => {
+    const keys = optionsFor(q).map((o) => JSON.stringify(o.key)).join(', ');
+    return `- ${qid}: ${q.instructions || ''}\n  valori ammessi: ${keys}`;
+  }).join('\n');
+  // Niente --dangerously-skip-permissions: qui agy deve solo leggere e rispondere.
+  const prompt = 'Sei un motore decisionale. Non usare strumenti e non leggere né modificare file: rispondi solo in base allo stato qui sotto.\n\n'
+    + `Stato:\n${stateStr}\n\nDomande:\n${spec}\n\n`
+    + 'Rispondi SOLO con un oggetto JSON su una riga: una chiave per ogni domanda, come valore uno dei valori ammessi. Nessun altro testo.';
+
+  const t0 = Date.now();
+  const r = await runAgy(prompt, process.env.WORKSPACE_DIR || os.homedir());
+  if (r.error) throw new FlowError(`agy: ${r.error}`, 502);
+  const match = r.response.match(/\{[\s\S]*\}/);
+  let parsed = null;
+  try { parsed = match ? JSON.parse(match[0]) : null; } catch (e) { /* gestito sotto */ }
+  if (!parsed || typeof parsed !== 'object') throw new FlowError('agy non ha restituito un JSON valido.', 502);
+
+  const answers = {};
+  for (const [qid, q] of Object.entries(questions)) {
+    const opts = optionsFor(q);
+    const key = parsed[qid] === undefined ? null : String(parsed[qid]);
+    const ans = { type: q.type || 'boolean', model: 'agy' };
+    if (opts.some((o) => o.key === key)) { ans.status = 'ok'; setTypedValue(ans, q, key); }
+    else { ans.status = 'error'; ans.error = `Valore non ammesso restituito da agy: ${parsed[qid]}`; }
+    answers[qid] = ans;
+  }
+  return { answers, engine: 'agy', model: 'agy', no_probabilities: true, timing: { total_ms: Date.now() - t0 } };
+}
+
+// ── Stato della chiave (GET /key di OpenRouter non consuma credito) ──
+async function keyStatus() {
+  if (!apiKey()) return { configured: false };
+  try {
+    const res = await fetch(`${OPENROUTER_API}/key`, { headers: { Authorization: `Bearer ${apiKey()}` }, signal: AbortSignal.timeout(5000) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.data) return { configured: true, valid: false };
+    return { configured: true, valid: true, limit: data.data.limit ?? null, usage: data.data.usage ?? null };
+  } catch (e) {
+    return { configured: true, valid: null, error: 'OpenRouter non raggiungibile' };
+  }
+}
+
+// ── Server HTTP ──
 const server = http.createServer(async (req, res) => {
   try {
     const { pathname } = new URL(req.url, 'http://localhost');
-    const method = req.method;
 
-    // GET /health
-    if (pathname === '/health' && method === 'GET') {
-      let isOnline = false;
-      let modelInfo = null;
-
-      try {
-        const check = await fetch(`${FLOW_URL}/health`, { signal: AbortSignal.timeout(1200) });
-        if (check.ok) {
-          const data = await check.json();
-          isOnline = true;
-          modelInfo = data.model || 'Spark-X2.5';
-        }
-      } catch (_) {}
-
+    if (pathname === '/health' && req.method === 'GET') {
       return sendJson(res, 200, {
-        status: isOnline ? 'ready' : 'fallback',
-        online: isOnline,
-        url: FLOW_URL,
-        model: modelInfo || 'Spark-X2.5-4B (Fallback)',
-        simulated: !isOnline
+        key: await keyStatus(),
+        models: MODELS.map(({ id, label }) => ({ id, label })),
+        default_model: MODELS[0].id,
       });
     }
 
-    // GET /presets
-    if (pathname === '/presets' && method === 'GET') {
+    if (pathname === '/presets' && req.method === 'GET') {
       return sendJson(res, 200, PRESETS);
     }
 
-    // POST /decide
-    if (pathname === '/decide' && method === 'POST') {
-      const body = await readBody(req);
-      const state = body.state;
-      const questions = body.questions;
-
-      if (!state || !questions) {
-        return sendJson(res, 400, { error: 'Parametri "state" e "questions" obbligatori.' });
+    if (pathname === '/decide' && req.method === 'POST') {
+      const { state, questions, model, engine } = await readBody(req);
+      if (!state || !questions || typeof questions !== 'object' || !Object.keys(questions).length) {
+        return sendJson(res, 400, { error: 'Servono "state" e almeno una domanda in "questions".' });
       }
-
-      // Prova il daemon reale Rizzo Flow se attivo
-      let flowRes = null;
+      if (Object.keys(questions).length > MAX_QUESTIONS) {
+        return sendJson(res, 400, { error: `Massimo ${MAX_QUESTIONS} domande per decisione.` });
+      }
       try {
-        const resp = await fetch(`${FLOW_URL}/v1/decisions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ state, questions }),
-          signal: AbortSignal.timeout(30000)
-        });
-        if (resp.ok) {
-          flowRes = await resp.json();
-          flowRes.simulated = false;
-          if (flowRes.timing && typeof flowRes.timing.total_seconds === 'number') {
-            flowRes.timing.total_ms = Math.round(flowRes.timing.total_seconds * 1000);
-          }
-        } else {
-          const errText = await resp.text();
-          console.warn('[FlowPlugin] Errore HTTP da rizzo-flow:', resp.status, errText);
+        if (engine === 'agy') return sendJson(res, 200, await decideWithAgy(state, questions));
+        if (!apiKey()) {
+          return sendJson(res, 400, { code: 'NO_KEY', error: 'Nessuna chiave OpenRouter configurata.' });
         }
-      } catch (err) {
-        console.warn('[FlowPlugin] Errore connessione daemon:', err.message);
+        return sendJson(res, 200, await decideWithOpenRouter(state, questions, model));
+      } catch (e) {
+        if (e instanceof FlowError) return sendJson(res, e.status || 502, { code: e.code || 'FLOW_ERROR', error: e.message });
+        throw e;
       }
-
-      if (flowRes) {
-        return sendJson(res, 200, flowRes);
-      }
-
-      // Fallback: motore di valutazione probabilistica integrato
-      const simulatedResult = evaluateSimulatedDecisions(state, questions);
-      return sendJson(res, 200, simulatedResult);
-    }
-
-    // POST /config
-    if (pathname === '/config' && method === 'POST') {
-      const body = await readBody(req);
-      if (body.url && typeof body.url === 'string') {
-        FLOW_URL = body.url.trim().replace(/\/+$/, '');
-        return sendJson(res, 200, { success: true, url: FLOW_URL });
-      }
-      return sendJson(res, 400, { error: 'URL non valido' });
     }
 
     sendJson(res, 404, { error: 'Rotta non trovata' });
@@ -451,6 +539,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(0, '127.0.0.1', () => {
-  const addr = server.address();
-  console.log(JSON.stringify({ ready: true, port: addr.port }));
+  console.log(JSON.stringify({ ready: true, port: server.address().port }));
 });

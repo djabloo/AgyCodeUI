@@ -1,9 +1,12 @@
 /**
- * AGYUI Plugin: Flow (Rizzo Flow Integration)
+ * AGYUI Plugin: agy-flow
  *
- * Frontend del Decision Playground Rizzo Flow.
- * Decisioni probabilistiche tipizzate (boolean, choice, score, numeric) a 0 token generati.
+ * Playground per decisioni tipizzate (boolean, choice, score, numeric) con
+ * probabilità reali lette dai logprobs di un modello su OpenRouter (chiave
+ * dell'utente). Design ispirato a Rizzo Flow di Rizzo AI Academy.
  */
+
+const MODEL_STORAGE_KEY = 'agyflow_model';
 
 const CSS = `
 .agyflow {
@@ -542,6 +545,16 @@ let activePresetId = 'ticket';
 let currentStateData = {};
 let currentQuestionsData = {};
 let latestDecisionResult = null;
+let healthInfo = null;
+
+function selectedModel() {
+  return localStorage.getItem(MODEL_STORAGE_KEY) || (healthInfo && healthInfo.default_model) || '';
+}
+
+function modelLabel(id) {
+  const m = healthInfo && healthInfo.models ? healthInfo.models.find((x) => x.id === id) : null;
+  return m ? m.label : id;
+}
 
 function esc(str) {
   if (typeof str !== 'string') return '';
@@ -566,8 +579,8 @@ export async function mount(container, api) {
         <div class="agyflow-brand">
           <div class="agyflow-logo-wrap">${ICONS.flow}</div>
           <div class="agyflow-title-group">
-            <h2>Rizzo Flow <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">System One</span></h2>
-            <p>Decisioni tipizzate e probabilistiche da LLM a 0 token generati</p>
+            <h2>agy-flow <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">decisioni tipizzate</span></h2>
+            <p>Probabilità reali (logprobs) su ogni opzione · design ispirato a Rizzo Flow di Rizzo AI Academy</p>
           </div>
         </div>
 
@@ -576,7 +589,7 @@ export async function mount(container, api) {
             <span class="agyflow-dot" id="agyflow-status-dot"></span>
             <span id="agyflow-status-text">Connessione...</span>
           </div>
-          <button class="agyflow-cfg-btn" id="agyflow-open-cfg-btn" title="Configura Endpoint">${ICONS.settings}</button>
+          <button class="agyflow-cfg-btn" id="agyflow-open-cfg-btn" title="Modello e chiave OpenRouter">${ICONS.settings}</button>
         </div>
       </div>
 
@@ -609,7 +622,7 @@ export async function mount(container, api) {
 
           <!-- RUN BUTTON -->
           <button class="agyflow-run-btn" id="agyflow-run-btn">
-            ${ICONS.sparkles} Esegui Decisione Flow (0 Token)
+            ${ICONS.sparkles} Esegui Decisione
           </button>
         </div>
 
@@ -622,8 +635,8 @@ export async function mount(container, api) {
               <div class="agyflow-metric-lbl">Latenza</div>
             </div>
             <div class="agyflow-metric-card">
-              <div class="agyflow-metric-val" style="color:#10b981;">0</div>
-              <div class="agyflow-metric-lbl">Gen Tokens</div>
+              <div class="agyflow-metric-val" id="agyflow-metric-gen" style="color:#10b981;">--</div>
+              <div class="agyflow-metric-lbl">Token generati</div>
             </div>
             <div class="agyflow-metric-card">
               <div class="agyflow-metric-val" id="agyflow-metric-tokens">--</div>
@@ -654,17 +667,19 @@ export async function mount(container, api) {
       <!-- MODAL CONFIG -->
       <div class="agyflow-modal-overlay" id="agyflow-cfg-modal">
         <div class="agyflow-modal-card">
-          <h3 style="margin:0; font-size:1rem; color:#fff;">Configura Endpoint Rizzo Flow</h3>
-          <p style="margin:0; font-size:0.76rem; color:var(--text-muted); line-height:1.5;">
-            Rizzo Flow funziona in locale tramite il comando <code>uv run rizzo serve</code> (porta di default 8017).
+          <h3 style="margin:0; font-size:1rem; color:#fff;">Modello e chiave OpenRouter</h3>
+          <div id="agyflow-cfg-key" style="font-size:0.76rem; line-height:1.5;"></div>
+          <p style="margin:0; font-size:0.74rem; color:var(--text-muted); line-height:1.5;">
+            agy-flow usa la <b>tua</b> chiave OpenRouter: i costi (circa 1 centesimo ogni 1000 decisioni) sono sul tuo account.
+            In AgyCloud: <b>Dashboard → Chiavi API → OpenRouter</b>. Nel self-hosted: <code>OPENROUTER_API_KEY</code> nel file <code>.env</code>.
           </p>
           <div>
-            <label style="display:block; font-size:0.74rem; color:var(--text-muted); margin-bottom:4px;">URL Endpoint Daemon</label>
-            <input type="text" class="agyflow-input" id="agyflow-cfg-url" value="http://127.0.0.1:8017" style="width:100%;" />
+            <label style="display:block; font-size:0.74rem; color:var(--text-muted); margin-bottom:4px;">Modello (se non risponde si passa al successivo)</label>
+            <select class="agyflow-select" id="agyflow-cfg-model" style="width:100%;"></select>
           </div>
           <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
             <button class="agyflow-act-btn" id="agyflow-cfg-cancel">Annulla</button>
-            <button class="agyflow-act-btn primary" id="agyflow-cfg-save">Salva & Riconnetti</button>
+            <button class="agyflow-act-btn primary" id="agyflow-cfg-save">Salva</button>
           </div>
         </div>
       </div>
@@ -690,13 +705,20 @@ async function checkHealth() {
   const txt = document.getElementById('agyflow-status-text');
   try {
     const res = await rpcClient('GET', 'health');
-    if (res.online) {
+    if (res.error) throw new Error(res.error);
+    healthInfo = res;
+    const key = res.key || {};
+    if (key.configured && key.valid !== false) {
       dot.className = 'agyflow-dot ok';
-      txt.textContent = `${res.model || 'Spark-X2.5'} (Attivo)`;
+      txt.textContent = `OpenRouter · ${modelLabel(selectedModel())}`;
       txt.style.color = '#10b981';
+    } else if (key.configured) {
+      dot.className = 'agyflow-dot';
+      txt.textContent = 'Chiave OpenRouter non valida';
+      txt.style.color = '#ef4444';
     } else {
       dot.className = 'agyflow-dot simulated';
-      txt.textContent = 'Simulatore Locale (Porta 8017 offline)';
+      txt.textContent = 'Chiave OpenRouter mancante';
       txt.style.color = '#f59e0b';
     }
   } catch (e) {
@@ -865,6 +887,48 @@ function renderQuestionExtra(q) {
   return '';
 }
 
+function renderConfigModal() {
+  const keyEl = document.getElementById('agyflow-cfg-key');
+  const sel = document.getElementById('agyflow-cfg-model');
+  const key = (healthInfo && healthInfo.key) || {};
+  if (keyEl) {
+    if (!key.configured) {
+      keyEl.innerHTML = '<span style="color:#f59e0b;">⚠ Nessuna chiave OpenRouter configurata.</span>';
+    } else if (key.valid === false) {
+      keyEl.innerHTML = '<span style="color:#ef4444;">✕ La chiave OpenRouter non è valida o è stata revocata.</span>';
+    } else {
+      const spent = typeof key.usage === 'number' ? ` · spesa finora: $${key.usage.toFixed(3)}` : '';
+      const limit = key.limit === null || key.limit === undefined
+        ? ' · <span style="color:#f59e0b;">nessun limite di spesa impostato</span>'
+        : ` · limite: $${key.limit}`;
+      keyEl.innerHTML = `<span style="color:#10b981;">✓ Chiave OpenRouter attiva</span>${spent}${limit}`;
+    }
+  }
+  if (sel) {
+    const models = (healthInfo && healthInfo.models) || [];
+    const current = selectedModel();
+    sel.innerHTML = models.map((m) => `<option value="${esc(m.id)}" ${m.id === current ? 'selected' : ''}>${esc(m.label)} — ${esc(m.id)}</option>`).join('');
+  }
+}
+
+function renderNoKeyNotice(container, code, message) {
+  const title = code === 'NO_KEY' ? 'Serve una chiave OpenRouter'
+    : code === 'INVALID_KEY' ? 'Chiave OpenRouter non valida'
+    : code === 'NO_CREDIT' ? 'Credito OpenRouter esaurito'
+    : 'Errore';
+  container.innerHTML = `
+    <div style="padding:14px 16px; border-radius:10px; background:rgba(245, 158, 11, 0.10); border:1px solid rgba(245, 158, 11, 0.35); font-size:0.78rem; line-height:1.6; color:#fde68a;">
+      <b>${esc(title)}</b><br>${esc(message || '')}<br>
+      Aggiungila in <b>Dashboard → Chiavi API → OpenRouter</b> (AgyCloud) oppure come <code>OPENROUTER_API_KEY</code> nel <code>.env</code> (self-hosted), poi ricarica il plugin.
+      <div style="margin-top:10px;">
+        <button class="agyflow-act-btn" id="agyflow-run-agy">Esegui con agy (senza probabilità, più lento)</button>
+      </div>
+    </div>
+  `;
+  const agyBtn = document.getElementById('agyflow-run-agy');
+  if (agyBtn) agyBtn.onclick = () => executeDecision('agy');
+}
+
 function initEvents() {
   const runBtn = document.getElementById('agyflow-run-btn');
   const addQBtn = document.getElementById('agyflow-add-q-btn');
@@ -875,7 +939,7 @@ function initEvents() {
   const cfgCancel = document.getElementById('agyflow-cfg-cancel');
   const cfgSave = document.getElementById('agyflow-cfg-save');
 
-  if (runBtn) runBtn.onclick = executeDecision;
+  if (runBtn) runBtn.onclick = () => executeDecision();
 
   if (addQBtn) {
     addQBtn.onclick = () => {
@@ -907,12 +971,17 @@ function initEvents() {
     bridgeBtn.onclick = bridgeDecisionToAgyChat;
   }
 
-  if (cfgOpenBtn) cfgOpenBtn.onclick = () => cfgModal.classList.add('open');
+  if (cfgOpenBtn) {
+    cfgOpenBtn.onclick = () => {
+      renderConfigModal();
+      cfgModal.classList.add('open');
+    };
+  }
   if (cfgCancel) cfgCancel.onclick = () => cfgModal.classList.remove('open');
   if (cfgSave) {
     cfgSave.onclick = async () => {
-      const url = document.getElementById('agyflow-cfg-url').value;
-      await rpcClient('POST', 'config', { url });
+      const sel = document.getElementById('agyflow-cfg-model');
+      if (sel && sel.value) localStorage.setItem(MODEL_STORAGE_KEY, sel.value);
       cfgModal.classList.remove('open');
       await checkHealth();
     };
@@ -930,7 +999,7 @@ function initEvents() {
   });
 }
 
-async function executeDecision() {
+async function executeDecision(engine) {
   const runBtn = document.getElementById('agyflow-run-btn');
   const stateInput = document.getElementById('agyflow-state-input');
   const resultsContainer = document.getElementById('agyflow-results-list');
@@ -942,25 +1011,37 @@ async function executeDecision() {
   } catch (_) {}
 
   runBtn.disabled = true;
-  runBtn.innerHTML = `<span class="spin-animation">⏳</span> Calcolo Decisione in corso...`;
+  runBtn.innerHTML = engine === 'agy'
+    ? `<span class="spin-animation">⏳</span> agy sta valutando (può richiedere un minuto)...`
+    : `<span class="spin-animation">⏳</span> Calcolo decisione...`;
 
   try {
     const res = await rpcClient('POST', 'decide', {
       state: stateVal,
-      questions: currentQuestionsData
+      questions: currentQuestionsData,
+      model: selectedModel(),
+      engine: engine === 'agy' ? 'agy' : undefined
     });
+
+    if (res.code === 'NO_KEY' || res.code === 'INVALID_KEY' || res.code === 'NO_CREDIT') {
+      latestDecisionResult = null;
+      actionsBar.style.display = 'none';
+      renderNoKeyNotice(resultsContainer, res.code, res.error);
+      return;
+    }
+    if (res.error) throw new Error(res.error);
 
     latestDecisionResult = res;
 
-    // Aggiorna metriche
-    const lat = res.timing ? `${Math.round(res.timing.total_ms || 45)} ms` : `~45 ms`;
-    document.getElementById('agyflow-metric-latency').textContent = lat;
+    // Metriche reali, nessun valore di ripiego inventato
+    document.getElementById('agyflow-metric-latency').textContent = res.timing ? `${Math.round(res.timing.total_ms)} ms` : '--';
+    document.getElementById('agyflow-metric-gen').textContent = res.generated_tokens != null ? String(res.generated_tokens) : '--';
 
     let totToks = 0;
     if (res.answers) {
-      Object.values(res.answers).forEach(a => { totToks += (a.input_tokens || 20); });
+      Object.values(res.answers).forEach(a => { totToks += (a.input_tokens || 0); });
     }
-    document.getElementById('agyflow-metric-tokens').textContent = totToks || '~120';
+    document.getElementById('agyflow-metric-tokens').textContent = totToks ? String(totToks) : '--';
 
     renderDecisionResults(res);
     actionsBar.style.display = 'flex';
@@ -968,12 +1049,12 @@ async function executeDecision() {
     resultsContainer.innerHTML = `
       <div style="padding:16px; border-radius:10px; background:rgba(239, 68, 68, 0.15); border:1px solid #ef4444; color:#fca5a5;">
         <b>Errore esecuzione decisione:</b>
-        <pre style="margin-top:6px; font-size:0.75rem;">${err.message}</pre>
+        <pre style="margin-top:6px; font-size:0.75rem; white-space:pre-wrap;">${esc(err.message)}</pre>
       </div>
     `;
   } finally {
     runBtn.disabled = false;
-    runBtn.innerHTML = `${ICONS.sparkles} Esegui Decisione Flow (0 Token)`;
+    runBtn.innerHTML = `${ICONS.sparkles} Esegui Decisione`;
   }
 }
 
@@ -1006,11 +1087,19 @@ function renderDecisionResults(res) {
     const winVal = getAnswerWinner(ans);
 
     let displayVal = String(winVal);
-    if (qType === 'boolean') {
+    if (ans.status === 'error') {
+      displayVal = 'Nessuna risposta';
+    } else if (qType === 'boolean') {
       displayVal = (winVal === true || winVal === 'true') ? 'VERO (true)' : 'FALSO (false)';
     } else if (winVal === '__insufficient__' || ans.status === 'insufficient_evidence') {
       displayVal = `Indeterminato (${winVal})`;
+    } else if (qType === 'numeric' && typeof ans.expected === 'number') {
+      displayVal = `${winVal}${ans.unit ? ' ' + ans.unit : ''} (valore atteso: ${ans.expected})`;
     }
+    const margin = ans.uncertainty && typeof ans.uncertainty.margin === 'number' ? ans.uncertainty.margin : null;
+    const detail = ans.error
+      ? `<div style="font-size:0.72rem; color:#fca5a5; margin-top:4px;">${esc(ans.error)}</div>`
+      : `<div style="font-size:0.68rem; color:var(--text-muted); margin-top:4px;">${ans.model ? 'modello: ' + esc(modelLabel(ans.model)) : ''}${margin !== null ? ` · margine sulla seconda opzione: ${(margin * 100).toFixed(1)} pt` : ''}${ans.status === 'low_coverage' ? ' · <span style="color:#f59e0b;">risposta poco aderente alle opzioni, valuta con cautela</span>' : ''}</div>`;
 
     return `
       <div class="agyflow-card-answer">
@@ -1030,13 +1119,14 @@ function renderDecisionResults(res) {
         <div style="margin-top:8px;">
           ${renderProbabilityBars(ans, origQ, winVal)}
         </div>
+        ${detail}
       </div>
     `;
   }).join('');
 
-  const noticeHtml = res.simulated ? `
+  const noticeHtml = res.no_probabilities ? `
     <div style="padding:8px 12px; border-radius:8px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.3); font-size:0.72rem; color:#fcd34d;">
-      ⚡ <b>Modalità Simulatore:</b> Daemon locale Rizzo Flow offline su porta 8017. Le probabilità mostrate sono calcolate tramite euristica locale. Avvia <code>uv run rizzo serve</code> per utilizzare il modello neurale Spark-X2.5-4B.
+      ⚡ <b>Valutato con agy, senza probabilità:</b> le risposte sono quelle scelte dal modello, ma non c'è una distribuzione di confidenza. Per le probabilità reali configura una chiave OpenRouter.
     </div>
   ` : '';
 
@@ -1079,8 +1169,10 @@ function bridgeDecisionToAgyChat() {
   if (!latestDecisionResult || !latestDecisionResult.answers) return;
 
   const lines = [
-    `🎯 **Valutazione Decisionale Rizzo Flow (0 Token Generati)**:`,
-    `Ho processato lo stato con il motore probabilistico typed. Ecco i risultati emersi:`
+    `🎯 **Valutazione decisionale agy-flow**:`,
+    latestDecisionResult.no_probabilities
+      ? `Ho valutato lo stato con agy (senza distribuzione di probabilità). Ecco le decisioni:`
+      : `Ho valutato lo stato leggendo le probabilità reali del modello (${latestDecisionResult.model || 'OpenRouter'}). Ecco le decisioni:`
   ];
 
   for (const [qid, ans] of Object.entries(latestDecisionResult.answers)) {

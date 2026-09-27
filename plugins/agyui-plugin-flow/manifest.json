@@ -1,9 +1,9 @@
 {
   "name": "agyui-plugin-flow",
-  "displayName": "Flow",
-  "version": "1.0.0",
-  "description": "Motore decisionale probabilistico typed senza token generati basato su Rizzo Flow. Decisioni istantanee, routing per agenti, rubric e playground interattivo con bridge per la Chat di AGY.",
-  "author": "Rizzo AI Academy & AGYUI",
+  "displayName": "agy-flow",
+  "version": "2.0.0",
+  "description": "Decisioni tipizzate (sì/no, scelta, punteggio, numero) con probabilità reali (logprobs) su ogni opzione, tramite OpenRouter con la tua chiave. Preset per triage, routing agenti, code review e moderazione, con invio diretto alla chat di agy. Design ispirato a Rizzo Flow di Rizzo AI Academy.",
+  "author": "AgyCloud · design originale Rizzo AI Academy",
   "icon": "icon.svg",
   "type": "module",
   "slot": "tab",

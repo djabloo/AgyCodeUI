@@ -1,43 +1,49 @@
-# AGYUI Flow Plugin — Rizzo Flow (System One Decision Engine)
+# agy-flow — decisioni tipizzate con probabilità reali
 
-Integrazione nativa di [Rizzo Flow](https://github.com/Rizzo-AI-Academy/rizzo-flow.git) (sviluppato da **Rizzo AI Academy**) nell'interfaccia AGYUI.
+Plugin AgyCloud per decisioni **tipizzate** (`boolean`, `choice`, `score`, `numeric`)
+che restituisce, per ogni domanda, la **distribuzione di probabilità reale** del modello
+sulle opzioni, invece di testo libero.
 
-Rizzo Flow è un'implementazione open-source e locale ispirata a **Jev** (TypeSafe): un motore decisionale *"System One"* basato su logprobs che prende uno stato non strutturato in ingresso e restituisce **decisioni tipizzate con distribuzioni probabilistiche (senza generare un singolo token di testo)**.
+Il design (stato non strutturato + domande tipizzate → matrice decisionale, e i preset)
+è ispirato a [Rizzo Flow](https://github.com/Rizzo-AI-Academy/rizzo-flow) di
+**Rizzo AI Academy**, che usa un modello locale. agy-flow usa invece un modello remoto
+via OpenRouter: niente modello locale e niente RAM occupata sul server.
 
----
+## Come funziona
 
-## 🌟 Caratteristiche
+1. Ogni domanda diventa una scelta a lettere: sì/no → A/B, scelta → A/B/C…,
+   punteggio → un livello per lettera, numero → le `anchors` diventano le opzioni.
+2. Il modello genera **un solo token** (la lettera) con `logprobs` attivi.
+3. Le probabilità delle lettere, normalizzate, sono la distribuzione mostrata.
+   `coverage` indica quanta probabilità è finita su lettere valide: se è bassa,
+   la risposta è marcata `low_coverage`.
+4. Le domande partono in parallelo: una decisione completa richiede ~0,5–1 s.
 
-1. **Decisioni Probabilistiche Typed**:
-   - **Boolean**: decisioni binarie Sì/No con probabilità $p(\text{true})$.
-   - **Choice**: scelte categoriche con barre di probabilità per ogni opzione (soft-max sui logit).
-   - **Score**: rubric e scale a livelli con distribuzione di certezza.
-   - **Numeric**: stime e intervalli numerici ancorati.
-2. **Zero Token Generati**:
-   - Latenza ultra-bassa (~40-60 ms su GPU/CPU locale).
-   - Nessun rischio di allucinazione del testo o output fuori schema.
-3. **Bridge diretto con la Chat di Antigravity (AGY)**:
-   - Pulsante *"Invia alla Chat di AGY"* per trasformare istantaneamente la matrice decisionale in un prompt operativo strutturato per l'agente.
-4. **Preset Integrati**:
-   - 🎫 **Assistenza Clienti & Triage Ticket**: priorità, reparto e urgenza da messaggi complessi.
-   - ⚡ **Agent Workflow Router**: routing verso subagenti specifici (Security, DevOps, Coder, Reviewer).
-   - 🔍 **Code Review & PR Verdict**: approvazione, modifiche richieste o blocco sicurezza.
-   - 🛡️ **Moderazione Contenuti**: conformità, rilevamento spam e phishing.
-   - 🐍 **Snake AI Move**: la celebre demo di gioco autonomo a 150 ms/decisione.
-5. **Modalità Fallback & Simulatore**:
-   - Quando il daemon locale `uv run rizzo serve` non è attivo sulla porta 8017, il plugin fornisce una valutazione euristica locale immediata per consentire test istantanei della UI.
+Modelli (in cascata, se uno non risponde si passa al successivo), verificati con
+logprobs + `provider.require_parameters`:
 
----
+| Modello | Note |
+|---|---|
+| `mistralai/mistral-nemo` | default, ~0,7 s |
+| `meta-llama/llama-3.1-8b-instruct` | ~0,8 s |
+| `deepseek/deepseek-v4-flash` | ~1,5–2 s, ragionamento disattivato |
 
-## 🚀 Avvio del Daemon Locale Rizzo Flow (Spark-X2.5)
+Costo indicativo: ~1 centesimo ogni 1000 decisioni.
 
-Per eseguire l'inferenza con il modello neurale open weight **Spark-X2.5-4B** (o 1.7B) su llama.cpp:
+## Chiave OpenRouter (BYOK)
 
-```bash
-cd /tmp/rizzo-flow   # oppure clonalo nella tua cartella progetti
-uv sync --locked
-uv run rizzo download --size 1.7b   # scarica Spark-X2.5-1.7B e runtime llama.cpp
-uv run rizzo serve                  # avvia il daemon su http://127.0.0.1:8017
-```
+La chiave è dell'utente e i costi sono sul suo account:
 
-Il plugin rileverà automaticamente la connessione e commuterà lo stato su **Spark-X2.5 (Attivo)**.
+- **AgyCloud**: Dashboard → Chiavi API → OpenRouter (arriva nel container come `OPENROUTER_API_KEY`).
+- **Self-hosted**: `OPENROUTER_API_KEY=...` nel `.env` di agycodeui, poi riavvio.
+
+Consigliato impostare un **limite di spesa** sulla chiave, da openrouter.ai.
+
+Senza chiave il plugin lo segnala e offre di valutare con `agy -p`, **senza probabilità**
+(più lento, risposte marcate come tali).
+
+## API del plugin
+
+- `GET /health` → stato chiave (configurata, valida, spesa/limite), modelli disponibili
+- `GET /presets` → preset preconfigurati
+- `POST /decide` `{ state, questions, model?, engine?: "agy" }` → `{ answers, model, timing, generated_tokens }`
