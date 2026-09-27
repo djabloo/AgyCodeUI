@@ -690,8 +690,27 @@ export async function mount(container, api) {
   initEvents();
 
   // Load Presets & Check Health
-  await checkHealth();
+  const allowed = await checkHealth();
+  if (allowed === false) return;
   await loadPresets();
+}
+
+// Sulla SaaS il gateway risponde PLAN_REQUIRED ai piani senza agy-flow: al
+// posto del playground si mostra cosa include e come sbloccarlo.
+function renderUpgradePanel(res) {
+  const root = hostContainer && hostContainer.querySelector('.agyflow');
+  if (!root) return;
+  root.innerHTML = `
+    <div style="margin:auto; max-width:460px; padding:28px; text-align:center; border-radius:16px; border:1px solid rgba(99,102,241,.35); background:rgba(99,102,241,.08);">
+      <div style="font-size:1.8rem; margin-bottom:6px;">🎯</div>
+      <h3 style="margin:0 0 8px; color:#fff; font-size:1.05rem;">agy-flow è incluso nel piano Pro</h3>
+      <p style="margin:0 0 16px; font-size:0.8rem; line-height:1.6; color:var(--text-muted);">
+        Decisioni tipizzate con probabilità reali su ogni opzione: triage di ticket, routing verso agenti,
+        verdetti di code review, moderazione dei contenuti, con invio diretto alla chat di agy.
+      </p>
+      <a href="${esc(res.upgradeUrl || '/dashboard#subscription')}" target="_top" class="agyflow-act-btn primary" style="display:inline-flex; text-decoration:none;">Passa a Pro</a>
+    </div>
+  `;
 }
 
 export function unmount() {
@@ -705,6 +724,10 @@ async function checkHealth() {
   const txt = document.getElementById('agyflow-status-text');
   try {
     const res = await rpcClient('GET', 'health');
+    if (res.code === 'PLAN_REQUIRED') {
+      renderUpgradePanel(res);
+      return false;
+    }
     if (res.error) throw new Error(res.error);
     healthInfo = res;
     const key = res.key || {};
@@ -733,7 +756,7 @@ async function checkHealth() {
 async function loadPresets() {
   try {
     const list = await rpcClient('GET', 'presets');
-    currentPresets = list || [];
+    currentPresets = Array.isArray(list) ? list : [];
     renderPresetsBar();
     if (currentPresets.length > 0) {
       applyPreset(currentPresets[0].id);
