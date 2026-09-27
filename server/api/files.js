@@ -160,4 +160,167 @@ router.post('/upload', express.raw({ type: () => true, limit: '20mb' }), async (
     }
 });
 
+// Endpoint per servire file binari raw (immagini, audio, video, PDF)
+router.get('/raw', async (req, res) => {
+    try {
+        const baseDir = process.env.WORKSPACE_DIR || process.cwd();
+        const targetPath = getSafePath(baseDir, req.query.path || '');
+
+        if (!targetPath) {
+            return res.status(403).json({ error: 'Accesso negato: percorso non consentito' });
+        }
+
+        let stat;
+        try {
+            stat = await fsPromises.stat(targetPath);
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                return res.status(404).json({ error: 'File non trovato' });
+            }
+            throw err;
+        }
+
+        if (stat.isDirectory()) {
+            return res.status(400).json({ error: 'Il percorso specificato è una directory' });
+        }
+
+        const ext = path.extname(targetPath).toLowerCase();
+        const mimeTypes = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.bmp': 'image/bmp',
+            '.mp3': 'audio/mpeg',
+            '.wav': 'audio/wav',
+            '.ogg': 'audio/ogg',
+            '.m4a': 'audio/mp4',
+            '.mp4': 'video/mp4',
+            '.webm': 'video/webm',
+            '.pdf': 'application/pdf',
+            '.json': 'application/json',
+            '.txt': 'text/plain; charset=utf-8',
+            '.md': 'text/markdown; charset=utf-8',
+            '.js': 'application/javascript; charset=utf-8',
+            '.css': 'text/css; charset=utf-8',
+            '.html': 'text/html; charset=utf-8'
+        };
+
+        const contentType = mimeTypes[ext] || 'application/octet-stream';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Length', stat.size);
+        res.setHeader('Cache-Control', 'no-cache');
+
+        const stream = fs.createReadStream(targetPath);
+        stream.pipe(res);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Salvataggio modifiche da Code Editor
+router.post('/save', async (req, res) => {
+    try {
+        const baseDir = process.env.WORKSPACE_DIR || process.cwd();
+        const filePath = req.body.path;
+        const content = req.body.content;
+
+        if (filePath === undefined || content === undefined) {
+            return res.status(400).json({ error: 'Parametri "path" e "content" obbligatori' });
+        }
+
+        const targetPath = getSafePath(baseDir, filePath);
+        if (!targetPath) {
+            return res.status(403).json({ error: 'Accesso negato: percorso non consentito' });
+        }
+
+        try {
+            const stat = await fsPromises.stat(targetPath);
+            if (stat.isDirectory()) {
+                return res.status(400).json({ error: 'Impossibile salvare: il percorso è una directory' });
+            }
+        } catch (e) {
+            const parentDir = path.dirname(targetPath);
+            await fsPromises.mkdir(parentDir, { recursive: true });
+        }
+
+        await fsPromises.writeFile(targetPath, content, 'utf8');
+        const stat = await fsPromises.stat(targetPath);
+
+        res.json({
+            success: true,
+            path: filePath,
+            size: stat.size,
+            mtime: stat.mtime
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Creazione nuovo file o cartella
+router.post('/create', async (req, res) => {
+    try {
+        const baseDir = process.env.WORKSPACE_DIR || process.cwd();
+        const itemPath = req.body.path;
+        const isDir = !!req.body.isDir;
+
+        if (!itemPath) {
+            return res.status(400).json({ error: 'Parametro "path" obbligatorio' });
+        }
+
+        const targetPath = getSafePath(baseDir, itemPath);
+        if (!targetPath) {
+            return res.status(403).json({ error: 'Accesso negato: percorso non consentito' });
+        }
+
+        if (fs.existsSync(targetPath)) {
+            return res.status(409).json({ error: 'File o cartella già esistente' });
+        }
+
+        if (isDir) {
+            await fsPromises.mkdir(targetPath, { recursive: true });
+        } else {
+            const parentDir = path.dirname(targetPath);
+            await fsPromises.mkdir(parentDir, { recursive: true });
+            await fsPromises.writeFile(targetPath, '', 'utf8');
+        }
+
+        res.json({ success: true, path: itemPath, isDir });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Eliminazione file o cartella
+router.delete('/delete', async (req, res) => {
+    try {
+        const baseDir = process.env.WORKSPACE_DIR || process.cwd();
+        const itemPath = req.query.path || (req.body && req.body.path);
+
+        if (!itemPath) {
+            return res.status(400).json({ error: 'Parametro "path" obbligatorio' });
+        }
+
+        const targetPath = getSafePath(baseDir, itemPath);
+        if (!targetPath) {
+            return res.status(403).json({ error: 'Accesso negato: percorso non consentito' });
+        }
+
+        const stat = await fsPromises.stat(targetPath);
+        if (stat.isDirectory()) {
+            await fsPromises.rm(targetPath, { recursive: true, force: true });
+        } else {
+            await fsPromises.unlink(targetPath);
+        }
+
+        res.json({ success: true, path: itemPath });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

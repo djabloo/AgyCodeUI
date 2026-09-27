@@ -1817,6 +1817,7 @@ html, body {
     display: flex;
     flex-direction: column;
     z-index: 20;
+    overflow: hidden;
 }
 
 .viewer-header {
@@ -1829,19 +1830,209 @@ html, body {
     font-family: var(--font-mono);
     font-size: 0.85rem;
     flex-shrink: 0;
+    gap: 12px;
 }
 
-.file-viewer pre {
+.viewer-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.viewer-title-group i {
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+#viewer-filename {
+    font-weight: 600;
+    color: var(--text-bright);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.viewer-dirty-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 9999px;
+    animation: pulseDirty 2s infinite ease-in-out;
+}
+
+@keyframes pulseDirty {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.viewer-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.viewer-container {
     flex: 1;
     min-height: 0;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+#ace-editor {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    line-height: 1.5;
+}
+
+.fallback-editor {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    background: #0d1117;
+    color: #e6edf3;
+    border: none;
     padding: 12px;
     font-family: var(--font-mono);
-    font-size: 0.85rem;
-    color: #e6edf3;
-    user-select: text;
-    -webkit-user-select: text;
+    font-size: 13px;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+}
+
+/* Image Viewer Toolbar & Canvas */
+.image-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.zoom-level-text {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 48px;
+    text-align: center;
+}
+
+.image-stage-wrapper {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 24px;
+    background: 
+        linear-gradient(45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    background-color: #07090e;
+    user-select: none;
+}
+
+.image-preview-el {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: center center;
+}
+
+/* Statusbar */
+.editor-statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 12px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.statusbar-left, .statusbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.statusbar-divider {
+    color: var(--border-light);
+    opacity: 0.6;
+}
+
+.statusbar-msg {
+    color: var(--accent);
+}
+
+.statusbar-msg.success {
+    color: var(--success);
+}
+
+.statusbar-msg.error {
+    color: var(--danger);
+}
+
+.files-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.file-item-actions {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.file-item:hover .file-item-actions {
+    display: flex;
+}
+
+.file-item-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-item-btn:hover {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.15);
 }
 
 /* Quick Prompts Tab */

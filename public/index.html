@@ -40,6 +40,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
 
+    <!-- Ace Code Editor (High performance Web Code Editor) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ext-language_tools.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ext-modelist.min.js"></script>
+
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 
@@ -730,9 +735,17 @@
                         <div class="breadcrumbs" id="file-breadcrumbs">
                             <span class="crumb" onclick="window.agyFiles.loadDir('')">/</span>
                         </div>
-                        <button class="icon-btn" onclick="window.agyFiles.refresh()" title="Aggiorna File">
-                            <i data-lucide="refresh-cw"></i>
-                        </button>
+                        <div class="files-header-actions">
+                            <button class="icon-btn" onclick="window.agyFiles.createNewItem(false)" title="Nuovo File">
+                                <i data-lucide="file-plus"></i>
+                            </button>
+                            <button class="icon-btn" onclick="window.agyFiles.createNewItem(true)" title="Nuova Cartella">
+                                <i data-lucide="folder-plus"></i>
+                            </button>
+                            <button class="icon-btn" onclick="window.agyFiles.refresh()" title="Aggiorna File">
+                                <i data-lucide="refresh-cw"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="files-body">
                         <div class="file-list" id="file-list">
@@ -740,20 +753,68 @@
                         </div>
                         <div class="file-viewer hidden" id="file-viewer">
                             <div class="viewer-header">
-                                <span id="viewer-filename">filename.ext</span>
-                                <div style="display:flex; align-items:center; gap:6px;">
+                                <div class="viewer-title-group">
+                                    <i id="viewer-icon" data-lucide="file-code"></i>
+                                    <span id="viewer-filename">filename.ext</span>
+                                    <span id="viewer-dirty-badge" class="viewer-dirty-badge hidden" title="Modifiche non salvate">● Non salvato</span>
+                                </div>
+                                <div class="viewer-actions">
+                                    <button class="btn btn-sm btn-primary" id="viewer-save-btn" onclick="window.agyFiles.saveCurrentFile()" title="Salva modifiche (Ctrl+S)">
+                                        <i data-lucide="save"></i> Salva
+                                    </button>
                                     <button class="btn btn-sm" onclick="window.agyFiles.insertCurrentPathToPrompt()" title="Incolla percorso nel prompt">
                                         <i data-lucide="corner-down-left"></i> Usa nel Prompt
                                     </button>
                                     <button class="btn btn-sm" onclick="window.agyFiles.copyCurrentPath()" title="Copia percorso">
                                         <i data-lucide="copy"></i> Copia
                                     </button>
-                                    <button class="icon-btn" onclick="window.agyFiles.closeViewer()" title="Chiudi">
+                                    <button class="btn btn-sm" id="viewer-download-btn" onclick="window.agyFiles.downloadCurrentFile()" title="Scarica file">
+                                        <i data-lucide="download"></i> Scarica
+                                    </button>
+                                    <button class="icon-btn" onclick="window.agyFiles.closeViewer()" title="Chiudi (Esc)">
                                         <i data-lucide="x"></i>
                                     </button>
                                 </div>
                             </div>
-                            <pre><code id="viewer-code"></code></pre>
+                            <!-- Code Editor Container -->
+                            <div id="code-editor-container" class="viewer-container">
+                                <div id="ace-editor" style="width: 100%; height: 100%;"></div>
+                                <textarea id="fallback-editor" class="fallback-editor hidden" spellcheck="false"></textarea>
+                            </div>
+                            <!-- Image Viewer Container -->
+                            <div id="image-viewer-container" class="viewer-container hidden">
+                                <div class="image-toolbar">
+                                    <button class="btn btn-sm" onclick="window.agyFiles.zoomImage(-0.2)" title="Rimpicciolisci">
+                                        <i data-lucide="zoom-out"></i>
+                                    </button>
+                                    <span id="image-zoom-level" class="zoom-level-text">100%</span>
+                                    <button class="btn btn-sm" onclick="window.agyFiles.zoomImage(0.2)" title="Ingrandisci">
+                                        <i data-lucide="zoom-in"></i>
+                                    </button>
+                                    <button class="btn btn-sm" onclick="window.agyFiles.resetImageZoom()" title="Ripristina 100%">
+                                        100%
+                                    </button>
+                                    <button class="btn btn-sm" onclick="window.agyFiles.fitImageZoom()" title="Adatta allo schermo">
+                                        Adatta
+                                    </button>
+                                </div>
+                                <div class="image-stage-wrapper" id="image-stage-wrapper">
+                                    <img id="image-preview-el" alt="Anteprima immagine" class="image-preview-el" />
+                                </div>
+                            </div>
+                            <!-- Statusbar -->
+                            <div class="editor-statusbar" id="editor-statusbar">
+                                <div class="statusbar-left">
+                                    <span id="statusbar-mode">text</span>
+                                    <span class="statusbar-divider">•</span>
+                                    <span id="statusbar-info">0 righe</span>
+                                    <span class="statusbar-divider">•</span>
+                                    <span id="statusbar-size">0 B</span>
+                                </div>
+                                <div class="statusbar-right">
+                                    <span id="statusbar-msg" class="statusbar-msg">Pronto</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
