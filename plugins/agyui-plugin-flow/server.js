@@ -209,31 +209,32 @@ const PRESETS = [
   },
   {
     id: 'snake_move',
-    title: 'Snake AI Decision (SemIf / Jev Demo)',
+    title: 'Snake AI Decision',
     icon: '🐍',
-    description: 'La celebre demo di Rizzo Flow: predizione della prossima mossa di gioco a 0 token.',
+    description: 'Demo classica: prossima mossa del serpente, con la probabilità di ogni direzione.',
+    // Coordinate esplicite {riga, colonna}: con coppie [a, b] senza convenzione
+    // i modelli non sapevano se il cibo fosse davanti o di lato e davano
+    // risposte opposte. Qui il cibo e' sulla stessa riga, 4 colonne avanti.
     state: {
-      grid_size: [16, 16],
-      head: [7, 8],
-      current_direction: "right",
-      food: [7, 12],
-      danger_ahead: false,
-      danger_left: false,
-      danger_right: true
+      griglia: "16x16, coordinate {riga, colonna}, riga 0 in alto, colonna 0 a sinistra",
+      testa: { riga: 7, colonna: 8 },
+      direzione_attuale: "destra (verso colonne crescenti)",
+      cibo: { riga: 7, colonna: 12 },
+      ostacoli_adiacenti: { davanti: false, a_sinistra: false, a_destra: true }
     },
     questions: {
       next_move: {
         type: "choice",
-        instructions: "In quale direzione deve muoversi il serpente per avvicinarsi al cibo evitando gli ostacoli?",
+        instructions: "Quale mossa avvicina il serpente al cibo senza andare contro un ostacolo?",
         options: [
-          { id: "continue_straight", description: "Prosegui dritto verso destra." },
-          { id: "turn_left", description: "Gira a sinistra verso l'alto." },
-          { id: "turn_right", description: "Gira a destra verso il basso (pericolo!)." }
+          { id: "continue_straight", description: "Prosegui dritto, verso destra (colonna +1)." },
+          { id: "turn_left", description: "Gira a sinistra, verso l'alto (riga -1)." },
+          { id: "turn_right", description: "Gira a destra, verso il basso (riga +1)." }
         ]
       },
-      safe_move: {
+      straight_is_safe: {
         type: "boolean",
-        instructions: "La direzione selezionata è sicura e priva di collisioni immediate?"
+        instructions: "Proseguire dritto è sicuro, cioè non c'è un ostacolo subito davanti?"
       }
     }
   }
