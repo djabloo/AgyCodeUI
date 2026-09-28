@@ -11,3 +11,19 @@ tests
 .env.*
 !.env.example
 public/**/*.bak*
+
+# Dati locali del self-hosted (sessioni chat, impostazioni, backup): non devono
+# MAI finire nell'immagine. Il Dockerfile li cancellava dopo la COPY, ma un file
+# cancellato in uno strato successivo resta leggibile in quello precedente
+# (docker save / docker history): su una VPS Pro il cliente ha root e potrebbe
+# estrarre le conversazioni. Si escludono qui, alla fonte.
+server/data/*
+!server/data/.gitkeep
+**/*.bak
+
+# ".env" e ".git" qui sopra valgono solo per la radice: i plugin possono avere
+# i propri (es. plugins/nanobanana/.env, repository annidati).
+**/.env
+**/.env.*
+!**/.env.example
+**/.git
