@@ -803,6 +803,8 @@ class AgySettings {
         const skipPermsCheck = document.getElementById('perm-skip-permissions-toggle');
         const sandboxCheck = document.getElementById('perm-sandbox-toggle');
 
+        const pinCard = pinInput && pinInput.closest('.settings-card');
+        if (pinCard) pinCard.classList.toggle('hidden', this.config.authMode === 'account');
         if (pinInput) {
             pinInput.value = '';
             pinInput.placeholder = this.config.authPinSet ? 'PIN impostato (lascia vuoto per non modificare)' : 'Nessun PIN (imposta nuovo PIN)';

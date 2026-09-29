@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const path = require('path');
-const crypto = require('crypto');
 const { Server } = require('socket.io');
 const PtyManager = require('./ptyManager');
 const SessionManager = require('./sessionManager');
@@ -20,11 +19,11 @@ const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 3080;
 const HOST = process.env.HOST || '0.0.0.0';
-const AUTH_PIN = process.env.AUTH_PIN || '';
+const auth = require('./auth');
 
 // Controllo di sicurezza all'avvio: blocca l'ascolto su host pubblico senza autenticazione
-if (!AUTH_PIN && HOST !== '127.0.0.1' && HOST !== 'localhost' && !process.env.ALLOW_INSECURE) {
-    console.error('\x1b[31m[FATAL] AUTH_PIN vuoto con HOST pubblico (' + HOST + '). Imposta AUTH_PIN o HOST=127.0.0.1 in .env per avviare il server.\x1b[0m');
+if (!auth.enabled && HOST !== '127.0.0.1' && HOST !== 'localhost' && !process.env.ALLOW_INSECURE) {
+    console.error('\x1b[31m[FATAL] Nessuna autenticazione con HOST pubblico (' + HOST + '). Imposta AUTH_PIN, AUTH_MODE=account o HOST=127.0.0.1 in .env per avviare il server.\x1b[0m');
     process.exit(1);
 }
 
@@ -95,13 +94,9 @@ pluginManager.init();
 // Gestione sicurezza PIN con Timing-Safe comparison e Rate Limiting
 const authAttempts = new Map(); // ip -> { count, until }
 
+// Accetta il PIN (modalita' pin) o una sessione firmata (modalita' account), vedi auth.js
 function pinOk(candidate) {
-    if (!AUTH_PIN) return false;
-    if (!candidate || typeof candidate !== 'string') return false;
-    const a = Buffer.from(candidate);
-    const b = Buffer.from(AUTH_PIN);
-    if (a.length !== b.length) return false;
-    return crypto.timingSafeEqual(a, b);
+    return auth.tokenOk(candidate);
 }
 
 function checkRateLimit(ip) {
@@ -126,7 +121,7 @@ function resetRateLimit(ip) {
 
 // Middleware di autenticazione per le API
 function requireAuth(req, res, next) {
-    if (!AUTH_PIN) return next();
+    if (!auth.enabled) return next();
     const authHeader = req.headers['authorization'];
     let token = '';
     if (authHeader && typeof authHeader === 'string') {
@@ -150,7 +145,7 @@ app.post('/api/auth', (req, res) => {
     }
 
     const { pin } = req.body;
-    if (!AUTH_PIN || pinOk(pin)) {
+    if (!auth.enabled || (auth.mode === 'pin' && pinOk(pin))) {
         resetRateLimit(ip);
         return res.json({ success: true, authenticated: true });
     }
@@ -161,6 +156,37 @@ app.post('/api/auth', (req, res) => {
     }
     return res.status(401).json({ success: false, error: 'PIN non valido' });
 });
+
+// Modalita' di accesso, pubblica: il frontend sceglie tra PIN, login e prima registrazione
+app.get('/api/auth/mode', (req, res) => {
+    res.json({ mode: auth.mode, setupRequired: auth.setupRequired() });
+});
+
+// Prima registrazione e login dell'account del nodo (AUTH_MODE=account), vedi auth.js
+function accountEndpoint(action) {
+    return (req, res) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const blockedUntil = checkRateLimit(ip);
+        if (blockedUntil > 0) {
+            const waitMinutes = Math.ceil((blockedUntil - Date.now()) / 60000);
+            return res.status(429).json({ success: false, error: `Troppi tentativi falliti. Riprova tra ${waitMinutes} minuti.` });
+        }
+        const result = action(req.body || {});
+        if (result.token) {
+            resetRateLimit(ip);
+            return res.json({ success: true, token: result.token, username: result.username });
+        }
+        if (result.status === 401 || result.status === 403) {
+            const { until } = recordFailedAttempt(ip);
+            if (until > 0) {
+                return res.status(429).json({ success: false, error: 'Troppi tentativi falliti. Accesso bloccato per 15 minuti.' });
+            }
+        }
+        return res.status(result.status).json({ success: false, error: result.error });
+    };
+}
+app.post('/api/auth/account/setup', accountEndpoint(auth.register));
+app.post('/api/auth/account/login', accountEndpoint(auth.login));
 
 // Endpoint stato provider OAuth per frontend
 app.get('/api/auth/providers', (req, res) => {
@@ -173,11 +199,12 @@ app.get('/api/auth/providers', (req, res) => {
 
 // Endpoint profilo utente per ambiente self-hosted
 app.get('/api/auth/me', requireAuth, (req, res) => {
+    const accountName = auth.mode === 'account' ? auth.username() : null;
     res.json({
         user: {
             id: 'local-admin',
             email: 'admin@localhost',
-            full_name: 'Admin Locale (Self-Hosted)',
+            full_name: accountName || 'Admin Locale (Self-Hosted)',
             role: 'admin',
             auth_provider: 'local',
             permissions: { canExecute: true, canEditFiles: true, canManageMcp: true, canManageWorkspaces: true }
@@ -195,7 +222,7 @@ app.get('/api/status', requireAuth, (req, res) => {
     res.json({
         ...pty.getStatus(),
         command: process.env.CLI_COMMAND || 'agy',
-        authRequired: !!AUTH_PIN,
+        authRequired: auth.enabled,
         activeSession: sessionManager.getActiveSession()
     });
 });
@@ -224,7 +251,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Socket.io Middleware per autenticazione sicura (solo auth payload)
 io.use((socket, next) => {
-    if (!AUTH_PIN) return next();
+    if (!auth.enabled) return next();
     const authPin = socket.handshake.auth ? socket.handshake.auth.token : null;
     if (authPin && pinOk(authPin)) {
         return next();
@@ -305,7 +332,7 @@ server.on('upgrade', (request, socket, head) => {
         pathname = new URL(request.url, `http://${request.headers.host || 'localhost'}`).pathname;
     } catch (_) {}
     if (pathname && pathname.startsWith('/plugin-ws/')) {
-        if (AUTH_PIN) {
+        if (auth.enabled) {
             const urlObj = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
             const token = urlObj.searchParams.get('token') || request.headers['authorization']?.replace('Bearer ', '');
             if (!token || !pinOk(token)) {
@@ -328,6 +355,6 @@ server.listen(PORT, HOST, () => {
     console.log('====================================================');
     console.log(`🚀 agycodeui è attivo su http://${HOST}:${PORT}`);
     console.log(`📂 Cartella di lavoro: ${process.env.WORKSPACE_DIR || process.cwd()}`);
-    console.log(`🔒 Protezione PIN: ${AUTH_PIN ? 'Abilitata' : 'Disabilitata'}`);
+    console.log(`🔒 Protezione PIN: ${auth.enabled ? 'Abilitata (' + auth.mode + ')' : 'Disabilitata'}`);
     console.log('====================================================');
 });

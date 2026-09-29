@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const util = require('util');
 const execFileAsync = util.promisify(execFile);
+const auth = require('../auth');
 
 module.exports = function createSettingsRouter(sessionManager, ptyManager) {
     const router = express.Router();
@@ -161,7 +162,8 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                 port: env.PORT || process.env.PORT || '3080',
                 host: env.HOST || process.env.HOST || '0.0.0.0',
                 authPinSet: !!env.AUTH_PIN,
-                authRequired: !!env.AUTH_PIN,
+                authRequired: auth.enabled,
+                authMode: auth.mode,
                 workspaceDir: env.WORKSPACE_DIR || process.cwd(),
                 cliCommand: env.CLI_COMMAND || 'agy',
                 cliArgs: env.CLI_ARGS || '',
@@ -639,6 +641,11 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
             const { authPin, workspaceDir, dangerouslySkipPermissions, sandboxMode, model, effort } = req.body || {};
             const updates = {};
             if (typeof authPin === 'string' && authPin.trim()) {
+                // Sui nodi AgyCloud l'accesso e' l'account del cliente: un PIN
+                // lo scavalcherebbe al prossimo riavvio (auth.js da' priorita' al PIN).
+                if (auth.mode === 'account') {
+                    return res.status(400).json({ error: 'Questo nodo usa l\'accesso con account: il PIN non e\' disponibile.' });
+                }
                 updates.AUTH_PIN = authPin.trim();
             }
             if (typeof workspaceDir === 'string' && workspaceDir.trim()) {

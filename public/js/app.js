@@ -221,8 +221,14 @@ class AgyApp {
             } else {
                 this.isSaasMode = false;
                 if (saasSection) saasSection.classList.add('hidden');
-                if (pinSection) pinSection.classList.remove('hidden');
-                if (this.pinInput) this.pinInput.focus();
+                const modeInfo = await fetch('/api/auth/mode').then(r => (r.ok ? r.json() : null)).catch(() => null);
+                if (modeInfo && modeInfo.mode === 'account') {
+                    if (pinSection) pinSection.classList.add('hidden');
+                    this.showAccountAuth(modeInfo.setupRequired);
+                } else {
+                    if (pinSection) pinSection.classList.remove('hidden');
+                    if (this.pinInput) this.pinInput.focus();
+                }
             }
             if (window.lucide) window.lucide.createIcons();
         } catch (e) {
@@ -433,6 +439,89 @@ class AgyApp {
                 submitBtn.disabled = false;
                 submitBtn.textContent = this.isRegisterMode ? 'Registrati e Avvia' : 'Accedi';
             }
+        }
+    }
+
+    // Nodo AgyCloud dedicato: prima registrazione (col link di attivazione della
+    // dashboard, parametro ?setup=) oppure login con l'account gia' creato.
+    showAccountAuth(setupRequired) {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('setup')) {
+            this.setupToken = params.get('setup');
+            // Il token non deve restare nella cronologia del browser
+            params.delete('setup');
+            const qs = params.toString();
+            window.history.replaceState({}, document.title, window.location.pathname + (qs ? '?' + qs : ''));
+        }
+        this.accountSetupMode = !!setupRequired;
+
+        const section = document.getElementById('account-auth-section');
+        const form = document.getElementById('account-auth-form');
+        const desc = document.getElementById('account-auth-desc');
+        const confirmGroup = document.getElementById('account-confirm-group');
+        const passwordInput = document.getElementById('account-password-input');
+        const submitBtn = document.getElementById('account-submit-btn');
+        const titleEl = document.getElementById('auth-modal-title');
+        if (section) section.classList.remove('hidden');
+
+        if (setupRequired) {
+            if (titleEl) titleEl.textContent = 'Attiva il tuo spazio AgyCloud';
+            if (!this.setupToken) {
+                if (desc) desc.textContent = 'Per creare il tuo account apri il link di attivazione dalla dashboard AgyCloud.';
+                if (form) form.classList.add('hidden');
+                return;
+            }
+            if (desc) desc.textContent = 'Scegli username e password: saranno le credenziali per accedere a questo spazio.';
+            if (confirmGroup) confirmGroup.classList.remove('hidden');
+            if (passwordInput) passwordInput.setAttribute('autocomplete', 'new-password');
+            if (submitBtn) submitBtn.textContent = 'Crea account';
+        } else {
+            if (titleEl) titleEl.textContent = 'Accedi ad AgyCloud';
+            if (desc) desc.textContent = 'Accedi al tuo spazio AgyCloud.';
+            if (confirmGroup) confirmGroup.classList.add('hidden');
+            if (submitBtn) submitBtn.textContent = 'Accedi';
+        }
+        if (form) form.classList.remove('hidden');
+        const usernameInput = document.getElementById('account-username-input');
+        if (usernameInput) usernameInput.focus();
+    }
+
+    async handleAccountAuthSubmit() {
+        const username = document.getElementById('account-username-input').value.trim();
+        const password = document.getElementById('account-password-input').value;
+        this.authError.classList.add('hidden');
+
+        const showError = (msg) => {
+            this.authError.textContent = msg;
+            this.authError.classList.remove('hidden');
+        };
+
+        let url = '/api/auth/account/login';
+        const body = { username, password };
+        if (this.accountSetupMode) {
+            const confirm = document.getElementById('account-confirm-input').value;
+            if (password !== confirm) return showError('Le password non coincidono.');
+            url = '/api/auth/account/setup';
+            body.setupToken = this.setupToken || '';
+        }
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.token) {
+                this.setupToken = null;
+                document.getElementById('account-auth-section').classList.add('hidden');
+                return this.checkAuth(data.token);
+            }
+            // Account creato nel frattempo (es. altra scheda): si passa al login
+            if (res.status === 409 && this.accountSetupMode) this.showAccountAuth(false);
+            showError(data.error || 'Accesso non riuscito.');
+        } catch (_) {
+            showError('Errore di connessione.');
         }
     }
 
