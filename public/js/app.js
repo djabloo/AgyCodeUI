@@ -190,6 +190,13 @@ class AgyApp {
             const res = await fetch('/api/status', { headers });
             const data = await res.json().catch(() => ({}));
 
+            // AgyCloud: account senza piano attivo o scaduto. Il PIN qui non
+            // c'entra, si va alla scelta del piano.
+            if (res.status === 402) {
+                window.location.href = '/dashboard#subscription';
+                return;
+            }
+
             if (res.ok) {
                 this.authModal.classList.add('hidden');
                 if (token) {
