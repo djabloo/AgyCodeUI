@@ -255,7 +255,9 @@ class AgyPlugins {
             else if (svc === "error") note = `Installazione non riuscita: ${p.serviceState.error || "errore sconosciuto"}. Riprova disinstallando e reinstallando.`;
             else if (!p.enabled && p.serviceManaged) note = "Alla prima installazione scarica un motore aggiuntivo (alcuni GB); si spegne da solo quando non lo usi.";
 
-            const actions = p.enabled
+            const actions = (p.locked && !p.enabled)
+                ? `<a class="btn btn-sm" href="/dashboard#subscription" target="_blank" rel="noopener" title="Non incluso nel tuo piano">Da Hobby in su</a>`
+                : p.enabled
                 ? `${p.server ? `<button class="plugin-action-icon-btn" title="Riavvia" onclick="window.agyPlugins.restartPlugin('${p.name}')"><i data-lucide="refresh-cw"></i></button>` : ""}
                    <button class="btn btn-sm" onclick="window.agyPlugins.uninstallPlugin('${p.name}', ${p.bundled ? "true" : "false"})">Disinstalla</button>`
                 : `<button class="btn btn-primary btn-sm" onclick="window.agyPlugins.installPlugin('${p.name}')">Installa</button>`;
@@ -323,6 +325,9 @@ class AgyPlugins {
                 await this.loadPlugins();
                 this.renderNavTabs();
                 this.renderSettingsView();
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert(data.error || `Operazione non riuscita (HTTP ${res.status})`);
             }
         } catch (e) {
             alert("Errore: " + e.message);

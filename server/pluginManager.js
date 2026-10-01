@@ -15,6 +15,13 @@ const DEFAULT_INSTALLED = (process.env.AGY_DEFAULT_PLUGINS || "agyui-plugin-term
 
 // Plugin distribuiti con AGYUI: disinstallarli li spegne soltanto, i file restano
 // (fanno parte dell'immagine/repo e servono per reinstallarli con un clic).
+// Plugin consentiti dal piano AgyCloud (es. piano PII: solo PII). Vuoto = tutti.
+// E' solo per mostrare il lucchetto nel catalogo: il blocco vero sta sul gateway.
+const PLAN_PLUGINS = (process.env.AGY_PLAN_PLUGINS || "").split(",").map(s => s.trim()).filter(Boolean);
+function lockedByPlan(name) {
+    return PLAN_PLUGINS.length > 0 && !PLAN_PLUGINS.includes(name);
+}
+
 function isBundled(name) {
     return name.startsWith("agyui-plugin-");
 }
@@ -90,7 +97,9 @@ class PluginManager {
             try {
                 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
                 const name = manifest.name || entry.name;
-                const enabled = config[name] !== undefined ? !!config[name].enabled : DEFAULT_INSTALLED.includes(name);
+                // Un plugin escluso dal piano risulta spento anche se era installato
+                // (es. passaggio da Hobby al piano PII): niente schede che non funzionano.
+                const enabled = !lockedByPlan(name) && (config[name] !== undefined ? !!config[name].enabled : DEFAULT_INSTALLED.includes(name));
                 const service = typeof manifest.service === "string" ? manifest.service : null;
 
                 // Cerca info repo git se presenti
@@ -126,6 +135,7 @@ class PluginManager {
                     enabled,
                     installed: enabled,
                     bundled: isBundled(name),
+                    locked: lockedByPlan(name),
                     service,
                     serviceState: service ? (this.serviceStates.get(service) || null) : null,
                     serviceManaged: !!service && services.enabled(),
@@ -269,6 +279,9 @@ class PluginManager {
     }
 
     async setEnabled(name, enabled) {
+        if (enabled && lockedByPlan(name)) {
+            throw new Error("Plugin non incluso nel tuo piano: disponibile da Hobby in su.");
+        }
         const config = this.getConfig();
         config[name] = { ...config[name], enabled: !!enabled };
         this.saveConfig(config);
