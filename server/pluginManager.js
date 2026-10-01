@@ -5,11 +5,25 @@ const { WebSocket } = require("ws");
 
 const PLUGINS_DIR = path.join(__dirname, "../plugins");
 const CONFIG_PATH = path.join(__dirname, "data/plugins.json");
+const services = require("./pluginServices");
+
+// Catalogo: i plugin presenti nella cartella sono "disponibili", l'utente
+// installa solo quelli che gli servono. Preinstallato solo il terminale.
+// Chi aveva gia' una configurazione (plugins.json) la mantiene com'e'.
+const DEFAULT_INSTALLED = (process.env.AGY_DEFAULT_PLUGINS || "agyui-plugin-terminal")
+    .split(",").map(s => s.trim()).filter(Boolean);
+
+// Plugin distribuiti con AGYUI: disinstallarli li spegne soltanto, i file restano
+// (fanno parte dell'immagine/repo e servono per reinstallarli con un clic).
+function isBundled(name) {
+    return name.startsWith("agyui-plugin-");
+}
 
 class PluginManager {
     constructor() {
         this.runningPlugins = new Map(); // name -> { process, port, status, startTime }
         this.startingPlugins = new Map(); // name -> Promise<number>
+        this.serviceStates = new Map(); // service -> { state, ... } (solo con agente plugin)
         this.ensureDirectories();
     }
 
@@ -22,12 +36,9 @@ class PluginManager {
             fs.mkdirSync(dataDir, { recursive: true });
         }
         if (!fs.existsSync(CONFIG_PATH)) {
-            fs.writeFileSync(CONFIG_PATH, JSON.stringify({
-                "agyui-plugin-terminal": { enabled: true },
-                "agyui-plugin-notebook": { enabled: true },
-                "agyui-plugin-pii": { enabled: true },
-                "agyui-plugin-flow": { enabled: true }
-            }, null, 2), "utf-8");
+            const initial = {};
+            for (const name of DEFAULT_INSTALLED) initial[name] = { enabled: true };
+            fs.writeFileSync(CONFIG_PATH, JSON.stringify(initial, null, 2), "utf-8");
         }
     }
 
@@ -79,7 +90,8 @@ class PluginManager {
             try {
                 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
                 const name = manifest.name || entry.name;
-                const enabled = config[name] !== undefined ? !!config[name].enabled : true;
+                const enabled = config[name] !== undefined ? !!config[name].enabled : DEFAULT_INSTALLED.includes(name);
+                const service = typeof manifest.service === "string" ? manifest.service : null;
 
                 // Cerca info repo git se presenti
                 let repo = "";
@@ -112,6 +124,11 @@ class PluginManager {
                     server: manifest.server || null,
                     repo: repo || (name === "agyui-plugin-terminal" || name === "web-terminal" ? "agyui/agyui-plugin-terminal" : (name === "agyui-plugin-starter" || name === "project-stats" ? "agyui/agyui-plugin-starter" : "")),
                     enabled,
+                    installed: enabled,
+                    bundled: isBundled(name),
+                    service,
+                    serviceState: service ? (this.serviceStates.get(service) || null) : null,
+                    serviceManaged: !!service && services.enabled(),
                     status: running ? "running" : (enabled ? (manifest.server ? "stopped" : "ready") : "disabled"),
                     port: running ? running.port : null,
                     manifest,
@@ -256,15 +273,45 @@ class PluginManager {
         config[name] = { ...config[name], enabled: !!enabled };
         this.saveConfig(config);
 
+        const p = this.getPlugin(name);
         if (!enabled) {
             this.stopPluginServer(name);
+            // Servizio esterno (es. Rizzo-PII sulla VPS): disinstallare libera il disco
+            if (p && p.service && services.enabled()) {
+                try {
+                    this.serviceStates.set(p.service, await services.uninstall(p.service));
+                } catch (e) {
+                    console.warn(`[PluginManager] Rimozione servizio ${p.service} non riuscita: ${e.message}`);
+                }
+            }
         } else {
-            const p = this.getPlugin(name);
             if (p && p.server) {
                 await this.startPluginServer(name, p.dir, p.server);
             }
+            // Il download del servizio puo' durare minuti: parte in background,
+            // l'interfaccia segue lo stato con refreshServiceStates().
+            if (p && p.service && services.enabled()) {
+                try {
+                    this.serviceStates.set(p.service, await services.install(p.service));
+                } catch (e) {
+                    this.serviceStates.set(p.service, { state: "error", error: e.message });
+                }
+            }
         }
         return { success: true, enabled: !!enabled };
+    }
+
+    /** Aggiorna lo stato dei servizi dei plugin installati (no-op senza agente plugin). */
+    async refreshServiceStates() {
+        if (!services.enabled()) return;
+        const wanted = new Set(this.scanPlugins().filter(p => p.enabled && p.service).map(p => p.service));
+        await Promise.all([...wanted].map(async (svc) => {
+            try {
+                this.serviceStates.set(svc, await services.status(svc));
+            } catch (e) {
+                this.serviceStates.set(svc, { state: "error", error: e.message });
+            }
+        }));
     }
 
     handleWsProxy(clientWs, pathname) {

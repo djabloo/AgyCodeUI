@@ -212,6 +212,16 @@ class AgyPlugins {
             </div>
         `;
         if (window.lucide) window.lucide.createIcons();
+
+        // Download di un motore in corso: si ricontrolla finche' non finisce
+        clearTimeout(this._installPoll);
+        if (this.plugins.some(p => p.serviceState && p.serviceState.state === "installing")) {
+            this._installPoll = setTimeout(async () => {
+                await this.loadPlugins();
+                this.renderNavTabs();
+                this.renderSettingsView();
+            }, 5000);
+        }
     }
 
     isOfficialPlugin(name) {
@@ -223,15 +233,32 @@ class AgyPlugins {
             return '<div class="empty-placeholder" style="padding: 16px; font-size: 0.85rem; color: var(--text-muted);"><p>Nessun plugin in questa sezione.</p></div>';
         }
 
-        return plugins.map(p => {
+        // Installati prima, poi il resto del catalogo
+        const sorted = [...plugins].sort((a, b) => (b.enabled - a.enabled) || a.displayName.localeCompare(b.displayName));
+        return sorted.map(p => {
+            const svc = p.serviceState ? p.serviceState.state : null;
             const isRunning = p.status === "running" || (p.enabled && !p.server);
-            const statusLabel = isRunning ? "IN ESECUZIONE" : (p.enabled ? "ARRESTATO" : "DISABILITATO");
-            const statusClass = isRunning ? "status-running" : (p.enabled ? "status-stopped" : "status-disabled");
+            let statusLabel, statusClass;
+            if (!p.enabled) { statusLabel = "NON INSTALLATO"; statusClass = "status-disabled"; }
+            else if (svc === "installing") { statusLabel = "INSTALLAZIONE..."; statusClass = "status-stopped"; }
+            else if (svc === "error") { statusLabel = "ERRORE"; statusClass = "status-stopped"; }
+            else { statusLabel = isRunning ? "INSTALLATO" : "ARRESTATO"; statusClass = isRunning ? "status-running" : "status-stopped"; }
             const iconMarkup = p.name.includes("terminal")
                 ? '<i data-lucide="terminal"></i>'
                 : (p.name.includes("pii")
                     ? '<i data-lucide="shield-check"></i>'
                     : ((p.name.includes("stats") || p.name.includes("starter")) ? '<i data-lucide="bar-chart-2"></i>' : '<i data-lucide="package"></i>'));
+
+            // Nota sotto la descrizione: download del motore aggiuntivo (solo dove lo gestisce l'agente)
+            let note = "";
+            if (svc === "installing") note = "Download del motore in corso: puo' richiedere qualche minuto, puoi continuare a lavorare.";
+            else if (svc === "error") note = `Installazione non riuscita: ${p.serviceState.error || "errore sconosciuto"}. Riprova disinstallando e reinstallando.`;
+            else if (!p.enabled && p.serviceManaged) note = "Alla prima installazione scarica un motore aggiuntivo (alcuni GB); si spegne da solo quando non lo usi.";
+
+            const actions = p.enabled
+                ? `${p.server ? `<button class="plugin-action-icon-btn" title="Riavvia" onclick="window.agyPlugins.restartPlugin('${p.name}')"><i data-lucide="refresh-cw"></i></button>` : ""}
+                   <button class="btn btn-sm" onclick="window.agyPlugins.uninstallPlugin('${p.name}', ${p.bundled ? "true" : "false"})">Disinstalla</button>`
+                : `<button class="btn btn-primary btn-sm" onclick="window.agyPlugins.installPlugin('${p.name}')">Installa</button>`;
 
             return `
                 <div class="plugin-card-full ${p.enabled ? "active-border" : ""}">
@@ -247,19 +274,11 @@ class AgyPlugins {
                                 <span class="status-dot"></span> ${statusLabel}
                             </span>
                             <div class="plugin-card-controls">
-                                <button class="plugin-action-icon-btn" title="Riavvia" onclick="window.agyPlugins.restartPlugin('${p.name}')">
-                                    <i data-lucide="refresh-cw"></i>
-                                </button>
-                                <button class="plugin-action-icon-btn" title="Disinstalla" onclick="window.agyPlugins.deletePlugin('${p.name}')">
-                                    <i data-lucide="trash-2"></i>
-                                </button>
-                                <label class="switch-toggle" title="${p.enabled ? "Disabilita" : "Abilita"}">
-                                    <input type="checkbox" ${p.enabled ? "checked" : ""} onchange="window.agyPlugins.togglePlugin('${p.name}', this.checked)" />
-                                    <span class="switch-slider"></span>
-                                </label>
+                                ${actions}
                             </div>
                         </div>
                         <p class="plugin-desc">${this.escapeHtml(p.description)}</p>
+                        ${note ? `<p class="plugin-desc" style="color: var(--text-muted); font-style: italic;">${this.escapeHtml(note)}</p>` : ""}
                         <div class="plugin-meta-row">
                             <span class="plugin-author">${this.escapeHtml(p.author)}</span>
                             ${p.repo ? `<span class="plugin-repo"><i data-lucide="link"></i> ${this.escapeHtml(p.repo)}</span>` : ""}
@@ -268,6 +287,19 @@ class AgyPlugins {
                 </div>
             `;
         }).join("");
+    }
+
+    async installPlugin(name) {
+        await this.togglePlugin(name, true);
+    }
+
+    async uninstallPlugin(name, bundled) {
+        const msg = bundled
+            ? `Disinstallare "${name}"? Potrai reinstallarlo dal catalogo quando vuoi.`
+            : `Disinstallare "${name}"? I file del plugin verranno eliminati.`;
+        if (!confirm(msg)) return;
+        if (bundled) return this.togglePlugin(name, false);
+        return this.deletePlugin(name, true);
     }
 
     async closePluginTab(name) {
@@ -313,8 +345,8 @@ class AgyPlugins {
         }
     }
 
-    async deletePlugin(name) {
-        if (!confirm(`Vuoi disinstallare il plugin "${name}"?`)) return;
+    async deletePlugin(name, confirmed = false) {
+        if (!confirmed && !confirm(`Vuoi disinstallare il plugin "${name}"?`)) return;
         const token = localStorage.getItem("agy_pin") || "";
         try {
             const res = await fetch(`/api/plugins/${encodeURIComponent(name)}`, {

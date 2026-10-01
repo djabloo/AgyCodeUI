@@ -13,6 +13,21 @@ const fsPromises = fs.promises;
 const path = require('path');
 
 const RIZZO_PII_URL = process.env.RIZZO_PII_URL || 'http://127.0.0.1:5005';
+const services = require('../pluginServices');
+const PII_SERVICE = 'rizzo-pii';
+
+// Sulle VPS AgyCloud il motore e' un servizio che si spegne quando non serve:
+// prima di ogni elaborazione si chiede all'agente di accenderlo (avvio a freddo
+// fino a ~1-2 minuti). Altrove (self-hosted, SaaS) e' sempre acceso: no-op.
+async function ensurePii(res) {
+    try {
+        await services.ensureRunning(PII_SERVICE);
+        return true;
+    } catch (e) {
+        res.status(503).json({ error: `Motore PII non disponibile: ${e.message}` });
+        return false;
+    }
+}
 
 function createPiiRouter(ptyManager) {
     const router = express.Router();
@@ -50,6 +65,19 @@ function createPiiRouter(ptyManager) {
     }
 
     router.get('/health', async (req, res) => {
+        // Il controllo di stato non deve accendere il motore (la scheda aperta lo
+        // terrebbe sempre acceso): se e' installato ma spento risulta disponibile.
+        if (services.enabled()) {
+            try {
+                const st = await services.status(PII_SERVICE);
+                if (st.state !== 'running') {
+                    const ok = st.state === 'stopped';
+                    return res.status(ok ? 200 : 503).json({ available: ok, sleeping: ok, state: st.state, error: st.error });
+                }
+            } catch (e) {
+                return res.status(503).json({ available: false, error: 'Agente plugin non raggiungibile' });
+            }
+        }
         try {
             const r = await fetch(`${RIZZO_PII_URL}/health`, { signal: AbortSignal.timeout(4000) });
             const data = await r.json().catch(() => ({}));
@@ -62,6 +90,7 @@ function createPiiRouter(ptyManager) {
     // Upload raw (stesso pattern di /api/files/upload): body = bytes del file,
     // metadati passati via header per evitare una dipendenza multer.
     router.post('/redact', express.raw({ type: () => true, limit: '30mb' }), async (req, res) => {
+        if (!(await ensurePii(res))) return;
         try {
             const workspacePath = resolveAllowedWorkspacePath(
                 req.headers['x-workspace-path'] ? decodeURIComponent(req.headers['x-workspace-path']) : null
@@ -147,6 +176,7 @@ function createPiiRouter(ptyManager) {
     ];
 
     router.all('/engine/*', express.raw({ type: () => true, limit: '30mb' }), async (req, res) => {
+        if (!(await ensurePii(res))) return;
         const subPath = String(req.params[0] || '').replace(/^\/+/, '');
         if (!ENGINE_ROUTES.some(r => r.method === req.method && r.re.test(subPath))) {
             return res.status(403).json({ error: 'Endpoint del motore PII non consentito' });

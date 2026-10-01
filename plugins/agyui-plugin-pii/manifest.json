@@ -8,5 +8,6 @@
   "type": "module",
   "slot": "tab",
   "entry": "index.js",
-  "permissions": []
+  "permissions": [],
+  "service": "rizzo-pii"
 }

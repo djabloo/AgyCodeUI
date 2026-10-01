@@ -45,8 +45,9 @@ function createPluginsRouter(pluginManager, requireAuth) {
     });
 
     // 2. Elenco di tutti i plugin con stato di esecuzione
-    router.get("/", authMw, (req, res) => {
+    router.get("/", authMw, async (req, res) => {
         try {
+            await pluginManager.refreshServiceStates();
             const plugins = pluginManager.scanPlugins();
             res.json({ success: true, plugins });
         } catch (e) {
@@ -198,6 +199,16 @@ function createPluginsRouter(pluginManager, requireAuth) {
         const name = req.params.name;
         const p = pluginManager.getPlugin(name);
         if (!p) return res.status(404).json({ error: "Plugin non trovato" });
+
+        // Plugin distribuiti con AGYUI: si spengono, i file restano nel catalogo
+        if (p.bundled) {
+            try {
+                await pluginManager.setEnabled(name, false);
+                return res.json({ success: true, message: `Plugin ${name} disinstallato` });
+            } catch (e) {
+                return res.status(500).json({ error: e.message });
+            }
+        }
 
         try {
             pluginManager.stopPluginServer(name);
