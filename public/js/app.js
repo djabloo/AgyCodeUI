@@ -192,7 +192,9 @@ class AgyApp {
 
             // AgyCloud: account senza piano attivo o scaduto. Il PIN qui non
             // c'entra, si va alla scelta del piano.
-            if (res.status === 402) {
+            // ...o ambiente fermato perche' lo spazio supera di molto la quota:
+            // la dashboard spiega cosa fare.
+            if (res.status === 402 || res.status === 507) {
                 window.location.href = '/dashboard#subscription';
                 return;
             }
