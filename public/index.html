@@ -504,6 +504,14 @@
                                 <button type="button" class="btn btn-sm btn-outline" onclick="window.agyApp.dismissSaasOnboarding(false)">Ho capito</button>
                             </div>
                         </div>
+                        <!-- Import da Git in corso / fallito (solo SaaS) -->
+                        <div id="saas-clone-banner" class="onboarding-banner hidden">
+                            <i data-lucide="git-branch"></i>
+                            <div class="onboarding-text" id="saas-clone-text"></div>
+                            <div class="onboarding-actions">
+                                <a href="/dashboard" class="btn btn-sm btn-outline hidden" id="saas-clone-dash">Apri Dashboard</a>
+                            </div>
+                        </div>
                         <!-- Chat Messages Container -->
                         <div class="chat-messages-container custom-scrollbar" id="chat-messages">
                             <!-- Popolato dinamicamente da chat.js -->
@@ -999,23 +1007,6 @@
                                         </div>
 
                                         <div class="cloud-block">
-                                            <div class="cloud-block-title"><i data-lucide="key-round"></i> Chiavi API personali (BYOK)</div>
-                                            <p class="card-desc">Opzionali: vengono passate al container come variabili d'ambiente per i modelli che le richiedono.</p>
-                                            <div id="cloud-keys-list" class="cloud-list"></div>
-                                            <form class="cloud-inline-form" onsubmit="event.preventDefault(); window.agySettings.saveCloudApiKey();">
-                                                <select id="cloud-key-provider" class="form-select">
-                                                    <option value="gemini">Gemini</option>
-                                                    <option value="anthropic">Anthropic</option>
-                                                    <option value="openai">OpenAI</option>
-                                                    <option value="groq">Groq</option>
-                                                    <option value="deepseek">DeepSeek</option>
-                                                </select>
-                                                <input type="password" id="cloud-key-value" placeholder="Incolla la chiave" autocomplete="off" required>
-                                                <button type="submit" class="btn btn-sm btn-primary"><i data-lucide="save"></i> Salva</button>
-                                            </form>
-                                        </div>
-
-                                        <div class="cloud-block">
                                             <div class="cloud-block-title"><i data-lucide="box"></i> Container</div>
                                             <div id="cloud-runner-status" class="card-desc">Stato in caricamento...</div>
                                             <div class="agy-auth-btn-toolbar">
@@ -1025,6 +1016,76 @@
                                         </div>
                                     </div>
                                     <div id="cloud-account-msg" class="cloud-msg hidden"></div>
+                                </div>
+
+                                <!-- Card: Chiavi API personali (BYOK) per modelli e provider -->
+                                <div class="settings-card byok-account-card" id="byok-keys-card">
+                                    <div class="card-header-flex">
+                                        <div>
+                                            <h4 style="display: flex; align-items: center; gap: 8px;">
+                                                <i data-lucide="key-round"></i> Chiavi API personali (BYOK)
+                                            </h4>
+                                            <p class="card-desc">Configura le chiavi API personali per i modelli AI e i plugin di terze parti (ElevenLabs, Anthropic Claude, OpenAI, DeepSeek, Groq, OpenRouter, ecc.).</p>
+                                        </div>
+                                        <span id="byok-keys-count-badge" class="badge-status-pill status-connected">0 attive</span>
+                                    </div>
+
+                                    <div id="byok-keys-list" class="cloud-list" style="margin-bottom: 16px;"></div>
+
+                                    <form class="byok-add-form" onsubmit="event.preventDefault(); window.agySettings.saveApiKey();" style="background: rgba(255, 255, 255, 0.02); padding: 14px; border-radius: var(--radius-md, 10px); border: 1px solid var(--border-color);">
+                                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                                <div style="flex: 1 1 220px;">
+                                                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 4px;">Provider AI</label>
+                                                    <select id="byok-provider-select" class="form-select" style="width: 100%;" onchange="window.agySettings.onProviderChange()">
+                                                        <option value="gemini" data-env="GEMINI_API_KEY" data-placeholder="AIzaSy...">Google Gemini / AI Studio (GEMINI_API_KEY)</option>
+                                                        <option value="anthropic" data-env="ANTHROPIC_API_KEY" data-placeholder="sk-ant-api03-...">Anthropic Claude (ANTHROPIC_API_KEY)</option>
+                                                        <option value="openai" data-env="OPENAI_API_KEY" data-placeholder="sk-proj-...">OpenAI (OPENAI_API_KEY)</option>
+                                                        <option value="openrouter" data-env="OPENROUTER_API_KEY" data-placeholder="sk-or-v1-...">OpenRouter (OPENROUTER_API_KEY)</option>
+                                                        <option value="groq" data-env="GROQ_API_KEY" data-placeholder="gsk_...">Groq Cloud (GROQ_API_KEY)</option>
+                                                        <option value="deepseek" data-env="DEEPSEEK_API_KEY" data-placeholder="sk-...">DeepSeek (DEEPSEEK_API_KEY)</option>
+                                                        <option value="elevenlabs" data-env="ELEVENLABS_API_KEY" data-placeholder="sk_...">ElevenLabs Voice & Audio (ELEVENLABS_API_KEY)</option>
+                                                        <option value="mistral" data-env="MISTRAL_API_KEY" data-placeholder="...">Mistral AI (MISTRAL_API_KEY)</option>
+                                                        <option value="xai" data-env="XAI_API_KEY" data-placeholder="xai-...">xAI / Grok (XAI_API_KEY)</option>
+                                                        <option value="perplexity" data-env="PERPLEXITY_API_KEY" data-placeholder="pplx-...">Perplexity AI (PERPLEXITY_API_KEY)</option>
+                                                        <option value="together" data-env="TOGETHER_API_KEY" data-placeholder="...">Together AI (TOGETHER_API_KEY)</option>
+                                                        <option value="cohere" data-env="COHERE_API_KEY" data-placeholder="...">Cohere (COHERE_API_KEY)</option>
+                                                        <option value="cerebras" data-env="CEREBRAS_API_KEY" data-placeholder="csk-...">Cerebras (CEREBRAS_API_KEY)</option>
+                                                        <option value="replicate" data-env="REPLICATE_API_TOKEN" data-placeholder="r8_...">Replicate (REPLICATE_API_TOKEN)</option>
+                                                        <option value="huggingface" data-env="HF_TOKEN" data-placeholder="hf_...">Hugging Face (HF_TOKEN)</option>
+                                                        <option value="fal" data-env="FAL_KEY" data-placeholder="...">fal.ai (FAL_KEY)</option>
+                                                        <option value="fireworks" data-env="FIREWORKS_API_KEY" data-placeholder="fw_...">Fireworks AI (FIREWORKS_API_KEY)</option>
+                                                        <option value="sambanova" data-env="SAMBANOVA_API_KEY" data-placeholder="...">SambaNova (SAMBANOVA_API_KEY)</option>
+                                                        <option value="voyage" data-env="VOYAGE_API_KEY" data-placeholder="pa-...">Voyage AI (VOYAGE_API_KEY)</option>
+                                                        <option value="tavily" data-env="TAVILY_API_KEY" data-placeholder="tvly-...">Tavily Search (TAVILY_API_KEY)</option>
+                                                        <option value="serpapi" data-env="SERPAPI_API_KEY" data-placeholder="...">SerpAPI (SERPAPI_API_KEY)</option>
+                                                        <option value="custom" data-env="" data-placeholder="Incolla la chiave API segreta">✨ Altro / Personalizzato (Custom ENV)...</option>
+                                                    </select>
+                                                </div>
+                                                <div id="byok-custom-fields" class="hidden" style="display: flex; gap: 10px; flex: 2 1 280px; flex-wrap: wrap;">
+                                                    <div style="flex: 1 1 130px;">
+                                                        <label style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 4px;">Nome Provider</label>
+                                                        <input type="text" id="byok-custom-name" class="form-input" placeholder="es. Local Ollama" style="width: 100%;">
+                                                    </div>
+                                                    <div style="flex: 1 1 130px;">
+                                                        <label style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 4px;">Variabile ENV</label>
+                                                        <input type="text" id="byok-custom-env" class="form-input" placeholder="es. OLLAMA_API_KEY" style="width: 100%; text-transform: uppercase;">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                                                <div style="flex: 1 1 250px;">
+                                                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 4px;">Chiave API (Token / Secret)</label>
+                                                    <input type="password" id="byok-key-value" class="form-input" placeholder="AIzaSy..." autocomplete="off" required style="width: 100%;">
+                                                </div>
+                                                <button type="submit" class="btn btn-primary" id="byok-save-btn" style="height: 38px; display: inline-flex; align-items: center; gap: 6px;">
+                                                    <i data-lucide="plus"></i> Aggiungi Chiave
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                    <div id="byok-msg" class="cloud-msg hidden" style="margin-top: 10px;"></div>
                                 </div>
 
                                 <!-- Card 2: Login ad Antigravity CLI (agy) -->

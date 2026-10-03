@@ -159,6 +159,7 @@ class AgyApp {
                     const dashLink = document.getElementById('back-to-dashboard-link');
                     if (dashLink) dashLink.classList.remove('hidden');
                     this.showSaasOnboarding();
+                    this.watchCloneState();
 
                     // In modalità SaaS la gestione ambienti vive solo nella Dashboard
                     // (fuori dalla IDE): i tre ingressi storici al pannello interno
@@ -218,6 +219,47 @@ class AgyApp {
         if (localStorage.getItem('agy_onboarding_seen') === '1') return;
         banner.classList.remove('hidden');
         if (window.lucide) window.lucide.createIcons();
+    }
+
+    /**
+     * Ambiente importato da Git (solo SaaS): mentre il gateway clona il repository
+     * mostra un avviso, a fine clonazione aggiorna File; in caso di errore ne mostra
+     * il motivo (il "Riprova" sta nella Dashboard).
+     */
+    async watchCloneState() {
+        const banner = document.getElementById('saas-clone-banner');
+        const text = document.getElementById('saas-clone-text');
+        const dash = document.getElementById('saas-clone-dash');
+        if (!banner || !text) return;
+        const m = document.cookie.match(/(?:^|;\s*)agy_workspace=([^;]+)/);
+        const slug = m ? decodeURIComponent(m[1]) : 'default';
+        let wasCloning = false;
+        const check = async () => {
+            let ws = null;
+            try {
+                const res = await fetch('/saas/workspaces', { credentials: 'same-origin' });
+                if (!res.ok) return;
+                const data = await res.json();
+                ws = (data.workspaces || []).find(w => w.slug === slug);
+            } catch (e) { return; }
+            const c = ws && ws.clone;
+            if (ws && ws.repo_url && (!c || c.state === 'cloning')) {
+                wasCloning = true;
+                text.textContent = 'Importazione del repository da GitHub in corso: tra poco lo trovi in File. Puoi già usare Chat e Terminale.';
+                dash.classList.add('hidden');
+                banner.classList.remove('hidden');
+                setTimeout(check, 4000);
+            } else if (c && c.state === 'error') {
+                text.textContent = 'Import da GitHub non riuscito: ' + (c.error || 'errore sconosciuto');
+                dash.classList.remove('hidden');
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+                if (wasCloning && window.agyFiles && typeof window.agyFiles.refresh === 'function') window.agyFiles.refresh();
+            }
+            if (window.lucide) window.lucide.createIcons();
+        };
+        check();
     }
 
     dismissSaasOnboarding(openTerminal) {
