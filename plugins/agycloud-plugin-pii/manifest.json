@@ -1,5 +1,5 @@
 {
-  "name": "agyui-plugin-pii",
+  "name": "agycloud-plugin-pii",
   "displayName": "PII",
   "version": "1.0.1",
   "description": "Anonimizzazione di testi e documenti dentro l'interfaccia AgyCloud: rilevamento entita', PDF redatto, dizionario reversibile e salvataggio in pii-clean/ per l'agente. Motore Rizzo-PII, in locale.",

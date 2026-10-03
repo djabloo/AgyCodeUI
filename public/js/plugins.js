@@ -225,7 +225,7 @@ class AgyPlugins {
     }
 
     isOfficialPlugin(name) {
-        return name.includes("terminal") || name.includes("starter") || name.includes("stats") || name.startsWith("agyui-plugin-");
+        return name.includes("terminal") || name.includes("starter") || name.includes("stats") || name.startsWith("agycloud-plugin-") || name.startsWith("agyui-plugin-");
     }
 
     renderPluginCards(plugins) {

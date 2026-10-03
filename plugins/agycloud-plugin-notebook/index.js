@@ -1,6 +1,6 @@
 /**
  * AgyCloud Notebook — frontend. Parla con il server del plugin via RPC
- * (/api/plugins/agyui-plugin-notebook/rpc/*) passando sempre il workspace
+ * (/api/plugins/agycloud-plugin-notebook/rpc/*) passando sempre il workspace
  * corrente (letto da /api/status, la stessa fonte usata dal resto della IDE),
  * cosi' segue automaticamente lo switch ambiente invece di restare fisso.
  */

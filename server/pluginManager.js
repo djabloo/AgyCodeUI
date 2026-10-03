@@ -10,20 +10,31 @@ const services = require("./pluginServices");
 // Catalogo: i plugin presenti nella cartella sono "disponibili", l'utente
 // installa solo quelli che gli servono. Preinstallato solo il terminale.
 // Chi aveva gia' una configurazione (plugins.json) la mantiene com'e'.
-const DEFAULT_INSTALLED = (process.env.AGY_DEFAULT_PLUGINS || "agyui-plugin-terminal")
-    .split(",").map(s => s.trim()).filter(Boolean);
+// Nomi storici: fino al 2026-10 i plugin ufficiali si chiamavano "agyui-plugin-*"
+// (e prima ancora web-terminal / project-stats). Ogni nome passa da qui, cosi'
+// plugins.json esistenti, URL vecchi, websocket e variabili d'ambiente del
+// gateway continuano a funzionare.
+const LEGACY_NAMES = { "web-terminal": "agycloud-plugin-terminal", "project-stats": "agycloud-plugin-starter" };
+function canonicalName(name) {
+    const n = String(name || "");
+    if (LEGACY_NAMES[n]) return LEGACY_NAMES[n];
+    return n.startsWith("agyui-plugin-") ? "agycloud-plugin-" + n.slice("agyui-plugin-".length) : n;
+}
+
+const DEFAULT_INSTALLED = (process.env.AGY_DEFAULT_PLUGINS || "agycloud-plugin-terminal")
+    .split(",").map(s => canonicalName(s.trim())).filter(Boolean);
 
 // Plugin distribuiti con AgyCloud: disinstallarli li spegne soltanto, i file restano
 // (fanno parte dell'immagine/repo e servono per reinstallarli con un clic).
 // Plugin consentiti dal piano AgyCloud (es. piano PII: solo PII). Vuoto = tutti.
 // E' solo per mostrare il lucchetto nel catalogo: il blocco vero sta sul gateway.
-const PLAN_PLUGINS = (process.env.AGY_PLAN_PLUGINS || "").split(",").map(s => s.trim()).filter(Boolean);
+const PLAN_PLUGINS = (process.env.AGY_PLAN_PLUGINS || "").split(",").map(s => canonicalName(s.trim())).filter(Boolean);
 function lockedByPlan(name) {
-    return PLAN_PLUGINS.length > 0 && !PLAN_PLUGINS.includes(name);
+    return PLAN_PLUGINS.length > 0 && !PLAN_PLUGINS.includes(canonicalName(name));
 }
 
 function isBundled(name) {
-    return name.startsWith("agyui-plugin-");
+    return canonicalName(name).startsWith("agycloud-plugin-");
 }
 
 class PluginManager {
@@ -52,7 +63,17 @@ class PluginManager {
     getConfig() {
         try {
             if (fs.existsSync(CONFIG_PATH)) {
-                return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+                const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+                // Migra le chiavi con i nomi storici (una volta sola, poi si salva)
+                let migrated = false;
+                const config = {};
+                for (const [key, value] of Object.entries(raw)) {
+                    const name = canonicalName(key);
+                    if (name !== key) migrated = true;
+                    config[name] = { ...(config[name] || {}), ...value };
+                }
+                if (migrated) this.saveConfig(config);
+                return config;
             }
         } catch (e) {
             console.error("[PluginManager] Errore lettura plugins.json:", e.message);
@@ -96,7 +117,7 @@ class PluginManager {
 
             try {
                 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-                const name = manifest.name || entry.name;
+                const name = canonicalName(manifest.name || entry.name);
                 // Due livelli: "installato" (config.enabled, nome storico del campo) e
                 // "acceso" (config.active, assente = acceso). Spento = resta installato,
                 // ma niente scheda nel menu e niente processo/servizio in memoria.
@@ -136,7 +157,7 @@ class PluginManager {
                     type: manifest.type || "module",
                     entry: manifest.entry || "dist/index.js",
                     server: manifest.server || null,
-                    repo: repo || (name === "agyui-plugin-terminal" || name === "web-terminal" ? "agyui/agyui-plugin-terminal" : (name === "agyui-plugin-starter" || name === "project-stats" ? "agyui/agyui-plugin-starter" : "")),
+                    repo,
                     enabled,
                     installed,
                     active,
@@ -158,10 +179,8 @@ class PluginManager {
     }
 
     getPlugin(name) {
-        const list = this.scanPlugins();
-        return list.find(p => p.name === name || p.id === name)
-            || (name === "web-terminal" ? list.find(p => p.name === "agyui-plugin-terminal") : null)
-            || (name === "project-stats" ? list.find(p => p.name === "agyui-plugin-starter") : null);
+        const wanted = canonicalName(name);
+        return this.scanPlugins().find(p => p.name === wanted) || null;
     }
 
     getPluginDir(name) {
@@ -170,9 +189,7 @@ class PluginManager {
     }
 
     getPluginPort(name) {
-        const running = this.runningPlugins.get(name)
-            || (name === "web-terminal" ? this.runningPlugins.get("agyui-plugin-terminal") : null)
-            || (name === "agyui-plugin-terminal" ? this.runningPlugins.get("web-terminal") : null);
+        const running = this.runningPlugins.get(canonicalName(name));
         return running ? running.port : null;
     }
 
@@ -187,6 +204,7 @@ class PluginManager {
     }
 
     startPluginServer(name, pluginDir, serverEntry) {
+        name = canonicalName(name);
         if (this.runningPlugins.has(name)) {
             return Promise.resolve(this.runningPlugins.get(name).port);
         }
@@ -264,6 +282,7 @@ class PluginManager {
     }
 
     stopPluginServer(name) {
+        name = canonicalName(name);
         const running = this.runningPlugins.get(name);
         if (running && running.process) {
             try {
@@ -276,6 +295,7 @@ class PluginManager {
     }
 
     async restartPluginServer(name) {
+        name = canonicalName(name);
         this.stopPluginServer(name);
         const p = this.getPlugin(name);
         if (p && p.server) {
@@ -285,6 +305,7 @@ class PluginManager {
     }
 
     async setEnabled(name, enabled) {
+        name = canonicalName(name);
         if (enabled && lockedByPlan(name)) {
             throw new Error("Plugin non incluso nel tuo piano: disponibile da Hobby in su.");
         }
@@ -424,3 +445,4 @@ class PluginManager {
 }
 
 module.exports = PluginManager;
+module.exports.canonicalName = canonicalName;

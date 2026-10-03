@@ -1,5 +1,5 @@
 {
-  "name": "agyui-plugin-flow",
+  "name": "agycloud-plugin-flow",
   "displayName": "agy-flow",
   "version": "2.0.0",
   "description": "Decisioni tipizzate (sì/no, scelta, punteggio, numero) con probabilità reali (logprobs) su ogni opzione, tramite OpenRouter con la tua chiave. Preset per triage, routing agenti, code review e moderazione, con invio diretto alla chat di agy. Design ispirato a Rizzo Flow di Rizzo AI Academy.",
