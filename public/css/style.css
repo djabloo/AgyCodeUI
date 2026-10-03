@@ -568,7 +568,7 @@ html, body {
 .brand-logo-box {
     width: 32px;
     height: 32px;
-    border-radius: 10px;
+    border-radius: 50%;
     background: linear-gradient(135deg, #06B6D4, #6366F1, #8B5CF6);
     padding: 1.5px;
     box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
@@ -581,6 +581,28 @@ html, body {
 
 .brand-logo-box:hover {
     transform: scale(1.06);
+}
+
+/* Marchio come il logo YouTube: AGY + CLOUD sfumato */
+.brand-wordmark {
+    letter-spacing: 0;
+    font-weight: 800;
+    /* la sidebar si restringe fino a 200px: meglio troncare che finire sotto le icone */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 1px;
+}
+
+.sidebar-header-right {
+    flex-shrink: 0;
+}
+
+.brand-wordmark-cloud {
+    background: linear-gradient(90deg, #67E8F9 0%, #38BDF8 55%, #A78BFA 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .brand-logo-box-inner {
@@ -5133,7 +5155,7 @@ input:checked + .slider:before {
 }
 
 .assistant-logo-icon {
-    border-radius: 7px;
+    border-radius: 50%;
     flex-shrink: 0;
 }
 
