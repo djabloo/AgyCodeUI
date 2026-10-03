@@ -14,7 +14,13 @@ const services = require("./pluginServices");
 // (e prima ancora web-terminal / project-stats). Ogni nome passa da qui, cosi'
 // plugins.json esistenti, URL vecchi, websocket e variabili d'ambiente del
 // gateway continuano a funzionare.
-const LEGACY_NAMES = { "web-terminal": "agycloud-plugin-terminal", "project-stats": "agycloud-plugin-starter" };
+const LEGACY_NAMES = {
+    "web-terminal": "agycloud-plugin-terminal",
+    "project-stats": "agycloud-plugin-starter",
+    // agy-flow e' diventato agy-verdict (2026-10): chi l'aveva installato lo ritrova
+    "agyui-plugin-flow": "agycloud-plugin-verdict",
+    "agycloud-plugin-flow": "agycloud-plugin-verdict"
+};
 function canonicalName(name) {
     const n = String(name || "");
     if (LEGACY_NAMES[n]) return LEGACY_NAMES[n];

@@ -1,12 +1,11 @@
 /**
- * AgyCloud Plugin: agy-flow
+ * AgyCloud Plugin: agy-verdict
  *
- * Playground per decisioni tipizzate (boolean, choice, score, numeric) con
- * probabilità reali lette dai logprobs di un modello su OpenRouter (chiave
- * dell'utente). Design ispirato a Rizzo Flow di Rizzo AI Academy.
+ * Playground per verdetti e decisioni tipizzate (boolean, choice, score, numeric) con
+ * probabilità reali lette dai logprobs a zero token generati.
  */
 
-const MODEL_STORAGE_KEY = 'agyflow_model';
+const MODEL_STORAGE_KEY = 'agyverdict_model';
 
 const CSS = `
 .agyflow {
@@ -529,7 +528,7 @@ const CSS = `
 `;
 
 const ICONS = {
-  flow: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 6h4a5 5 0 0 1 5 5"/><path d="M9 18h4a5 5 0 0 0 5-5"/></svg>`,
+  scale: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>`,
   settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
   sparkles: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
   chat: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>`,
@@ -565,9 +564,9 @@ export async function mount(container, api) {
   hostContainer = container;
   rpcClient = api.rpc.bind(api);
 
-  if (!document.getElementById('agyflow-styles')) {
+  if (!document.getElementById('agyverdict-styles')) {
     const styleEl = document.createElement('style');
-    styleEl.id = 'agyflow-styles';
+    styleEl.id = 'agyverdict-styles';
     styleEl.textContent = CSS;
     document.head.appendChild(styleEl);
   }
@@ -577,10 +576,10 @@ export async function mount(container, api) {
       <!-- HEADER -->
       <div class="agyflow-header">
         <div class="agyflow-brand">
-          <div class="agyflow-logo-wrap">${ICONS.flow}</div>
+          <div class="agyflow-logo-wrap">${ICONS.scale}</div>
           <div class="agyflow-title-group">
-            <h2>agy-flow <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">decisioni tipizzate</span></h2>
-            <p>Probabilità reali (logprobs) su ogni opzione · design ispirato a Rizzo Flow di Rizzo AI Academy</p>
+            <h2>agy-verdict <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">verdetti e decisioni tipizzate</span></h2>
+            <p>Probabilità reali (logprobs) su ogni opzione · Matrice di confidenza a zero token generati</p>
           </div>
         </div>
 
@@ -671,8 +670,12 @@ export async function mount(container, api) {
           <div id="agyflow-cfg-key" style="font-size:0.76rem; line-height:1.5;"></div>
           <p style="margin:0; font-size:0.74rem; color:var(--text-muted); line-height:1.5;">
             agy-flow usa la <b>tua</b> chiave OpenRouter: i costi (circa 1 centesimo ogni 1000 decisioni) sono sul tuo account.
-            In AgyCloud: <b>Dashboard → Chiavi API → OpenRouter</b>. Nel self-hosted: <code>OPENROUTER_API_KEY</code> nel file <code>.env</code>.
+            Puoi incollarla qui sotto o gestirla in <b>Impostazioni → Chiavi API (BYOK)</b>.
           </p>
+          <div>
+            <label style="display:block; font-size:0.74rem; color:var(--text-muted); margin-bottom:4px;">Nuova Chiave OpenRouter (sk-or-v1-...)</label>
+            <input type="password" id="agyflow-cfg-key-input" class="agyflow-input" placeholder="Incolla qui la nuova chiave sk-or-v1-..." style="width:100%; box-sizing:border-box;">
+          </div>
           <div>
             <label style="display:block; font-size:0.74rem; color:var(--text-muted); margin-bottom:4px;">Modello (se non risponde si passa al successivo)</label>
             <select class="agyflow-select" id="agyflow-cfg-model" style="width:100%;"></select>
@@ -994,6 +997,16 @@ function initEvents() {
     bridgeBtn.onclick = bridgeDecisionToAgyChat;
   }
 
+  const statusPill = document.getElementById('agyflow-status-pill');
+  if (statusPill) {
+    statusPill.style.cursor = 'pointer';
+    statusPill.title = 'Configura modello e chiave OpenRouter';
+    statusPill.onclick = () => {
+      renderConfigModal();
+      cfgModal.classList.add('open');
+    };
+  }
+
   if (cfgOpenBtn) {
     cfgOpenBtn.onclick = () => {
       renderConfigModal();
@@ -1004,6 +1017,28 @@ function initEvents() {
   if (cfgSave) {
     cfgSave.onclick = async () => {
       const sel = document.getElementById('agyflow-cfg-model');
+      const keyInput = document.getElementById('agyflow-cfg-key-input');
+      const newKey = keyInput ? keyInput.value.trim() : '';
+
+      if (newKey) {
+        cfgSave.disabled = true;
+        cfgSave.textContent = 'Salvataggio...';
+        try {
+          const token = localStorage.getItem('agy_pin') || '';
+          await fetch('/api/settings/keys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': token },
+            body: JSON.stringify({ provider: 'openrouter', apiKey: newKey })
+          });
+          if (keyInput) keyInput.value = '';
+        } catch (e) {
+          console.error('[agy-flow] Errore salvataggio chiave:', e);
+        } finally {
+          cfgSave.disabled = false;
+          cfgSave.textContent = 'Salva';
+        }
+      }
+
       if (sel && sel.value) localStorage.setItem(MODEL_STORAGE_KEY, sel.value);
       cfgModal.classList.remove('open');
       await checkHealth();
@@ -1019,6 +1054,10 @@ function initEvents() {
         executeDecision();
       }
     }
+  });
+
+  window.addEventListener('agy:byok-updated', () => {
+    checkHealth();
   });
 }
 

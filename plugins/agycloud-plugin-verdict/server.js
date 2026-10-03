@@ -1,18 +1,12 @@
 /**
- * AgyCloud Plugin: agy-flow — motore decisionale tipizzato con probabilità reali.
+ * AgyCloud Plugin: agy-verdict — verdetti e decisioni tipizzate con probabilità reali.
  *
- * Design ispirato a Rizzo Flow (Rizzo AI Academy): ogni domanda diventa una
- * scelta a lettere (A, B, C…) e si leggono le probabilità (logprobs) dell'unico
- * token generato, invece di far scrivere testo al modello. Il modello gira su
- * OpenRouter con la chiave dell'utente (OPENROUTER_API_KEY: in SaaS arriva dal
- * pannello BYOK della dashboard, nel self-hosted dal .env), quindi niente modello
- * locale e niente RAM occupata sul server.
- *
- * Fallback opzionale, solo su richiesta esplicita: agy -p, che però non espone
- * probabilità — le risposte sono marcate come tali.
+ * Calcola le probabilità (logprobs) dell'unico token generato su scelte a lettere
+ * (A, B, C...) a zero token generati. Esegue su OpenRouter o modello locale via BYOK.
  */
 
 const http = require('node:http');
+const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawn } = require('node:child_process');
@@ -20,21 +14,30 @@ const readline = require('node:readline');
 
 const OPENROUTER_API = 'https://openrouter.ai/api/v1';
 
-// Verificati il 2026-09-27: restituiscono logprobs con require_parameters.
-// I modelli "ragionanti" che non permettono di disattivare il ragionamento
-// (gpt-oss, glm-5.3-flash) sprecano l'unico token concesso e non sono adatti.
+// Modelli verificati con supporto logprobs nativo per scelte multiple
 const MODELS = [
-  { id: 'mistralai/mistral-nemo', label: 'Mistral Nemo' },
-  { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 8B' },
+  { id: 'mistralai/mistral-nemo', label: 'Mistral Nemo (12B)' },
+  { id: 'qwen/qwen-2.5-7b-instruct', label: 'Qwen 2.5 (7B Instruct)' },
+  { id: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 (8B)' },
   { id: 'deepseek/deepseek-v4-flash', label: 'DeepSeek V4 Flash', reasoningOff: true },
 ];
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRST'; // top_logprobs arriva al massimo a 20
 const MAX_QUESTIONS = 20;
 const REQUEST_TIMEOUT_MS = 20000;
-const AGY_TIMEOUT_MS = parseInt(process.env.FLOW_AGY_TIMEOUT_MS || '180000', 10);
+const AGY_TIMEOUT_MS = parseInt(process.env.VERDICT_AGY_TIMEOUT_MS || process.env.FLOW_AGY_TIMEOUT_MS || '180000', 10);
 
-const apiKey = () => (process.env.OPENROUTER_API_KEY || '').trim();
+const apiKey = () => {
+  try {
+    const envPath = path.resolve(__dirname, '../../.env');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      const m = content.match(/^OPENROUTER_API_KEY=(.*)$/m);
+      if (m && m[1]) return m[1].trim();
+    }
+  } catch (_) {}
+  return (process.env.OPENROUTER_API_KEY || '').trim();
+};
 
 function sendJson(res, status, data) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -307,7 +310,7 @@ async function callOpenRouter(model, messages, nOpts) {
 
   const res = await fetch(`${OPENROUTER_API}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey()}`, 'X-Title': 'agy-flow' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey()}`, 'X-Title': 'agy-verdict' },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });

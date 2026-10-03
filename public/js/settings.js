@@ -75,6 +75,7 @@ class AgySettings {
                 this.renderAccountSection();
                 this.renderPermissionsSection();
                 this.loadAgyPermissions();
+                this.loadApiKeys();
             }
         } catch (e) {
             console.error('[Settings] Errore caricamento info:', e);
@@ -325,43 +326,227 @@ class AgySettings {
         } catch (e) { this.cloudMessage('Errore di rete', false); }
     }
 
-    async loadCloudKeys() {
-        const list = document.getElementById('cloud-keys-list');
+    // ── BYOK (Bring Your Own Key): Gestione chiavi API personali ─────────
+
+    isCloudMode() {
+        // In SaaS il login e' un cookie httpOnly (niente token in localStorage):
+        // vale il rilevamento fatto da AgyApp.loadUserProfile.
+        if (window.agyApp && window.agyApp.isSaasMode) return true;
+        const token = localStorage.getItem('agy_pin') || '';
+        return !!token && token.split('.').length === 3;
+    }
+
+    onProviderChange() {
+        const sel = document.getElementById('byok-provider-select');
+        const customFields = document.getElementById('byok-custom-fields');
+        const keyInput = document.getElementById('byok-key-value');
+        if (!sel || !keyInput) return;
+
+        const val = sel.value;
+        const opt = sel.options[sel.selectedIndex];
+        if (val === 'custom') {
+            if (customFields) customFields.classList.remove('hidden');
+            keyInput.placeholder = 'Incolla la chiave API segreta';
+        } else {
+            if (customFields) customFields.classList.add('hidden');
+            const ph = opt ? opt.getAttribute('data-placeholder') : '';
+            keyInput.placeholder = ph || 'Incolla la chiave API segreta';
+        }
+    }
+
+    byokMessage(text, ok = true) {
+        const el = document.getElementById('byok-msg');
+        if (!el) return;
+        el.textContent = text;
+        el.className = `cloud-msg ${ok ? 'is-ok' : 'is-error'}`;
+        el.classList.remove('hidden');
+        clearTimeout(this._byokMsgTimer);
+        this._byokMsgTimer = setTimeout(() => el.classList.add('hidden'), 5000);
+    }
+
+    async loadApiKeys() {
+        const list = document.getElementById('byok-keys-list');
+        const badge = document.getElementById('byok-keys-count-badge');
         if (!list) return;
+
+        const token = localStorage.getItem('agy_pin') || '';
         try {
-            const res = await fetch('/saas/keys', { headers: this.saasHeaders() });
-            const data = await res.json();
-            const keys = data.keys || [];
-            list.innerHTML = keys.map(k => `
-                <div class="cloud-row">
-                    <div class="cloud-row-main"><strong>${this.escapeHtml(k.provider)}</strong><span class="cloud-row-sub">${this.escapeHtml(k.key_hint || '')}</span></div>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="window.agySettings.deleteCloudApiKey('${this.escapeHtml(k.provider)}')">Rimuovi</button>
-                </div>`).join('') || '<p class="card-desc">Nessuna chiave salvata: agy usa il tuo account Antigravity.</p>';
-        } catch (e) { list.innerHTML = ''; }
+            let keys = [];
+            if (this.isCloudMode()) {
+                const res = await fetch('/saas/keys', { headers: this.saasHeaders() });
+                if (res.ok) {
+                    const data = await res.json();
+                    keys = (data.keys || []).map(k => {
+                        const sel = document.getElementById('byok-provider-select');
+                        let label = k.provider;
+                        let envName = k.provider ? k.provider.toUpperCase() : 'API_KEY';
+                        if (sel) {
+                            const opt = Array.from(sel.options).find(o => o.value === k.provider);
+                            if (opt) {
+                                label = opt.textContent.split(' (')[0] || k.provider;
+                                envName = opt.getAttribute('data-env') || envName;
+                            }
+                        }
+                        return {
+                            provider: k.provider,
+                            name: label,
+                            envVar: envName,
+                            keyHint: k.key_hint || '••••••••',
+                            deleteId: k.provider
+                        };
+                    });
+                }
+            } else {
+                const res = await fetch('/api/settings/keys', {
+                    headers: { 'Authorization': token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    keys = (data.keys || []).map(k => ({
+                        ...k,
+                        deleteId: k.envVar
+                    }));
+                }
+            }
+
+            if (badge) {
+                badge.textContent = `${keys.length} ${keys.length === 1 ? 'attiva' : 'attive'}`;
+            }
+
+            if (keys.length === 0) {
+                list.innerHTML = '<p class="card-desc" style="margin: 4px 0;">Nessuna chiave personale configurata. I modelli useranno l\'accesso predefinito del sistema.</p>';
+            } else {
+                list.innerHTML = keys.map(k => `
+                    <div class="cloud-row">
+                        <div class="cloud-row-main">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <strong style="color: var(--text-bright);">${this.escapeHtml(k.name)}</strong>
+                                <span class="badge-role" style="font-size: 10px; padding: 2px 6px; font-family: monospace; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); color: #818cf8; border-radius: 4px;">
+                                    ${this.escapeHtml(k.envVar)}
+                                </span>
+                            </div>
+                            <span class="cloud-row-sub" style="font-family: monospace; letter-spacing: 1px; color: var(--text-muted); margin-top: 2px;">
+                                ${this.escapeHtml(k.keyHint || '••••••••')}
+                            </span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="window.agySettings.deleteApiKey('${this.escapeHtml(k.deleteId)}')">
+                            <i data-lucide="trash-2"></i> Rimuovi
+                        </button>
+                    </div>`).join('');
+            }
+            if (window.lucide) window.lucide.createIcons();
+        } catch (e) {
+            console.error('[Settings] Errore caricamento BYOK keys:', e);
+            if (list) list.innerHTML = '<p class="card-desc">Errore di connessione nel caricamento delle chiavi.</p>';
+        }
     }
 
-    async saveCloudApiKey() {
-        const provider = document.getElementById('cloud-key-provider').value;
-        const valEl = document.getElementById('cloud-key-value');
-        const apiKey = (valEl.value || '').trim();
-        if (!apiKey) return;
+    async saveApiKey() {
+        const sel = document.getElementById('byok-provider-select');
+        const keyInput = document.getElementById('byok-key-value');
+        const customNameInput = document.getElementById('byok-custom-name');
+        const customEnvInput = document.getElementById('byok-custom-env');
+        const saveBtn = document.getElementById('byok-save-btn');
+
+        if (!sel || !keyInput) return;
+        const provider = sel.value;
+        const apiKey = (keyInput.value || '').trim();
+
+        if (!apiKey) {
+            this.byokMessage('Inserisci una chiave API valida', false);
+            return;
+        }
+
+        let customEnvVar = '';
+        let customName = '';
+        if (provider === 'custom') {
+            customEnvVar = customEnvInput ? (customEnvInput.value || '').trim().toUpperCase() : '';
+            customName = customNameInput ? (customNameInput.value || '').trim() : '';
+            if (!customEnvVar) {
+                this.byokMessage('Inserisci il nome della variabile d\'ambiente (es. OLLAMA_API_KEY)', false);
+                return;
+            }
+            if (!/^[A-Z][A-Z0-9_]{1,63}$/.test(customEnvVar) || !/_(KEY|TOKEN|SECRET)$/.test(customEnvVar)) {
+                this.byokMessage('Usa lettere maiuscole, numeri e underscore e termina con _KEY, _TOKEN o _SECRET (es. OLLAMA_API_KEY)', false);
+                return;
+            }
+        }
+
+        const token = localStorage.getItem('agy_pin') || '';
         try {
-            const res = await fetch('/saas/keys', { method: 'POST', headers: this.saasHeaders(true), body: JSON.stringify({ provider, apiKey }) });
+            if (saveBtn) saveBtn.disabled = true;
+            let res;
+            if (this.isCloudMode()) {
+                const cloudProvider = provider === 'custom' ? customEnvVar.toLowerCase() : provider;
+                res = await fetch('/saas/keys', {
+                    method: 'POST',
+                    headers: this.saasHeaders(true),
+                    body: JSON.stringify({ provider: cloudProvider, apiKey })
+                });
+            } else {
+                res = await fetch('/api/settings/keys', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token
+                    },
+                    body: JSON.stringify({ provider, customEnvVar, customName, apiKey })
+                });
+            }
+
             const data = await res.json();
-            if (!res.ok) { this.cloudMessage(data.error || 'Errore salvataggio', false); return; }
-            valEl.value = '';
-            this.cloudMessage('Chiave salvata (cifrata). Sarà usata al prossimo avvio del container.');
-            this.loadCloudKeys();
-        } catch (e) { this.cloudMessage('Errore di rete', false); }
+            if (!res.ok) {
+                this.byokMessage(data.error || 'Errore durante il salvataggio della chiave', false);
+                return;
+            }
+
+            keyInput.value = '';
+            if (customEnvInput) customEnvInput.value = '';
+            if (customNameInput) customNameInput.value = '';
+            const savedName = data.key?.name || (provider === 'custom' ? (customName || customEnvVar) : provider);
+            this.byokMessage(`Chiave per ${savedName} salvata con successo!`);
+            this.loadApiKeys();
+            window.dispatchEvent(new CustomEvent('agy:byok-updated', { detail: { provider, envVar: data.key?.envVar } }));
+        } catch (e) {
+            this.byokMessage('Errore di connessione durante il salvataggio', false);
+        } finally {
+            if (saveBtn) saveBtn.disabled = false;
+        }
     }
 
-    async deleteCloudApiKey(provider) {
-        if (!confirm(`Rimuovere la chiave ${provider}?`)) return;
+    async deleteApiKey(identifier) {
+        if (!confirm(`Sei sicuro di voler rimuovere la chiave ${identifier}?`)) return;
+        const token = localStorage.getItem('agy_pin') || '';
         try {
-            await fetch(`/saas/keys/${encodeURIComponent(provider)}`, { method: 'DELETE', headers: this.saasHeaders() });
-            this.loadCloudKeys();
-        } catch (e) { /* ignore */ }
+            let res;
+            if (this.isCloudMode()) {
+                res = await fetch(`/saas/keys/${encodeURIComponent(identifier)}`, {
+                    method: 'DELETE',
+                    headers: this.saasHeaders()
+                });
+            } else {
+                res = await fetch(`/api/settings/keys/${encodeURIComponent(identifier)}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': token }
+                });
+            }
+            const data = await res.json();
+            if (!res.ok) {
+                this.byokMessage(data.error || 'Errore nella rimozione della chiave', false);
+                return;
+            }
+            this.byokMessage(`Chiave ${identifier} rimossa.`);
+            this.loadApiKeys();
+            window.dispatchEvent(new CustomEvent('agy:byok-updated', { detail: { identifier } }));
+        } catch (e) {
+            this.byokMessage('Errore di rete durante la cancellazione', false);
+        }
     }
+
+    // Shims di compatibilità per codice esistente
+    loadCloudKeys() { return this.loadApiKeys(); }
+    saveCloudApiKey() { return this.saveApiKey(); }
+    deleteCloudApiKey(p) { return this.deleteApiKey(p); }
 
     currentCloudWorkspace() {
         const slug = this.getCurrentWorkspaceSlug();

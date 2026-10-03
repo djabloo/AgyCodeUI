@@ -37,3 +37,6 @@ saas/
 
 # Memoria locale di agy con dettagli del server: mai nel repo pubblico
 GEMINI.md
+
+# Backup locali dei plugin
+plugins/.backup-*

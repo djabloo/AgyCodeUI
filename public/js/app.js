@@ -149,6 +149,10 @@ class AgyApp {
                 // ('local-admin', solo per popolare Impostazioni): non e' SaaS reale.
                 if (data.user && data.user.id !== 'local-admin') {
                     this.isSaasMode = true;
+                    // Le Impostazioni potrebbero aver caricato le chiavi prima di saperlo
+                    if (window.agySettings && typeof window.agySettings.loadApiKeys === 'function') {
+                        window.agySettings.loadApiKeys();
+                    }
                     localStorage.setItem('agy_user', JSON.stringify({
                         ...data.user,
                         subscription: data.subscription

@@ -1,0 +1,13 @@
+{
+  "name": "agycloud-plugin-verdict",
+  "displayName": "agy-verdict",
+  "version": "1.0.0",
+  "description": "Verdetti e decisioni tipizzate (sì/no, scelta, punteggio, routing) con probabilità reali (logprobs) su ogni opzione. Matrice di confidenza istantanea a zero token generati per triage, routing agenti, code review e guardrails.",
+  "author": "AgyCloud",
+  "icon": "icon.svg",
+  "type": "module",
+  "slot": "tab",
+  "entry": "index.js",
+  "server": "server.js",
+  "permissions": []
+}

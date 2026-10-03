@@ -139,6 +139,220 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
         }
     }
 
+    function removeEnvKey(keyToRemove) {
+        if (!keyToRemove || typeof keyToRemove !== 'string') return;
+        if (!fs.existsSync(envPath)) return;
+        const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+        const newLines = lines.filter(line => {
+            const trimmed = line.trim();
+            if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+                const idx = trimmed.indexOf('=');
+                const key = trimmed.slice(0, idx).trim();
+                if (key === keyToRemove) {
+                    return false;
+                }
+            }
+            return true;
+        });
+        fs.writeFileSync(envPath, newLines.join('\n'), 'utf8');
+        delete process.env[keyToRemove];
+    }
+
+    function maskKey(key) {
+        if (!key || typeof key !== 'string') return '';
+        const trimmed = key.trim();
+        if (trimmed.length <= 8) return '••••••••';
+        return `${trimmed.substring(0, 4)}••••${trimmed.substring(trimmed.length - 4)}`;
+    }
+
+    const STANDARD_PROVIDERS = [
+        { id: 'gemini', name: 'Google Gemini / AI Studio', envVar: 'GEMINI_API_KEY', placeholder: 'AIzaSy...' },
+        { id: 'anthropic', name: 'Anthropic Claude', envVar: 'ANTHROPIC_API_KEY', placeholder: 'sk-ant-api03-...' },
+        { id: 'openai', name: 'OpenAI (GPT-4o, o1, o3)', envVar: 'OPENAI_API_KEY', placeholder: 'sk-proj-...' },
+        { id: 'openrouter', name: 'OpenRouter', envVar: 'OPENROUTER_API_KEY', placeholder: 'sk-or-v1-...' },
+        { id: 'groq', name: 'Groq Cloud', envVar: 'GROQ_API_KEY', placeholder: 'gsk_...' },
+        { id: 'deepseek', name: 'DeepSeek', envVar: 'DEEPSEEK_API_KEY', placeholder: 'sk-...' },
+        { id: 'elevenlabs', name: 'ElevenLabs (Voice & Audio)', envVar: 'ELEVENLABS_API_KEY', placeholder: 'sk_...' },
+        { id: 'mistral', name: 'Mistral AI', envVar: 'MISTRAL_API_KEY', placeholder: '...' },
+        { id: 'xai', name: 'xAI (Grok)', envVar: 'XAI_API_KEY', placeholder: 'xai-...' },
+        { id: 'perplexity', name: 'Perplexity AI', envVar: 'PERPLEXITY_API_KEY', placeholder: 'pplx-...' },
+        { id: 'together', name: 'Together AI', envVar: 'TOGETHER_API_KEY', placeholder: '...' },
+        { id: 'cohere', name: 'Cohere', envVar: 'COHERE_API_KEY', placeholder: '...' },
+        { id: 'cerebras', name: 'Cerebras', envVar: 'CEREBRAS_API_KEY', placeholder: 'csk-...' },
+        { id: 'replicate', name: 'Replicate', envVar: 'REPLICATE_API_TOKEN', placeholder: 'r8_...' },
+        { id: 'huggingface', name: 'Hugging Face', envVar: 'HF_TOKEN', placeholder: 'hf_...' },
+        { id: 'fal', name: 'fal.ai', envVar: 'FAL_KEY', placeholder: '...' },
+        { id: 'fireworks', name: 'Fireworks AI', envVar: 'FIREWORKS_API_KEY', placeholder: 'fw_...' },
+        { id: 'sambanova', name: 'SambaNova', envVar: 'SAMBANOVA_API_KEY', placeholder: '...' },
+        { id: 'voyage', name: 'Voyage AI', envVar: 'VOYAGE_API_KEY', placeholder: 'pa-...' },
+        { id: 'tavily', name: 'Tavily Search', envVar: 'TAVILY_API_KEY', placeholder: 'tvly-...' },
+        { id: 'serpapi', name: 'SerpAPI', envVar: 'SERPAPI_API_KEY', placeholder: '...' },
+        { id: 'custom', name: 'Altro / Personalizzato (Custom)', envVar: '', placeholder: 'Incolla la chiave API segreta' }
+    ];
+
+    // Nomi ammessi per le chiavi personalizzate: devono sembrare una chiave e non
+    // toccare la configurazione del server (AUTH_PIN, HOST, WORKSPACE_DIR, ...).
+    const RESERVED_ENV = new Set(['SETUP_TOKEN', 'GOOGLE_PICKER_API_KEY', 'MAIL_WEBHOOK_SECRET', 'JWT_SECRET', 'SESSION_SECRET']);
+    function isAllowedKeyName(name) {
+        return /^[A-Z][A-Z0-9_]{1,63}$/.test(name)
+            && /_(KEY|TOKEN|SECRET)$/.test(name)
+            && !/^(AGY_|AGYUI_|AUTH_|NODE_|LD_|PLUGIN_|NPM_|GIT_)/.test(name)
+            && !RESERVED_ENV.has(name);
+    }
+
+    const byokMetaFile = path.join(dataDir, 'byok-meta.json');
+    function readByokMeta() {
+        if (!fs.existsSync(byokMetaFile)) return {};
+        try {
+            return JSON.parse(fs.readFileSync(byokMetaFile, 'utf8'));
+        } catch (_) {
+            return {};
+        }
+    }
+    function saveByokMeta(meta) {
+        fs.writeFileSync(byokMetaFile, JSON.stringify(meta, null, 2), 'utf8');
+    }
+
+    // BYOK: Gestione chiavi API personali
+    router.get('/keys', (req, res) => {
+        try {
+            const env = readEnvFile();
+            const meta = readByokMeta();
+            const keys = [];
+            const seenEnvVars = new Set();
+
+            for (const [envVar, info] of Object.entries(meta)) {
+                const val = env[envVar] || process.env[envVar];
+                if (val) {
+                    seenEnvVars.add(envVar);
+                    keys.push({
+                        envVar,
+                        provider: info.provider || 'custom',
+                        name: info.name || envVar,
+                        keyHint: maskKey(val),
+                        updatedAt: info.updatedAt || null,
+                        isCustom: info.provider === 'custom' || !STANDARD_PROVIDERS.some(p => p.id === info.provider && p.id !== 'custom')
+                    });
+                }
+            }
+
+            for (const sp of STANDARD_PROVIDERS) {
+                if (sp.id === 'custom' || !sp.envVar) continue;
+                if (!seenEnvVars.has(sp.envVar)) {
+                    const val = env[sp.envVar] || process.env[sp.envVar];
+                    if (val) {
+                        seenEnvVars.add(sp.envVar);
+                        keys.push({
+                            envVar: sp.envVar,
+                            provider: sp.id,
+                            name: sp.name,
+                            keyHint: maskKey(val),
+                            updatedAt: null,
+                            isCustom: false
+                        });
+                    }
+                }
+            }
+
+            res.json({
+                keys,
+                providers: STANDARD_PROVIDERS
+            });
+        } catch (e) {
+            console.error('[Settings] Errore GET /keys:', e);
+            res.status(500).json({ error: 'Impossibile recuperare le chiavi' });
+        }
+    });
+
+    router.post('/keys', (req, res) => {
+        try {
+            let { provider, customEnvVar, customName, apiKey } = req.body || {};
+            if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+                return res.status(400).json({ error: 'Chiave API obbligatoria' });
+            }
+            apiKey = apiKey.trim();
+
+            let targetEnvVar = '';
+            let targetName = '';
+            let isCustom = false;
+
+            if (provider === 'custom' || !provider) {
+                if (!customEnvVar || typeof customEnvVar !== 'string') {
+                    return res.status(400).json({ error: 'Nome variabile d\'ambiente obbligatorio per provider personalizzato' });
+                }
+                targetEnvVar = customEnvVar.trim().toUpperCase();
+                if (!isAllowedKeyName(targetEnvVar)) {
+                    return res.status(400).json({ error: 'Nome non valido: usa lettere maiuscole, numeri e underscore e termina con _KEY, _TOKEN o _SECRET (es. CUSTOM_API_KEY). Le variabili di configurazione del server non sono ammesse.' });
+                }
+                targetName = (customName && typeof customName === 'string' && customName.trim()) ? customName.trim() : targetEnvVar;
+                provider = 'custom';
+                isCustom = true;
+            } else {
+                const sp = STANDARD_PROVIDERS.find(p => p.id === provider.toLowerCase());
+                if (!sp || sp.id === 'custom') {
+                    return res.status(400).json({ error: 'Provider non riconosciuto' });
+                }
+                targetEnvVar = sp.envVar;
+                targetName = sp.name;
+            }
+
+            // Salva nel file .env e aggiorna process.env
+            updateEnvFile({ [targetEnvVar]: apiKey });
+
+            // Salva metadati
+            const meta = readByokMeta();
+            meta[targetEnvVar] = {
+                provider,
+                name: targetName,
+                updatedAt: new Date().toISOString()
+            };
+            saveByokMeta(meta);
+
+            res.json({
+                success: true,
+                key: {
+                    envVar: targetEnvVar,
+                    provider,
+                    name: targetName,
+                    keyHint: maskKey(apiKey),
+                    isCustom
+                }
+            });
+        } catch (e) {
+            console.error('[Settings] Errore POST /keys:', e);
+            res.status(500).json({ error: e.message || 'Errore nel salvataggio della chiave' });
+        }
+    });
+
+    router.delete('/keys/:envVar', (req, res) => {
+        try {
+            const { envVar } = req.params;
+            if (!envVar || !/^[A-Z0-9_]+$/i.test(envVar)) {
+                return res.status(400).json({ error: 'Nome variabile non valido' });
+            }
+            const normalized = envVar.trim().toUpperCase();
+
+            // Si cancellano solo chiavi: quelle registrate qui o dei provider noti,
+            // mai altre voci del .env (es. AUTH_PIN)
+            const meta = readByokMeta();
+            const known = !!meta[normalized] || STANDARD_PROVIDERS.some(p => p.envVar === normalized);
+            if (!known) {
+                return res.status(404).json({ error: 'Chiave non trovata' });
+            }
+            removeEnvKey(normalized);
+
+            if (meta[normalized]) {
+                delete meta[normalized];
+                saveByokMeta(meta);
+            }
+
+            res.json({ success: true, removed: normalized });
+        } catch (e) {
+            console.error('[Settings] Errore DELETE /keys:', e);
+            res.status(500).json({ error: e.message || 'Errore nella rimozione della chiave' });
+        }
+    });
+
     // 1. Informazioni generali e lista modelli
     router.get('/info', async (req, res) => {
         try {

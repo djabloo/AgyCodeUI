@@ -65,10 +65,14 @@ class AgyPlugins {
                 iconMarkup = '<i data-lucide="terminal"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-terminal"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" x2="20" y1="19" y2="19"></line></svg></i>';
             } else if (p.name.includes("browser")) {
                 iconMarkup = '<i data-lucide="globe"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></i>';
+            } else if (p.name.includes("verdict")) {
+                iconMarkup = '<i data-lucide="scale"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scale"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></i>';
             } else if (p.name.includes("flow")) {
-                iconMarkup = '<i data-lucide="git-fork"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-git-fork"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="12" r="3"></circle><path d="M9 6h4a5 5 0 0 1 5 5"></path><path d="M9 18h4a5 5 0 0 0 5-5"></path></svg></i>';
+                iconMarkup = '<i data-lucide="git-fork"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-git-fork"><circle cx="6" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="12" r="3"></circle><path d="M9 6h4a5 5 0 0 1 5 5"></path><path d="M9 18h4a5 5 0 0 0 5-5"></path></svg></i>';
             } else if (p.name.includes("pii")) {
                 iconMarkup = '<i data-lucide="shield-check"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-check"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg></i>';
+            } else if (p.name.includes("notebook")) {
+                iconMarkup = '<i data-lucide="book-open"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></i>';
             } else if (p.name.includes("stats") || p.name.includes("starter")) {
                 iconMarkup = '<i data-lucide="bar-chart-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bar-chart-2"><line x1="18" x2="18" y1="20" y2="10"></line><line x1="12" x2="12" y1="20" y2="4"></line><line x1="6" x2="6" y1="20" y2="14"></line></svg></i>';
             }
@@ -250,9 +254,13 @@ class AgyPlugins {
                 ? '<i data-lucide="terminal"></i>'
                 : (p.name.includes("browser")
                     ? '<i data-lucide="globe"></i>'
+                : (p.name.includes("verdict")
+                    ? '<i data-lucide="scale"></i>'
                 : (p.name.includes("pii")
                     ? '<i data-lucide="shield-check"></i>'
-                    : ((p.name.includes("stats") || p.name.includes("starter")) ? '<i data-lucide="bar-chart-2"></i>' : '<i data-lucide="package"></i>')));
+                : (p.name.includes("notebook")
+                    ? '<i data-lucide="book-open"></i>'
+                    : ((p.name.includes("stats") || p.name.includes("starter")) ? '<i data-lucide="bar-chart-2"></i>' : '<i data-lucide="package"></i>')))));
 
             // Nota sotto la descrizione: download del motore aggiuntivo (solo dove lo gestisce l'agente)
             let note = "";
