@@ -346,7 +346,7 @@ const server = http.createServer((req, res) => {
 
   if (req.method === 'GET' && (url === '/' || url === '/info')) {
     res.end(JSON.stringify({
-      name: 'agyui-plugin-terminal',
+      name: 'agycloud-plugin-terminal',
       version: PLUGIN_VERSION,
       protocol: PROTOCOL_VERSION,
       platform: process.platform,

@@ -50,7 +50,7 @@ function buildWsUrl(): string {
   let token = '';
   try { token = localStorage.getItem('agy_pin') || localStorage.getItem('auth-token') || ''; } catch { /* blocked storage */ }
   const query = token ? `?token=${encodeURIComponent(token)}` : '';
-  return `${proto}//${location.host}/plugin-ws/agyui-plugin-terminal${query}`;
+  return `${proto}//${location.host}/plugin-ws/agycloud-plugin-terminal${query}`;
 }
 
 function isMac(): boolean {

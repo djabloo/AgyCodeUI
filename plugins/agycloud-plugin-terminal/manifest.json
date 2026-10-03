@@ -1,5 +1,5 @@
 {
-  "name": "agyui-plugin-terminal",
+  "name": "agycloud-plugin-terminal",
   "displayName": "XTerm",
   "version": "1.2.0",
   "description": "Full-featured web terminal with multi-tab support, powered by xterm.js",
