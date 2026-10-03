@@ -1,56 +1,66 @@
 # Notebook
 
-Notebook di ricerca nativo AgyCloud: raccogli fonti, fai domande vincolate a
-quelle fonti, genera Report/Quiz/Flashcard/Mappa mentale/Tabella dati —
-tutto senza uscire dalla IDE.
-
-## Motore: agy, non un servizio esterno
-
-A differenza di un wrapper su NotebookLM/Gemini Notebook (valutato e
-scartato: richiedeva i cookie di sessione dell'intero account Google, con
-tutti i rischi che comporta), questo plugin usa **agy** — lo stesso motore
-già autenticato in ogni ambiente, self-hosted o SaaS che sia. Nessun
-account terzo, nessun bridge speciale, nessuna dipendenza nuova.
-
-Concretamente: le "fonti" sono file dentro il workspace
-(`<workspace>/.agy-notebook/<id>/sources/`), e ogni domanda o generazione
-lancia `agy` in modalità non interattiva ("print mode": `agy -p=<prompt>
---output-format stream-json --dangerously-skip-permissions`), lo stesso
-meccanismo già usato da `server/agentRunner.js` per la Chat strutturata.
-Per lo Studio, invece di fidarsi di un output JSON generato dall'LLM, si
-chiede ad agy di **scrivere** il risultato in un file preciso (usa i suoi
-stessi strumenti di lettura/scrittura file) — più robusto che fare il
-parse di qualcosa che un modello ha "inventato" in stdout.
+Un notebook di ricerca dentro AgyCloud: raccogli le tue fonti, fai domande che
+restano vincolate a quelle fonti e genera materiali pronti da usare, dal report
+al podcast. Il motore è **agy** (Google Antigravity) con il tuo account Google:
+nessuna chiave API e nessun servizio esterno da collegare.
 
 ## Cosa fa
 
-| Tab | Funzione |
+**Fonti**
+- testo incollato
+- pagine web (da un indirizzo URL)
+- video YouTube (agy apre il video e ne ricava titolo, canale e riassunto)
+- file: PDF, TXT, Markdown, DOCX, CSV
+
+**Chat**: domande sulle fonti del notebook. La conversazione prosegue con il
+contesto delle domande precedenti.
+
+**Studio**: genera a partire dalle fonti
+
+| Formato | Risultato |
 |---|---|
-| **Fonti** | URL (il testo viene estratto), file caricato, o testo incollato |
-| **Chat** | domande vincolate esplicitamente alle fonti del notebook — la prima domanda imposta il contesto, le successive continuano la stessa conversazione agy (`--conversation`) |
-| **Studio** | Report, Presentazione (slide deck HTML5 interattivo con navigazione/fullscreen e PDF), Infografica (HTML5/SVG autonoma e stampabile in PDF), Quiz, Flashcard, Mappa mentale (renderizzata con Mermaid), Tabella dati |
+| Overview Audio | podcast a due voci (Diego ed Elsa) con player interattivo |
+| Report | documento di sintesi |
+| Presentazione | slide HTML a schermo intero, navigabili da tastiera, stampabili in PDF |
+| Infografica | pagina visiva stampabile in PDF |
+| Quiz | domande a risposta multipla |
+| Flashcard | carte domanda/risposta |
+| Mappa mentale | schema dei concetti |
+| Tabella dati | dati estratti dalle fonti, in tabella |
 
-## Cosa manca (scelta di scope, non limite tecnico)
+Tutto quello che crei resta nel tuo workspace, nella cartella `.agy-notebook/`.
 
-Niente Audio/Video: richiederebbero sintesi vocale o rendering
-video pesante, che `agy` non fa. Aggiungerli in futuro è un servizio
-a parte, non un'estensione naturale di questo plugin.
-Sia l'**Infografica** che la **Presentazione (slide deck)** sono
-invece supportate nativamente come documenti HTML5 autonomi con layout
-moderni, controlli da tastiera, fullscreen e stili per esportazione PDF.
+## Come si usa
 
-## Note tecniche
+1. **Impostazioni → Plugin → Notebook → Installa**: compare la scheda in alto.
+2. Crea un notebook, aggiungi le fonti, poi usa Chat o Studio.
+3. Non ti serve per un po'? **Spegnilo** con l'interruttore: la scheda sparisce
+   dal menu e il plugin non occupa memoria. Riaccenderlo è immediato.
+   **Disinstalla** solo se vuoi toglierlo del tutto.
 
-- **Workspace**: il plugin legge sempre il workspace corrente da
-  `/api/status` (stessa fonte usata dal resto della IDE) e lo passa ad
-  ogni chiamata — segue automaticamente lo switch ambiente.
-- **Estrazione testo da URL**: strip HTML essenziale via regex, non una
-  vera libreria di readability — può includere rumore (menu, nav) su
-  pagine complesse. Sufficiente per dare contesto ad agy, non perfetto.
-- **Timeout**: le chiamate ad agy hanno un timeout di 10 minuti
-  (`NOTEBOOK_AGY_TIMEOUT_MS`, sovrascrivibile via env) — generare uno
-  Studio su fonti lunghe non è istantaneo.
+Generare uno Studio su fonti lunghe può richiedere qualche minuto.
+
+## Privacy
+
+- Le fonti e i risultati restano nel tuo workspace.
+- Domande e generazioni passano da agy, con il tuo account Google.
+- **Overview Audio**: le voci sono sintetizzate dal servizio vocale online di
+  Microsoft Edge, quindi il testo del podcast viene inviato a quel servizio.
+  Per documenti riservati anonimizzali prima con il plugin **PII**.
+
+## In arrivo
+
+- Voci **ElevenLabs** per l'Overview Audio e le presentazioni, con la tua
+  chiave ElevenLabs: qualità molto più alta delle voci attuali.
+
+Per le immagini non serve un plugin: chiedile direttamente ad agy in chat, le
+genera e le ritocca da solo con il tuo account Google.
+
+## Disponibilità
+
+Self-hosted e AgyCloud (dal piano Hobby in su).
 
 ## Licenza
 
-MIT, come AGYCLOUD
+MIT, come AgyCloud.

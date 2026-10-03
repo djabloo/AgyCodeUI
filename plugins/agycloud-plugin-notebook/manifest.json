@@ -2,7 +2,7 @@
   "name": "agycloud-plugin-notebook",
   "displayName": "Notebook",
   "version": "1.2.0",
-  "description": "Notebook di ricerca nativo AgyCloud: raccogli fonti (testo, URL, file), fai domande vincolate a quelle fonti, genera Report/Quiz/Flashcard/Mappa mentale/Tabella dati. Motore: agy (Google Antigravity), gia' autenticato in ogni ambiente self-hosted e SaaS.",
+  "description": "Notebook di ricerca: raccogli fonti (testo, pagine web, YouTube, file), fai domande vincolate alle fonti e genera Overview Audio, Report, Presentazione, Infografica, Quiz, Flashcard, Mappa mentale e Tabella dati. Motore: agy con il tuo account Google.",
   "author": "AgyCloud",
   "icon": "icon.svg",
   "type": "module",

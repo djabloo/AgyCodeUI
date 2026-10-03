@@ -2,7 +2,7 @@
   "name": "agycloud-plugin-terminal",
   "displayName": "XTerm",
   "version": "1.2.0",
-  "description": "Full-featured web terminal with multi-tab support, powered by xterm.js",
+  "description": "Terminale web a schede: resiste alle disconnessioni, tasto agy, barra tasti per il telefono, ricerca e temi.",
   "author": "AGYCLOUD",
   "icon": "icon.svg",
   "type": "module",
