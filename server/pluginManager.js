@@ -16,10 +16,9 @@ const services = require("./pluginServices");
 // gateway continuano a funzionare.
 const LEGACY_NAMES = {
     "web-terminal": "agycloud-plugin-terminal",
-    "project-stats": "agycloud-plugin-starter",
-    // agy-flow e' diventato agy-verdict (2026-10): chi l'aveva installato lo ritrova
-    "agyui-plugin-flow": "agycloud-plugin-verdict",
-    "agycloud-plugin-flow": "agycloud-plugin-verdict"
+    "project-stats": "agycloud-plugin-starter"
+    // agycloud-plugin-flow NON e' un alias di verdict: il nome e' riservato al
+    // futuro plugin video (Google Flow / VEO).
 };
 function canonicalName(name) {
     const n = String(name || "");
