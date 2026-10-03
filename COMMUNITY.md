@@ -14,7 +14,6 @@ Che tu stia costruendo estensioni MCP, creando custom skills per `agy`, integran
 | 💬 **GitHub Discussions** | Q&A tecnici, proposte di architettura (RFC), showcase di progetti e idee | [Partecipa su GitHub Discussions](https://github.com/djabloo/AgyCodeUI/discussions) |
 | 🐛 **GitHub Issues** | Segnalazione di bug verificabili e tracciamento task | [Apri una Issue](https://github.com/djabloo/AgyCodeUI/issues) |
 | 🚀 **Live Web App / Demo** | Istanza pubblica e ambiente operativo di test | [agycloud.ai](https://agycloud.ai) |
-| 💬 **Discord Server** | Chat real-time, pair programming, annunci veloci e supporto | [Entra nel Discord](https://discord.gg/agyui) *(in arrivo)* |
 
 ---
 
