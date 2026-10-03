@@ -27,3 +27,6 @@ server/data/*
 **/.env.*
 !**/.env.example
 **/.git
+
+# Estensione Gemini installata a mano, non e' un plugin del catalogo (agy genera immagini da solo)
+plugins/nanobanana
