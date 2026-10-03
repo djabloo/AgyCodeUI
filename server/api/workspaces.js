@@ -220,8 +220,14 @@ function createWorkspacesRouter(sessionManager, ptyManager, io) {
                 ? slug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')
                 : `${cleanProjectName.toLowerCase().replace(/[^a-z0-9_-]/g, '-')}-${Math.random().toString(36).substring(2, 8)}`;
 
+            // Self-hosted: ~/workspace/<slug> (la home e' dentro WORKSPACE_DIR).
+            // SaaS: la home sta fuori da /workspace (non deve finire nei progetti),
+            // quindi i progetti nuovi vanno in /workspace/<slug>, visibili da File.
             const homeDir = os.homedir();
-            const targetDir = path.join(homeDir, 'workspace', generatedSlug);
+            const wsRoot = path.resolve(process.env.WORKSPACE_DIR || homeDir);
+            const homeProjects = path.resolve(homeDir, 'workspace');
+            const projectsRoot = (homeProjects === wsRoot || homeProjects.startsWith(wsRoot + path.sep)) ? homeProjects : wsRoot;
+            const targetDir = path.join(projectsRoot, generatedSlug);
 
             // Create target directory if it doesn't exist
             if (!fs.existsSync(targetDir)) {
