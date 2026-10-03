@@ -155,21 +155,23 @@ function runAgy(prompt, { cwd, conversationId }) {
   });
 }
 
-function runPython(scriptPath, args) {
+function runPython(scriptPath, args, { env, timeoutMs = 600000 } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn('python3', [scriptPath, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('python3', [scriptPath, ...args], { stdio: ['ignore', 'pipe', 'pipe'], env: env || process.env });
     let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
-      reject(new Error('Timeout durante la generazione audio (120s)'));
-    }, 120000);
+      reject(new Error(`Timeout durante la generazione audio (${Math.round(timeoutMs / 1000)}s)`));
+    }, timeoutMs);
 
     child.stdout.on('data', (d) => { stdout += d.toString(); });
     child.stderr.on('data', (d) => { stderr += d.toString(); });
     child.on('close', (code) => {
       clearTimeout(timer);
       if (code === 0) resolve({ stdout, stderr });
+      // codice 2 = errore vocale gia' spiegato in una riga (chiave, credito, voce)
+      else if (code === 2 && stderr.trim()) reject(new Error(stderr.trim().split('\n').pop()));
       else reject(new Error(stderr || stdout || `Processo python terminato con codice ${code}`));
     });
     child.on('error', (err) => {
@@ -177,6 +179,99 @@ function runPython(scriptPath, args) {
       reject(err);
     });
   });
+}
+
+// ── impostazioni voci (Edge gratuito / ElevenLabs con la chiave dell'utente) ──
+// Fuori dal workspace di proposito: il workspace puo' finire in git o essere
+// condiviso, la chiave no. In SaaS la home del container e' persistente
+// (/home/developer), quindi la chiave sopravvive ai riavvii dell'ambiente.
+const SETTINGS_PATH = path.join(os.homedir(), '.config', 'agycloud', 'notebook.json');
+const ELEVEN_MODELS = ['eleven_multilingual_v2', 'eleven_flash_v2_5', 'eleven_turbo_v2_5', 'eleven_v3'];
+const VOICE_ID_RE = /^[a-zA-Z0-9]{10,40}$/;
+
+function readSettings() {
+  let s = {};
+  try { s = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8')); } catch (e) { /* prima volta */ }
+  const el = s.elevenlabs || {};
+  return {
+    provider: s.provider === 'elevenlabs' ? 'elevenlabs' : 'edge',
+    elevenlabs: {
+      apiKey: el.apiKey || '',
+      model: ELEVEN_MODELS.includes(el.model) ? el.model : 'eleven_multilingual_v2',
+      voiceA: el.voiceA || '',
+      voiceB: el.voiceB || '',
+      voiceAName: el.voiceAName || '',
+      voiceBName: el.voiceBName || ''
+    }
+  };
+}
+
+async function writeSettings(s) {
+  await fsp.mkdir(path.dirname(SETTINGS_PATH), { recursive: true, mode: 0o700 });
+  await fsp.writeFile(SETTINGS_PATH, JSON.stringify(s, null, 2), { mode: 0o600 });
+  await fsp.chmod(SETTINGS_PATH, 0o600).catch(() => {});
+}
+
+// Chiave effettiva: quella salvata dall'utente, altrimenti ELEVENLABS_API_KEY
+// dell'ambiente (utile in self-hosted, impostata nel .env).
+function elevenKey(s) {
+  if (s.elevenlabs.apiKey) return { key: s.elevenlabs.apiKey, source: 'settings' };
+  if (process.env.ELEVENLABS_API_KEY) return { key: process.env.ELEVENLABS_API_KEY, source: 'env' };
+  return { key: '', source: null };
+}
+
+function publicSettings(s) {
+  const { key, source } = elevenKey(s);
+  return {
+    provider: s.provider,
+    elevenlabs: {
+      hasKey: !!key,
+      keySource: source,
+      keyHint: key ? '…' + key.slice(-4) : '',
+      model: s.elevenlabs.model,
+      models: ELEVEN_MODELS,
+      voiceA: s.elevenlabs.voiceA,
+      voiceB: s.elevenlabs.voiceB,
+      voiceAName: s.elevenlabs.voiceAName,
+      voiceBName: s.elevenlabs.voiceBName
+    }
+  };
+}
+
+async function elevenFetch(key, apiPath) {
+  const r = await fetch('https://api.elevenlabs.io' + apiPath, {
+    headers: { 'xi-api-key': key, Accept: 'application/json' },
+    signal: AbortSignal.timeout(15000)
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const d = data && data.detail;
+    const msg = (d && (d.message || (typeof d === 'string' ? d : ''))) || ('HTTP ' + r.status);
+    const code = d && typeof d === 'object' ? d.status : '';
+    const err = new Error(code === 'missing_permissions'
+      ? 'La chiave ElevenLabs non ha il permesso per questa operazione (' + msg + ')'
+      : r.status === 401 ? 'Chiave ElevenLabs non valida' : 'ElevenLabs: ' + msg);
+    err.status = r.status;
+    err.code = code;
+    throw err;
+  }
+  return data;
+}
+
+// Ambiente del processo python per la sintesi: provider scelto + chiave/voci.
+function ttsEnv(requested) {
+  const s = readSettings();
+  const provider = requested === 'elevenlabs' || requested === 'edge' ? requested : s.provider;
+  const env = { ...process.env, NOTEBOOK_TTS_PROVIDER: provider };
+  if (provider === 'elevenlabs') {
+    const { key } = elevenKey(s);
+    if (!key) throw new Error('Per le voci ElevenLabs inserisci prima la tua chiave in Studio → Voci.');
+    env.ELEVENLABS_API_KEY = key;
+    env.ELEVENLABS_MODEL = s.elevenlabs.model;
+    if (s.elevenlabs.voiceA) env.ELEVENLABS_VOICE_A = s.elevenlabs.voiceA;
+    if (s.elevenlabs.voiceB) env.ELEVENLABS_VOICE_B = s.elevenlabs.voiceB;
+  }
+  return env;
 }
 
 
@@ -228,6 +323,9 @@ async function fetchUrlAsText(url, workspace) {
 const STUDIO_TYPES = {
   audio_overview: {
     ext: 'html',
+    json: true,
+    jsonKey: 'dialogue',
+    script: 'generate_audio_overview.py',
     prompt: (srcRel, jsonAbs) => `Leggi attentamente tutti i file dentro "${srcRel}". Genera un copione per un episodio podcast "Audio Overview" a 2 voci (Diego ed Elsa) in italiano, brillante, approfondito e colloquiale, che discuta i punti chiave, i concetti e le implicazioni emersi ESCLUSIVAMENTE da quelle fonti.
 Scrivi ESATTAMENTE e SOLO un file JSON valido nel percorso assoluto "${jsonAbs}" con questa identica struttura:
 {
@@ -286,6 +384,29 @@ La presentazione deve includere:
    - Regole @media print per stampare o salvare tutte le slide in un unico PDF (una slide per pagina, page-break-after: always; break-after: page).
 Salva il file ESATTAMENTE in "${outRel}" (sovrascrivilo se esiste). Non modificare altri file. Al termine rispondi solo "Fatto."`
   },
+  video_presentation: {
+    ext: 'html',
+    json: true,
+    jsonKey: 'slides',
+    script: 'generate_video_presentation.py',
+    prompt: (srcRel, jsonAbs) => `Leggi attentamente tutti i file dentro "${srcRel}". Prepara un video narrato di 7-9 slide in italiano che spieghi in modo chiaro e coinvolgente i contenuti di quelle fonti, ESCLUSIVAMENTE sulla base di esse.
+Per ogni slide scrivi il testo visibile (breve, da slide) e il parlato del narratore (frasi naturali da ascoltare, 50-90 parole, che spiegano e collegano i punti invece di leggerli; niente elenchi, niente markdown, niente emoji, numeri scritti in modo pronunciabile).
+Scrivi ESATTAMENTE e SOLO un file JSON valido nel percorso assoluto "${jsonAbs}" con questa struttura:
+{
+  "title": "Titolo del video",
+  "subtitle": "Sottotitolo breve",
+  "slides": [
+    {"layout": "cover", "title": "...", "subtitle": "...", "narration": "..."},
+    {"layout": "bullets", "title": "...", "bullets": ["max 5 punti brevi"], "narration": "..."},
+    {"layout": "kpis", "title": "...", "kpis": [{"value": "42%", "label": "cosa misura"}], "narration": "..."},
+    {"layout": "steps", "title": "...", "steps": ["passo 1", "passo 2", "passo 3"], "narration": "..."},
+    {"layout": "quote", "title": "...", "quote": "frase chiave dalle fonti", "narration": "..."},
+    {"layout": "closing", "title": "In sintesi", "bullets": ["..."], "narration": "..."}
+  ]
+}
+Layout disponibili: cover (solo la prima), bullets, kpis (2-4 valori numerici REALI presi dalle fonti; se non ci sono numeri non usarlo), steps (3-5 passi), quote, closing (solo l'ultima). Varia i layout in base al contenuto.
+Salva il JSON ESATTAMENTE nel file "${jsonAbs}" (sovrascrivilo se esiste). Non modificare altri file. Al termine rispondi solo "Fatto."`
+  },
   quiz: {
     ext: 'md',
     prompt: (srcRel, outRel) => `Leggi tutti i file dentro "${srcRel}". Genera un quiz di 8 domande a risposta multipla (4 opzioni ciascuna, una sola corretta) basato ESCLUSIVAMENTE sul contenuto di quei file. Formato Markdown: per ogni domanda numerata, le 4 opzioni come elenco puntato (a, b, c, d), poi una riga "**Risposta corretta:** lettera" e una breve spiegazione. Scrivi il risultato ESATTAMENTE nel file "${outRel}" (sovrascrivilo se esiste). Non modificare altri file. Al termine rispondi solo "Fatto."`
@@ -335,6 +456,70 @@ const server = http.createServer(async (req, res) => {
       return execFile(command, ['--version'], { env: buildAgyEnv(), timeout: 5000 }, (err, stdout) => {
         sendJson(res, 200, { available: !err, version: (stdout || '').trim().split('\n')[0] || null });
       });
+    }
+
+    // GET /settings — impostazioni voci (la chiave non esce mai: solo le ultime 4 cifre)
+    if (req.method === 'GET' && pathname === '/settings') {
+      return sendJson(res, 200, publicSettings(readSettings()));
+    }
+
+    // POST /settings { provider?, elevenlabsKey?, model?, voiceA?, voiceB?, voiceAName?, voiceBName? }
+    // elevenlabsKey: stringa nuova = salva (dopo verifica), "" = rimuovi, assente = invariata.
+    if (req.method === 'POST' && pathname === '/settings') {
+      const s = readSettings();
+      if (body.provider === 'edge' || body.provider === 'elevenlabs') s.provider = body.provider;
+      if (typeof body.elevenlabsKey === 'string') {
+        const k = body.elevenlabsKey.trim();
+        if (k) {
+          if (!/^[A-Za-z0-9_-]{20,128}$/.test(k)) return sendJson(res, 400, { error: 'Formato chiave ElevenLabs non valido' });
+          // Verifica subito la chiave. Una chiave con permessi ristretti (solo
+          // sintesi, senza lettura voci) e' valida: si accetta lo stesso.
+          try { await elevenFetch(k, '/v1/voices'); } catch (e) {
+            if (e.code !== 'missing_permissions') return sendJson(res, 400, { error: e.message });
+          }
+        }
+        s.elevenlabs.apiKey = k;
+      }
+      if (ELEVEN_MODELS.includes(body.model)) s.elevenlabs.model = body.model;
+      for (const slot of ['voiceA', 'voiceB']) {
+        if (typeof body[slot] === 'string') {
+          const v = body[slot].trim();
+          if (v && !VOICE_ID_RE.test(v)) return sendJson(res, 400, { error: 'Id voce non valido' });
+          s.elevenlabs[slot] = v;
+          const nameKey = slot + 'Name';
+          s.elevenlabs[nameKey] = v ? String(body[nameKey] || '').slice(0, 80) : '';
+        }
+      }
+      if (s.provider === 'elevenlabs' && !elevenKey(s).key) {
+        return sendJson(res, 400, { error: 'Inserisci la chiave ElevenLabs prima di sceglierlo come motore' });
+      }
+      await writeSettings(s);
+      return sendJson(res, 200, publicSettings(s));
+    }
+
+    // GET /elevenlabs/voices — libreria voci dell'account + caratteri residui del mese
+    if (req.method === 'GET' && pathname === '/elevenlabs/voices') {
+      const { key } = elevenKey(readSettings());
+      if (!key) return sendJson(res, 400, { error: 'Chiave ElevenLabs non impostata' });
+      try {
+        const data = await elevenFetch(key, '/v1/voices');
+        const voices = (data.voices || []).map((v) => ({
+          id: v.voice_id,
+          name: v.name,
+          category: v.category || '',
+          labels: v.labels || {},
+          preview: v.preview_url || ''
+        })).sort((a, b) => a.name.localeCompare(b.name));
+        let quota = null;
+        // Serve il permesso user_read sulla chiave: se manca, niente contatore.
+        try {
+          const sub = await elevenFetch(key, '/v1/user/subscription');
+          quota = { used: sub.character_count, limit: sub.character_limit, tier: sub.tier, resetAt: sub.next_character_count_reset_unix };
+        } catch (e) { /* facoltativo */ }
+        return sendJson(res, 200, { voices, quota });
+      } catch (e) {
+        return sendJson(res, 502, { error: e.message });
+      }
     }
 
     if (!workspace) return sendJson(res, 400, { error: 'Ambiente/workspace non valido o non specificato' });
@@ -508,42 +693,48 @@ const server = http.createServer(async (req, res) => {
         const outName = `${kind}-${tsStamp()}.${type.ext}`;
         const outAbs = path.join(studioDir, outName);
 
-        if (kind === 'audio_overview') {
-          const jsonPath = path.join(studioDir, `.temp-dialogue-${tsStamp()}.json`);
-          const prompt = STUDIO_TYPES.audio_overview.prompt(sourcesDir, jsonPath);
+        // Tipi con voce (Overview Audio, Video narrato): agy scrive un JSON,
+        // poi lo script python sintetizza le voci e impagina l'HTML finale.
+        if (type.json) {
+          // Motore vocale verificato PRIMA di far lavorare agy per minuti:
+          // senza chiave ElevenLabs si fallisce subito, non a copione pronto.
+          let env;
+          try { env = ttsEnv(body.provider); } catch (e) { return sendJson(res, 400, { error: e.message }); }
+
+          const jsonPath = path.join(studioDir, `.temp-${kind}-${tsStamp()}.json`);
+          const prompt = type.prompt(sourcesDir, jsonPath);
 
           const result = await runAgy(prompt, { cwd: workspace });
 
-          let dialogueData = null;
+          let jsonData = null;
           if (fs.existsSync(jsonPath)) {
             try {
               const raw = await fsp.readFile(jsonPath, 'utf8');
-              dialogueData = JSON.parse(raw);
+              jsonData = JSON.parse(raw);
             } catch (e) {
               console.error('Errore lettura JSON copione:', e);
             }
           }
 
           // Se agy ha restituito il JSON direttamente nella risposta invece che nel file
-          if (!dialogueData && result.response) {
-            const m = result.response.match(/\{[\s\S]*"dialogue"[\s\S]*\}/);
+          if (!jsonData && result.response) {
+            const m = result.response.match(new RegExp('\\{[\\s\\S]*"' + type.jsonKey + '"[\\s\\S]*\\}'));
             if (m) {
               try {
-                dialogueData = JSON.parse(m[0]);
-                await fsp.writeFile(jsonPath, JSON.stringify(dialogueData, null, 2), 'utf8');
+                jsonData = JSON.parse(m[0]);
+                await fsp.writeFile(jsonPath, JSON.stringify(jsonData, null, 2), 'utf8');
               } catch (e) {}
             }
           }
 
-          if (!dialogueData) {
+          if (!jsonData || !Array.isArray(jsonData[type.jsonKey]) || !jsonData[type.jsonKey].length) {
             await fsp.unlink(jsonPath).catch(() => {});
-            return sendJson(res, 502, { error: result.error || 'agy non ha generato il copione del podcast' });
+            return sendJson(res, 502, { error: result.error || 'agy non ha generato il copione' });
           }
 
-          // Sintesi audio ed esportazione HTML gestite direttamente dal backend Node
-          const scriptPath = path.join(__dirname, 'scripts', 'generate_audio_overview.py');
+          const scriptPath = path.join(__dirname, 'scripts', type.script);
           try {
-            await runPython(scriptPath, [jsonPath, outAbs]);
+            await runPython(scriptPath, [jsonPath, outAbs], { env });
           } catch (pyErr) {
             await fsp.unlink(jsonPath).catch(() => {});
             return sendJson(res, 500, { error: 'Errore durante la sintesi audio: ' + pyErr.message });
@@ -555,7 +746,7 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 502, { error: 'Sintesi completata ma il file finale non è presente' });
           }
 
-          return sendJson(res, 200, { name: outName });
+          return sendJson(res, 200, { name: outName, provider: env.NOTEBOOK_TTS_PROVIDER });
         }
 
         const prompt = studioPromptFor(kind, sourcesDir, outAbs);

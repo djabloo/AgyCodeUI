@@ -20,13 +20,14 @@ contesto delle domande precedenti.
 
 | Formato | Risultato |
 |---|---|
-| Overview Audio | podcast a due voci (Diego ed Elsa) con player interattivo |
-| Report | documento di sintesi |
+| Overview Audio | podcast a due voci (Diego ed Elsa) con player interattivo e trascrizione sincronizzata |
+| Video narrato | presentazione video con voce narrante e slide sincronizzate in automatico |
 | Presentazione | slide HTML a schermo intero, navigabili da tastiera, stampabili in PDF |
+| Report | documento di sintesi |
 | Infografica | pagina visiva stampabile in PDF |
 | Quiz | domande a risposta multipla |
-| Flashcard | carte domanda/risposta |
-| Mappa mentale | schema dei concetti |
+| Flashcard | carte domanda/risposta interattive |
+| Mappa mentale | schema dei concetti (Mermaid) |
 | Tabella dati | dati estratti dalle fonti, in tabella |
 
 Tutto quello che crei resta nel tuo workspace, nella cartella `.agy-notebook/`.
@@ -35,24 +36,22 @@ Tutto quello che crei resta nel tuo workspace, nella cartella `.agy-notebook/`.
 
 1. **Impostazioni → Plugin → Notebook → Installa**: compare la scheda in alto.
 2. Crea un notebook, aggiungi le fonti, poi usa Chat o Studio.
-3. Non ti serve per un po'? **Spegnilo** con l'interruttore: la scheda sparisce
+3. Clicca su **Voci** nello Studio o nella barra laterale per configurare il motore vocale: puoi usare **Edge** (gratuito) oppure **ElevenLabs** inserendo la tua API Key e scegliendo le tue voci preferite.
+4. Non ti serve per un po'? **Spegnilo** con l'interruttore: la scheda sparisce
    dal menu e il plugin non occupa memoria. Riaccenderlo è immediato.
    **Disinstalla** solo se vuoi toglierlo del tutto.
 
 Generare uno Studio su fonti lunghe può richiedere qualche minuto.
 
-## Privacy
+## Voci e Privacy
 
 - Le fonti e i risultati restano nel tuo workspace.
 - Domande e generazioni passano da agy, con il tuo account Google.
-- **Overview Audio**: le voci sono sintetizzate dal servizio vocale online di
-  Microsoft Edge, quindi il testo del podcast viene inviato a quel servizio.
-  Per documenti riservati anonimizzali prima con il plugin **PII**.
-
-## In arrivo
-
-- Voci **ElevenLabs** per l'Overview Audio e le presentazioni, con la tua
-  chiave ElevenLabs: qualità molto più alta delle voci attuali.
+- **Sintesi vocale**:
+  - Di base le voci sono sintetizzate gratuitamente tramite Microsoft Edge.
+  - Collegando la tua chiave **ElevenLabs**, l'audio di Overview Audio e Video narrato viene sintetizzato con i modelli neurali multilingua di ElevenLabs e le voci scelte dalla tua libreria.
+  - La chiave ElevenLabs viene salvata nel tuo profilo utente (`~/.config/agycloud/notebook.json`), leggibile solo dal tuo utente e non nei file del notebook. Dalle API del plugin esce solo con le ultime 4 cifre.
+  - Per documenti riservati anonimizzali prima con il plugin **PII**.
 
 Per le immagini non serve un plugin: chiedile direttamente ad agy in chat, le
 genera e le ritocca da solo con il tuo account Google.

@@ -171,6 +171,24 @@ const CSS = `
 .agynb-spin { animation:agynb-rot 1s linear infinite; }
 @keyframes agynb-rot { to { transform:rotate(360deg); } }
 
+/* Modale Impostazioni Voci & ElevenLabs */
+.agynb-settings-modal { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:60; display:none; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(4px); }
+.agynb-settings-modal.on { display:flex; }
+.agynb-settings-card { background:var(--bg-card,#0d1219); border:1px solid var(--border-color,rgba(255,255,255,.12)); border-radius:16px; width:min(580px,100%); max-height:90vh; overflow-y:auto; padding:24px; box-shadow:0 20px 50px rgba(0,0,0,.6); }
+.agynb-settings-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid var(--border-color,rgba(255,255,255,.08)); padding-bottom:12px; }
+.agynb-settings-title { font-weight:700; font-size:1rem; color:#fff; display:flex; align-items:center; gap:8px; }
+.agynb-settings-title svg { width:18px; height:18px; flex-shrink:0; }
+.agynb-field { margin-bottom:16px; }
+.agynb-label { display:block; font-size:.78rem; font-weight:600; color:#e2e8f0; margin-bottom:6px; }
+.agynb-hint { font-size:.72rem; color:var(--text-muted,#94a3b8); margin-top:4px; line-height:1.4; }
+.agynb-provider-cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.agynb-pcard { border:1px solid var(--border-color,rgba(255,255,255,.08)); border-radius:10px; padding:12px; cursor:pointer; background:rgba(255,255,255,.02); transition:all .2s; }
+.agynb-pcard:hover { border-color:rgba(6,182,212,.4); }
+.agynb-pcard.on { border-color:var(--accent,#06b6d4); background:rgba(6,182,212,.1); }
+.agynb-pcard-title { font-size:.82rem; font-weight:700; color:#fff; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+.agynb-pcard-desc { font-size:.7rem; color:var(--text-muted,#94a3b8); }
+.agynb-quota-box { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:8px; padding:10px 12px; font-size:.74rem; font-family:var(--font-mono,monospace); color:#94a3b8; margin-top:10px; }
+
 /* Sotto i 768px lista e contenuto non stanno affiancati (spazio insufficiente
    in verticale su telefono): la lista diventa un overlay a tutta larghezza,
    apribile/chiudibile, invece del layout fisso a due colonne di desktop. */
@@ -204,13 +222,16 @@ const ICONS = {
   presentation: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>',
   external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
   gdrive: '<svg viewBox="0 0 87.3 78" style="width:14px; height:14px; vertical-align:middle;"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.25z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h27.5c0-1.55-.4-3.1-1.2-4.5l-25.4-44c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8z" fill="#ffba00"/><path d="m27.5 53-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.9c1.6 0 3.15-.45 4.5-1.2l-13.75-23.8z" fill="#2684fc"/></svg>',
-  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>'
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>',
+  video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>'
 };
 
 const STUDIO_TYPES = [
   { kind: 'audio_overview', label: 'Overview Audio', icon: 'mic' },
-  { kind: 'report', label: 'Report', icon: 'doc' },
+  { kind: 'video_presentation', label: 'Video narrato', icon: 'video' },
   { kind: 'presentation', label: 'Presentazione', icon: 'presentation' },
+  { kind: 'report', label: 'Report', icon: 'doc' },
   { kind: 'infographic', label: 'Infografica', icon: 'infographic' },
   { kind: 'quiz', label: 'Quiz', icon: 'quiz' },
   { kind: 'flashcards', label: 'Flashcard', icon: 'cards' },
@@ -228,6 +249,9 @@ const st = {
   studio: [],
   chatLog: [],
   busy: false,
+  settings: null,
+  voices: [],
+  quota: null,
   // Sotto i 768px la lista notebook e il contenuto (Fonti/Chat/Studio) non
   // stanno affiancati: la lista diventa un overlay a tutta larghezza che si
   // apre/chiude, invece di stare sempre visibile come su desktop.
@@ -604,8 +628,9 @@ async function createStudio(kind) {
   const original = btn ? btn.innerHTML : '';
   if (btn) { btn.disabled = true; btn.innerHTML = ICONS.loader.replace('<svg', '<svg class="agynb-spin"') + ' ' + meta.label + '…'; }
   try {
-    await call('POST', `/notebooks/${encodeURIComponent(nb.id)}/studio`, { kind });
-    setMsg('ok', meta.label + ' generato.');
+    const res = await call('POST', `/notebooks/${encodeURIComponent(nb.id)}/studio`, { kind });
+    const provMsg = res && res.provider === 'elevenlabs' ? ' (voci ElevenLabs)' : (res && res.provider === 'edge' ? ' (voci Edge)' : '');
+    setMsg('ok', meta.label + ' generato' + provMsg + '.');
     loadStudio();
   } catch (e) {
     setMsg('err', e.message);
@@ -921,6 +946,228 @@ async function downloadArtifact(name) {
   }
 }
 
+// ── impostazioni voci (Edge / ElevenLabs) ─────────────────────────────────
+async function loadSettings() {
+  try {
+    st.settings = await call('GET', '/settings');
+    updateTtsBadge();
+  } catch (e) {
+    console.warn('Errore lettura impostazioni:', e);
+  }
+}
+
+function updateTtsBadge() {
+  const lbl = $('#agynb-tts-lbl');
+  if (!lbl) return;
+  const prov = st.settings?.provider === 'elevenlabs' ? 'ElevenLabs' : 'Edge';
+  lbl.textContent = `Voci: ${prov}`;
+}
+
+async function openSettings() {
+  const modal = $('#agynb-settings-modal');
+  const body = $('#agynb-settings-body');
+  if (!modal || !body) return;
+  modal.classList.add('on');
+  body.innerHTML = '<p style="color:var(--text-muted); font-size:.8rem;">Caricamento impostazioni…</p>';
+
+  try {
+    st.settings = await call('GET', '/settings');
+  } catch (e) {
+    body.innerHTML = `<p style="color:var(--danger,#ef4444)">Errore: ${esc(e.message)}</p>`;
+    return;
+  }
+
+  if (st.settings?.elevenlabs?.hasKey && !st.voices?.length) {
+    try {
+      const vData = await call('GET', '/elevenlabs/voices');
+      st.voices = vData.voices || [];
+      st.quota = vData.quota || null;
+    } catch (e) {
+      console.warn('Impossibile caricare voci ElevenLabs:', e);
+    }
+  }
+
+  renderSettingsForm();
+}
+
+function closeSettings() {
+  const modal = $('#agynb-settings-modal');
+  if (modal) modal.classList.remove('on');
+}
+
+function setSettingsProvider(p) {
+  if (!st.settings) st.settings = {};
+  st.settings.provider = p;
+  const pEdge = $('#agynb-pick-edge');
+  const pEleven = $('#agynb-pick-eleven');
+  if (pEdge && pEleven) {
+    pEdge.classList.toggle('on', p === 'edge');
+    pEleven.classList.toggle('on', p === 'elevenlabs');
+  }
+  const elFields = $('#agynb-eleven-fields');
+  if (elFields) elFields.style.opacity = p === 'elevenlabs' ? '1' : '0.75';
+}
+
+function renderSettingsForm() {
+  const body = $('#agynb-settings-body');
+  if (!body || !st.settings) return;
+
+  const s = st.settings;
+  const isEl = s.provider === 'elevenlabs';
+  const hasKey = s.elevenlabs?.hasKey;
+  const keyHint = s.elevenlabs?.keyHint ? `Chiave attiva (${esc(s.elevenlabs.keyHint)})` : 'Nessuna chiave impostata';
+  const models = s.elevenlabs?.models || ['eleven_multilingual_v2', 'eleven_flash_v2_5', 'eleven_turbo_v2_5', 'eleven_v3'];
+  const curModel = s.elevenlabs?.model || 'eleven_multilingual_v2';
+
+  const makeVoiceSelect = (slotId, currentVal, defaultId, defaultLabel) => {
+    if (st.voices && st.voices.length > 0) {
+      return `
+        <select id="agynb-cfg-${slotId}" class="agynb-inp" style="width:100%;">
+          ${st.voices.map(v => {
+            const sel = (currentVal === v.id || (!currentVal && defaultId === v.id)) ? 'selected' : '';
+            const cat = v.category ? ` [${v.category}]` : '';
+            return `<option value="${esc(v.id)}" data-name="${esc(v.name)}" ${sel}>${esc(v.name)}${esc(cat)}</option>`;
+          }).join('')}
+        </select>
+      `;
+    }
+    return `
+      <input type="text" id="agynb-cfg-${slotId}" class="agynb-inp" style="width:100%; font-family:var(--font-mono,monospace);" value="${esc(currentVal || defaultId)}" placeholder="${esc(defaultId)}">
+      <div class="agynb-hint">ID voce ElevenLabs (${esc(defaultLabel)})</div>
+    `;
+  };
+
+  let quotaHtml = '';
+  if (st.quota) {
+    const used = (st.quota.used || 0).toLocaleString();
+    const limit = (st.quota.limit || 0).toLocaleString();
+    const tier = st.quota.tier ? ` (${st.quota.tier})` : '';
+    quotaHtml = `
+      <div class="agynb-quota-box">
+        <strong>Crediti ElevenLabs${esc(tier)}:</strong> ${used} / ${limit} caratteri usati questo mese.
+      </div>
+    `;
+  }
+
+  body.innerHTML = `
+    <div class="agynb-field">
+      <label class="agynb-label">Motore vocale per Overview Audio e Video narrato</label>
+      <div class="agynb-provider-cards">
+        <div class="agynb-pcard ${!isEl ? 'on' : ''}" id="agynb-pick-edge" onclick="window.agyNotebookPlugin.setSettingsProvider('edge')">
+          <div class="agynb-pcard-title">🎙️ Microsoft Edge</div>
+          <div class="agynb-pcard-desc">Gratuito, veloce, nessuna chiave necessaria. Voci italiane Diego ed Elsa.</div>
+        </div>
+        <div class="agynb-pcard ${isEl ? 'on' : ''}" id="agynb-pick-eleven" onclick="window.agyNotebookPlugin.setSettingsProvider('elevenlabs')">
+          <div class="agynb-pcard-title">⚡ ElevenLabs</div>
+          <div class="agynb-pcard-desc">Qualità superiore e naturalezza avanzata. Usa la tua API Key.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="agynb-eleven-fields" style="${isEl ? '' : 'opacity:0.75;'}">
+      <div class="agynb-field">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label class="agynb-label" for="agynb-cfg-key">Chiave API ElevenLabs</label>
+          <span style="font-size:.7rem; color:var(--text-muted); font-family:var(--font-mono,monospace);">${keyHint}</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <input type="password" id="agynb-cfg-key" class="agynb-inp" placeholder="${hasKey ? 'Inserisci nuova chiave per cambiarla…' : 'xi-api-key...'}" style="flex:1;">
+          <button class="agynb-btn" id="agynb-test-key-btn" onclick="window.agyNotebookPlugin.testElevenLabsKey()">${ICONS.loader.replace('<svg', '<svg class="agynb-spin" style="display:none;" id="agynb-key-spinner"')} Verifica / Carica voci</button>
+        </div>
+        <div class="agynb-hint">Salvata nel tuo profilo utente con permessi riservati (solo il tuo utente può leggerla), non nei file del notebook.</div>
+      </div>
+
+      <div class="agynb-field">
+        <label class="agynb-label" for="agynb-cfg-model">Modello neurale</label>
+        <select id="agynb-cfg-model" class="agynb-inp" style="width:100%;">
+          ${models.map(m => `<option value="${esc(m)}" ${m === curModel ? 'selected' : ''}>${esc(m)}${m === 'eleven_multilingual_v2' ? ' (Consigliato per l\'italiano)' : ''}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="agynb-field">
+        <label class="agynb-label">Voce 1 (Diego / Narratore video)</label>
+        ${makeVoiceSelect('voiceA', s.elevenlabs?.voiceA, 'JBFqnCBsd6RMkjVDRZzb', 'Predefinita: George')}
+      </div>
+
+      <div class="agynb-field">
+        <label class="agynb-label">Voce 2 (Elsa per Overview Audio)</label>
+        ${makeVoiceSelect('voiceB', s.elevenlabs?.voiceB, 'EXAVITQu4vr4xnAE8sDL', 'Predefinita: Sarah')}
+      </div>
+
+      ${quotaHtml}
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:22px; padding-top:14px; border-top:1px solid var(--border-color,rgba(255,255,255,.08));">
+      <div id="agynb-cfg-status" style="font-size:.76rem;"></div>
+      <div style="display:flex; gap:8px;">
+        <button class="agynb-btn" onclick="window.agyNotebookPlugin.closeSettings()">Annulla</button>
+        <button class="agynb-btn primary" id="agynb-save-cfg-btn" onclick="window.agyNotebookPlugin.saveSettings()">Salva impostazioni</button>
+      </div>
+    </div>
+  `;
+}
+
+async function testElevenLabsKey() {
+  const keyInput = $('#agynb-cfg-key');
+  const keyVal = keyInput ? keyInput.value.trim() : '';
+  const statusEl = $('#agynb-cfg-status');
+  const btn = $('#agynb-test-key-btn');
+  const spinner = $('#agynb-key-spinner');
+
+  if (spinner) spinner.style.display = 'inline-block';
+  if (btn) btn.disabled = true;
+  if (statusEl) statusEl.innerHTML = '<span style="color:var(--text-muted)">Verifica in corso…</span>';
+
+  try {
+    if (keyVal) {
+      st.settings = await call('POST', '/settings', { elevenlabsKey: keyVal });
+    }
+    const data = await call('GET', '/elevenlabs/voices');
+    st.voices = data.voices || [];
+    st.quota = data.quota || null;
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--success,#10b981)">✓ Chiave valida! ${st.voices.length} voci caricate.</span>`;
+    renderSettingsForm();
+  } catch (e) {
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger,#ef4444)">Errore verifica: ${esc(e.message)}</span>`;
+  } finally {
+    if (spinner) spinner.style.display = 'none';
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function saveSettings() {
+  const statusEl = $('#agynb-cfg-status');
+  const saveBtn = $('#agynb-save-cfg-btn');
+  if (saveBtn) saveBtn.disabled = true;
+  if (statusEl) statusEl.innerHTML = '<span style="color:var(--text-muted)">Salvataggio…</span>';
+
+  const provider = st.settings?.provider || 'edge';
+  const keyInput = $('#agynb-cfg-key');
+  const keyVal = keyInput ? keyInput.value.trim() : '';
+  const modelSelect = $('#agynb-cfg-model');
+  const model = modelSelect ? modelSelect.value : 'eleven_multilingual_v2';
+  const vAEl = $('#agynb-cfg-voiceA');
+  const vBEl = $('#agynb-cfg-voiceB');
+  const voiceA = vAEl ? vAEl.value.trim() : '';
+  const voiceB = vBEl ? vBEl.value.trim() : '';
+  const voiceAName = (vAEl && vAEl.selectedOptions && vAEl.selectedOptions[0]) ? vAEl.selectedOptions[0].getAttribute('data-name') : '';
+  const voiceBName = (vBEl && vBEl.selectedOptions && vBEl.selectedOptions[0]) ? vBEl.selectedOptions[0].getAttribute('data-name') : '';
+
+  const payload = { provider, model, voiceA, voiceB, voiceAName, voiceBName };
+  if (keyVal) payload.elevenlabsKey = keyVal;
+
+  try {
+    st.settings = await call('POST', '/settings', payload);
+    updateTtsBadge();
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--success,#10b981)">✓ Impostazioni salvate</span>';
+    setTimeout(() => closeSettings(), 800);
+  } catch (e) {
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger,#ef4444)">Errore: ${esc(e.message)}</span>`;
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
 // ── shell principale ─────────────────────────────────────────────────────
 function renderMain() {
   const main = $('#agynb-main');
@@ -970,7 +1217,10 @@ function renderMain() {
 
     <div class="agynb-pane" id="agynb-pane-studio">
       <div class="agynb-card">
-        <p style="margin:0 0 10px; font-size:.76rem; color:var(--text-muted);">Genera contenuti dalle fonti del notebook (richiede almeno una fonte). Il motore è agy: legge le fonti e scrive il risultato, di solito in meno di un minuto.</p>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; gap:10px;">
+          <p style="margin:0; font-size:.76rem; color:var(--text-muted);">Genera contenuti dalle fonti del notebook (richiede almeno una fonte). Il motore è agy: legge le fonti e scrive il risultato.</p>
+          <button class="agynb-btn" id="agynb-tts-btn" style="padding:4px 9px; font-size:.72rem; flex-shrink:0;">${ICONS.settings} <span id="agynb-tts-lbl">Voci</span></button>
+        </div>
         <div class="agynb-row">
           ${STUDIO_TYPES.map((t) => `<button class="agynb-btn agynb-studio-create" data-kind="${t.kind}">${ICONS[t.icon]} ${t.label}</button>`).join('')}
         </div>
@@ -990,6 +1240,9 @@ function renderMain() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuery(); }
   });
   $$('.agynb-studio-create').forEach((btn) => { btn.onclick = () => createStudio(btn.getAttribute('data-kind')); });
+  const ttsBtn = $('#agynb-tts-btn');
+  if (ttsBtn) ttsBtn.onclick = openSettings;
+  updateTtsBadge();
 
   switchTab(st.activeTab || 'sources');
   if (window.lucide) window.lucide.createIcons();
@@ -1012,7 +1265,10 @@ const SHELL = `
         <div class="agynb-brand"><span class="agynb-mark">__ICON__</span><span>Notebook</span></div>
         <button class="agynb-side-close" id="agynb-side-close" title="Chiudi lista">__CLOSE__</button>
       </div>
-      <span class="agynb-health" id="agynb-health"><span class="agynb-dot"></span> verifica…</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+        <span class="agynb-health" id="agynb-health"><span class="agynb-dot"></span> verifica…</span>
+        <button class="agynb-btn" id="agynb-side-settings" title="Impostazioni Voci (Edge / ElevenLabs)" style="padding:2px 6px; font-size:.68rem; background:transparent; border:none; color:var(--text-muted); cursor:pointer;">${ICONS.settings}</button>
+      </div>
       <button class="agynb-newbtn" id="agynb-new">__PLUS__ Nuovo notebook</button>
     </div>
     <div class="agynb-nblist" id="agynb-nblist"></div>
@@ -1033,6 +1289,15 @@ const SHELL = `
     <div class="agynb-viewer-foot">
       <button class="agynb-btn" id="agynb-viewer-download">${ICONS.download} Scarica</button>
     </div>
+  </div>
+</div>
+<div class="agynb-settings-modal" id="agynb-settings-modal">
+  <div class="agynb-settings-card">
+    <div class="agynb-settings-head">
+      <div class="agynb-settings-title">${ICONS.settings} Impostazioni Voci &amp; Audio (Studio)</div>
+      <button class="agynb-viewer-close" id="agynb-settings-close">&times;</button>
+    </div>
+    <div id="agynb-settings-body"></div>
   </div>
 </div>`;
 
@@ -1056,12 +1321,20 @@ export async function mount(container, api) {
   $('#agynb-viewer').onclick = (e) => { if (e.target.id === 'agynb-viewer') closeViewer(); };
   $('#agynb-side-close').onclick = () => setSideOpen(false);
   $('#agynb-side-open').onclick = () => setSideOpen(true);
+  $('#agynb-settings-close').onclick = closeSettings;
+  $('#agynb-settings-modal').onclick = (e) => { if (e.target.id === 'agynb-settings-modal') closeSettings(); };
+  const sideSettings = $('#agynb-side-settings');
+  if (sideSettings) sideSettings.onclick = openSettings;
 
-  window.agyNotebookPlugin = { selectNotebook, deleteNotebook, deleteSource, openSource, deleteArtifact, openArtifact, addSourceFile, activeNotebook };
+  window.agyNotebookPlugin = {
+    selectNotebook, deleteNotebook, deleteSource, openSource, deleteArtifact, openArtifact, addSourceFile, activeNotebook,
+    openSettings, closeSettings, setSettingsProvider, testElevenLabsKey, saveSettings
+  };
   window.agynbAddSourceFile = addSourceFile;
 
   await resolveWorkspace();
   checkHealth();
+  loadSettings();
   await loadNotebooks();
 }
 

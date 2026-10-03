@@ -2,7 +2,7 @@
 """
 Audio Overview Generator for AgyCloud Notebook Studio
 Generates a multi-voice deep-dive podcast (Diego & Elsa) from structured dialogue JSON
-using edge-tts and ffmpeg, packaging it into a standalone interactive HTML5 player.
+using Edge or ElevenLabs voices (see tts_engine.py) and ffmpeg, packaging it into a standalone interactive HTML5 player.
 """
 
 import sys
@@ -289,7 +289,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
   <div class="container">
     <div class="header-card">
-      <div class="badge">🎙️ Overview Audio • NotebookLM Style</div>
+      <div class="badge">🎙️ Overview Audio • voci {voice_label}</div>
       <h1>{title}</h1>
       <p class="subtitle">{subtitle}</p>
 
@@ -392,17 +392,39 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       audio.playbackRate = s;
       speedBtn.textContent = s + "x";
     }};
+
+    // Trascrizione sincronizzata: evidenzia la battuta in corso, click = salta li'.
+    const turns = Array.from(document.querySelectorAll('.dialogue-item[data-start]'));
+    turns.forEach((el) => {{
+      el.style.cursor = 'pointer';
+      el.onclick = () => {{ audio.currentTime = parseFloat(el.dataset.start) || 0; audio.play(); }};
+    }});
+    let lastActive = -1;
+    audio.addEventListener('timeupdate', () => {{
+      let idx = -1;
+      for (let i = 0; i < turns.length; i++) {{
+        if (audio.currentTime + 0.05 >= parseFloat(turns[i].dataset.start)) idx = i; else break;
+      }}
+      if (idx !== lastActive) {{
+        if (lastActive >= 0) turns[lastActive].classList.remove('active');
+        if (idx >= 0) {{
+          turns[idx].classList.add('active');
+          turns[idx].scrollIntoView({{ block: 'nearest', behavior: 'smooth' }});
+        }}
+        lastActive = idx;
+      }}
+    }});
   </script>
 </body>
 </html>
 """
 
-async def synthesize_turn(text, voice, out_path):
-    import edge_tts
-    comm = edge_tts.Communicate(text, voice)
-    await comm.save(out_path)
-
 async def generate_podcast(dialogue_json_path, output_html_path):
+    import html as htmlmod
+    import re
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import tts_engine
+
     with open(dialogue_json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -414,58 +436,54 @@ async def generate_podcast(dialogue_json_path, output_html_path):
     if not dialogue:
         raise ValueError("Nessuna battuta trovata nel file dialogue.json")
 
-    print(f"🎙️ Generazione podcast in parallelo: {len(dialogue)} scambi tra Diego ed Elsa...")
+    print(f"🎙️ Generazione podcast ({tts_engine.provider_label()}): {len(dialogue)} battute tra Diego ed Elsa...")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        segment_files = [os.path.join(tmpdir, f"seg_{i:03d}.mp3") for i in range(len(dialogue))]
-        tasks = []
+        items = []
         for i, turn in enumerate(dialogue):
-            spk_raw = turn.get("speaker", "Diego")
-            text_raw = turn.get("text", "")
-            voice, _, _, _ = resolve_voice_and_speaker(spk_raw)
-            text_clean = clean_text_for_speech(text_raw)
-            tasks.append(synthesize_turn(text_clean, voice, segment_files[i]))
+            _, _, cls, _ = resolve_voice_and_speaker(turn.get("speaker", "Diego"))
+            items.append({
+                "text": clean_text_for_speech(turn.get("text", "")),
+                "slot": "B" if cls == "elsa" else "A",
+                "out": os.path.join(tmpdir, f"seg_{i:03d}.mp3"),
+            })
 
-        await asyncio.gather(*tasks)
+        await tts_engine.synthesize_all(items)
         print("  ✓ Tutte le tracce vocali sintetizzate.")
 
-        list_file = os.path.join(tmpdir, "concat.txt")
-        with open(list_file, "w", encoding="utf-8") as f:
-            for s in segment_files:
-                f.write(f"file '{s}'\n")
-
         final_mp3 = os.path.join(tmpdir, "podcast_final.mp3")
-        subprocess.run([
-            "ffmpeg", "-y", "-f", "concat", "-safe", "0",
-            "-i", list_file, "-c", "copy", final_mp3
-        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        starts, _total = tts_engine.concat([it["out"] for it in items], final_mp3, tmpdir, gap=0.25)
 
         with open(final_mp3, "rb") as f:
             audio_b64 = base64.b64encode(f.read()).decode("utf-8")
 
+    e = lambda s: htmlmod.escape(str(s if s is not None else ""))
+
     # Costruisci HTML
-    takeaways_html = "".join([f'<li><span class="dot">•</span> {t}</li>' for t in takeaways])
-    
+    takeaways_html = "".join([f'<li><span class="dot">•</span> {e(t)}</li>' for t in takeaways])
+
     dialogue_html = []
-    for turn in dialogue:
+    for i, turn in enumerate(dialogue):
         spk_raw = turn.get("speaker", "Diego")
         voice, spk, cls, init = resolve_voice_and_speaker(spk_raw)
         txt = turn.get("text", "")
         dialogue_html.append(f"""
-          <div class="dialogue-item">
+          <div class="dialogue-item" data-start="{starts[i]}">
             <div class="avatar {cls}">{init}</div>
             <div class="msg-body">
               <div class="speaker-name {cls}">{spk}</div>
-              <div class="msg-text">{txt}</div>
+              <div class="msg-text">{e(txt)}</div>
             </div>
           </div>
         """)
-    
-    filename_mp3 = f"podcast-{title.lower().replace(' ', '_')[:24]}.mp3"
+
+    safe_slug = re.sub(r"[^a-z0-9_]+", "", title.lower().replace(" ", "_"))[:24] or "overview"
+    filename_mp3 = f"podcast-{safe_slug}.mp3"
 
     html_content = HTML_TEMPLATE.format(
-        title=title,
-        subtitle=subtitle,
+        title=e(title),
+        subtitle=e(subtitle),
+        voice_label=tts_engine.provider_label(),
         audio_base64=audio_b64,
         filename_mp3=filename_mp3,
         takeaways_html=takeaways_html,
@@ -486,4 +504,10 @@ if __name__ == "__main__":
         print("Uso: python3 generate_audio_overview.py <dialogue.json> <output.html>")
         sys.exit(1)
 
-    asyncio.run(generate_podcast(sys.argv[1], sys.argv[2]))
+    try:
+        asyncio.run(generate_podcast(sys.argv[1], sys.argv[2]))
+    except Exception as e:
+        if type(e).__name__ != "TTSError":
+            raise
+        print(str(e), file=sys.stderr)
+        sys.exit(2)
