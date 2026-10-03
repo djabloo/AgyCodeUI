@@ -1,5 +1,5 @@
 /**
- * AGYUI - Agents & Personas Management API
+ * AgyCloud - Agents & Personas Management API
  */
 
 const express = require('express');

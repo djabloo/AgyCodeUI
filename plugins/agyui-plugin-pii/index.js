@@ -1,5 +1,5 @@
 /**
- * AGYUI PII — anonimizzazione documenti dentro l'interfaccia AGYUI.
+ * AgyCloud PII — anonimizzazione documenti dentro l'interfaccia AgyCloud.
  *
  * Non reimplementa il rilevamento: usa il motore Rizzo-PII gia' installato
  * (container condiviso su 127.0.0.1:5005, offline) attraverso il bridge

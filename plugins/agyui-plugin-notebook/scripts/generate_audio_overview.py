@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Audio Overview Generator for AGYUI Notebook Studio
+Audio Overview Generator for AgyCloud Notebook Studio
 Generates a multi-voice deep-dive podcast (Diego & Elsa) from structured dialogue JSON
 using edge-tts and ffmpeg, packaging it into a standalone interactive HTML5 player.
 """

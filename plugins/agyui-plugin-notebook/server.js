@@ -1,5 +1,5 @@
 /**
- * AGYUI Notebook — notebook di ricerca nativo, motore "agy" (Google Antigravity).
+ * AgyCloud Notebook — notebook di ricerca nativo, motore "agy" (Google Antigravity).
  *
  * Niente account/cookie di terze parti: le "fonti" sono file dentro il workspace
  * stesso (<workspace>/.agy-notebook/<id>/sources/), e le domande/generazioni

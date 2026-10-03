@@ -1,6 +1,6 @@
 # Notebook
 
-Notebook di ricerca nativo AGYUI: raccogli fonti, fai domande vincolate a
+Notebook di ricerca nativo AgyCloud: raccogli fonti, fai domande vincolate a
 quelle fonti, genera Report/Quiz/Flashcard/Mappa mentale/Tabella dati —
 tutto senza uscire dalla IDE.
 

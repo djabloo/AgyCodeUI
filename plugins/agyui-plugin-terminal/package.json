@@ -3,8 +3,8 @@
   "version": "1.2.0",
   "private": true,
   "type": "module",
-  "description": "Full-featured web terminal plugin for AGYUI & CloudCLI with native Google Antigravity (agy) CLI support",
-  "author": "AGYUI / agycloud <you@example.com>",
+  "description": "Full-featured web terminal plugin for AgyCloud & CloudCLI with native Google Antigravity (agy) CLI support",
+  "author": "AgyCloud",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -1,12 +1,12 @@
 /**
- * AGYUI - Multi-language Internationalization (i18n) Engine
+ * AgyCloud - Multi-language Internationalization (i18n) Engine
  * Supports Italian (IT), English (EN), and German (DE) with live DOM translation & persistence
  */
 
 const AGY_TRANSLATIONS = {
     it: {
         // App Header & Global
-        appTitle: 'AGYUI — Antigravity Code UI',
+        appTitle: 'AgyCloud — Antigravity Code UI',
         connected: 'Connesso ad AGY',
         disconnected: 'Disconnesso',
         authRequired: 'Autenticazione Richiesta',
@@ -278,7 +278,7 @@ const AGY_TRANSLATIONS = {
     
     en: {
         // App Header & Global
-        appTitle: 'AGYUI — Antigravity Code UI',
+        appTitle: 'AgyCloud — Antigravity Code UI',
         connected: 'Connected to AGY',
         disconnected: 'Disconnected',
         authRequired: 'Authentication Required',
@@ -550,7 +550,7 @@ const AGY_TRANSLATIONS = {
 
     de: {
         // App Header & Global
-        appTitle: 'AGYUI — Antigravity Code UI',
+        appTitle: 'AgyCloud — Antigravity Code UI',
         connected: 'Mit AGY verbunden',
         disconnected: 'Getrennt',
         authRequired: 'Authentifizierung erforderlich',

@@ -248,12 +248,12 @@ Tutte le richieste API autenticate richiedono l'header `Authorization: Bearer <P
 
 ## 👥 Community & Supporto
 
-La community di **AgyCodeUI** e **AGYUI.ai** è aperta a tutti gli sviluppatori:
+La community di **AgyCodeUI** e **agycloud.ai** è aperta a tutti gli sviluppatori:
 - 💬 **Domande & Idee**: partecipa alle conversazioni su [GitHub Discussions](https://github.com/djabloo/AgyCodeUI/discussions)
 - 🐛 **Segnalazioni**: apri un report strutturato su [GitHub Issues](https://github.com/djabloo/AgyCodeUI/issues)
 - 🤝 **Linee Guida**: consulta la nostra [Guida ai Contributi](CONTRIBUTING.md) e il [Codice di Condotta](CODE_OF_CONDUCT.md)
 - 🧭 **Panoramica Community**: consulta [COMMUNITY.md](COMMUNITY.md) per tutti i canali e le risorse
-- 🪐 **Cloud Platform & Demo**: [agyui.ai](https://agyui.ai) / [agycloud.ai](https://agycloud.ai)
+- 🪐 **Cloud Platform & Demo**: [agycloud.ai](https://agycloud.ai)
 
 ---
 

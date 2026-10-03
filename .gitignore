@@ -31,6 +31,9 @@ Thumbs.db
 # Backups
 *.bak*
 
-# Il server SaaS (djabloo/AGYUI, privato) vive in /opt/agyui-server, repo e cartella
+# Il server SaaS (djabloo/agycloud, privato) vive in /opt/agycloud, repo e cartella
 # separati: non deve tornare qui dentro (è successo una volta, poi rimosso).
 saas/
+
+# Memoria locale di agy con dettagli del server: mai nel repo pubblico
+GEMINI.md

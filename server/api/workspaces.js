@@ -1,5 +1,5 @@
 /**
- * AGYUI - Environments & Workspaces Management API
+ * AgyCloud - Environments & Workspaces Management API
  * Supports Cloud Environments, GitHub Clone, Docker Sandbox, Host CLI, and SSH Helpers
  */
 
@@ -100,13 +100,8 @@ function createWorkspacesRouter(sessionManager, ptyManager, io) {
             path.join(homeDir, 'workspace'),
             path.join(homeDir, 'projects'),
             path.join(homeDir, '.agycodeui'),
-            '/opt/agyui',
-            '/opt/project',
-            '/opt/project',
-            '/opt/project',
-            '/opt/project',
-            '/opt/project',
-            '/opt/project'
+            // Cartelle extra da scansionare, specifiche dell'installazione (separate da virgola)
+            ...(process.env.AGY_WORKSPACE_DIRS || '').split(',').map(d => d.trim()).filter(Boolean)
         ];
 
         const stored = getStoredWorkspaces();
@@ -141,7 +136,7 @@ function createWorkspacesRouter(sessionManager, ptyManager, io) {
                             id: storedEntry?.id || Buffer.from(dir).toString('base64url').slice(0, 16),
                             name: storedEntry?.name || (name === '.agycodeui' ? 'AgyCodeUI (Root)' : name),
                             slug: slug,
-                            url: `${slug}.agycloud.ai`,
+                            url: slug,
                             path: dir,
                             isCurrent: isCurrent,
                             status: isRunning ? 'running' : 'stopped',
@@ -175,7 +170,7 @@ function createWorkspacesRouter(sessionManager, ptyManager, io) {
                 id: 'default',
                 name: 'workspace',
                 slug: 'workspace-default',
-                url: 'workspace.agycloud.ai',
+                url: 'workspace-default',
                 path: ptyManager?.currentWorkspaceDir || process.cwd(),
                 isCurrent: true,
                 status: 'running',
@@ -252,7 +247,7 @@ function createWorkspacesRouter(sessionManager, ptyManager, io) {
                 // Initialize blank workspace with a simple README.md
                 const readmePath = path.join(targetDir, 'README.md');
                 if (!fs.existsSync(readmePath)) {
-                    fs.writeFileSync(readmePath, `# ${cleanProjectName}\n\nAmbiente di sviluppo creato con AGYUI.\n\n- Data creazione: ${new Date().toISOString()}\n- Runner: ${runnerMode}\n- Modello: ${model}\n`, 'utf8');
+                    fs.writeFileSync(readmePath, `# ${cleanProjectName}\n\nAmbiente di sviluppo creato con AgyCloud.\n\n- Data creazione: ${new Date().toISOString()}\n- Runner: ${runnerMode}\n- Modello: ${model}\n`, 'utf8');
                 }
             }
 
@@ -264,7 +259,7 @@ function createWorkspacesRouter(sessionManager, ptyManager, io) {
                 id: wsId,
                 name: cleanProjectName,
                 slug: generatedSlug,
-                url: `${generatedSlug}.agycloud.ai`,
+                url: generatedSlug,
                 path: targetDir,
                 runnerMode,
                 model,
@@ -473,8 +468,8 @@ function createWorkspacesRouter(sessionManager, ptyManager, io) {
      */
     router.get('/ssh-info', async (req, res) => {
         try {
-            const host = process.env.SSH_HOST || 'agycloud.ai';
-            const user = process.env.SSH_USER || 'tino';
+            const host = process.env.SSH_HOST || req.hostname;
+            const user = process.env.SSH_USER || os.userInfo().username;
             const port = process.env.SSH_PORT || '22';
             const activePath = ptyManager?.currentWorkspaceDir || process.cwd();
 

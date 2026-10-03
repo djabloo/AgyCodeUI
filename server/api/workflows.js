@@ -1,5 +1,5 @@
 /**
- * AGYUI - Automation Workflows API
+ * AgyCloud - Automation Workflows API
  */
 
 const express = require('express');

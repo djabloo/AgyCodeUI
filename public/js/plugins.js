@@ -1,5 +1,5 @@
 /**
- * AgyPlugins - Frontend Plugin Manager & Loader for AGYUI
+ * AgyPlugins - Frontend Plugin Manager & Loader for AgyCloud
  * Manages plugin tabs, dynamic ES module loading (mount/unmount), and settings view.
  */
 class AgyPlugins {
@@ -140,7 +140,7 @@ class AgyPlugins {
                                 document.body.classList.contains("light-theme");
                 return {
                     theme: isLight ? "light" : "dark",
-                    project: { name: "workspace", path: (window.agyApp && window.agyApp.currentWorkspace) || "/home/user" },
+                    project: { name: "workspace", path: (window.agyApp && window.agyApp.currentWorkspace) || "" },
                     session: (window.agyChat && window.agyChat.activeSession) ? { id: window.agyChat.activeSession.id, title: window.agyChat.activeSession.title } : null
                 };
             },
@@ -192,7 +192,7 @@ class AgyPlugins {
                 <div class="plugin-group">
                     <div class="plugin-group-header">
                         <h4>OFFICIAL PLUGINS</h4>
-                        <p>Maintained by the AGYUI team and ready for direct install.</p>
+                        <p>Maintained by the AgyCloud team and ready for direct install.</p>
                     </div>
                     <div class="plugin-cards-grid" id="official-plugins-list">
                         ${this.renderPluginCards(this.plugins.filter(p => this.isOfficialPlugin(p.name)))}

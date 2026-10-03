@@ -1347,7 +1347,7 @@ class AgyChat {
     }
 
     // Sfoglia i documenti gia' anonimizzati (pii-clean/) e allega quello scelto:
-    // niente da anonimizzare qui, il file esiste gia' (creato dal plugin AGYUI PII
+    // niente da anonimizzare qui, il file esiste gia' (creato dal plugin AgyCloud PII
     // o dal pannello Ambienti). Sostituisce la vecchia integrazione di upload diretto.
     async togglePiiFolderMenu(event) {
         if (event) event.stopPropagation();

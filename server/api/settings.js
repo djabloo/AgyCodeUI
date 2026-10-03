@@ -200,8 +200,8 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
 
             res.json({
                 success: true,
-                name: name || 'AgyCloud',
-                email: email || 'you@example.com',
+                name: name || '',
+                email: email || '',
                 isConfigured: !!(name && email)
             });
         } catch (e) {
@@ -310,7 +310,7 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
                     { name: 'agy-customizations', description: 'Guida ufficiale ad estensioni, MCP e hook di Antigravity' }
                 ],
                 mcpServers: [
-                    { name: 'filesystem', type: 'stdio', status: 'active', command: 'npx -y @modelcontextprotocol/server-filesystem /home/user/workspace' },
+                    { name: 'filesystem', type: 'stdio', status: 'active', command: `npx -y @modelcontextprotocol/server-filesystem ${require('os').homedir()}/workspace` },
                     { name: 'fetch', type: 'stdio', status: 'active', command: 'npx -y @modelcontextprotocol/server-fetch' }
                 ],
                 updatedAt: new Date().toISOString()

@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Condividi il tuo server MCP o la tua Custom Skill con tutta la community di AGYUI!
+        Condividi il tuo server MCP o la tua Custom Skill con tutta la community di AgyCloud!
 
   - type: dropdown
     id: submission_type

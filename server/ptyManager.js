@@ -86,7 +86,7 @@ class PtyManager {
                 }
             }
 
-            const welcomeMsg = `\r\n\x1b[1;36m🪐 AGYUI Docker Sandbox Runner Connesso\x1b[0m\r\n` +
+            const welcomeMsg = `\r\n\x1b[1;36m🪐 AgyCloud Docker Sandbox Runner Connesso\x1b[0m\r\n` +
                                `\x1b[90mContainer:\x1b[0m \x1b[33m${container}\x1b[0m | \x1b[90mVolume:\x1b[0m \x1b[32m${workspaceDir}\x1b[0m -> \x1b[35m/workspace\x1b[0m\r\n\r\n`;
             this.broadcastData(welcomeMsg);
 

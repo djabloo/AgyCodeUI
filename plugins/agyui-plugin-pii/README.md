@@ -1,6 +1,6 @@
-# AGYUI PII
+# AgyCloud PII
 
-Tab di anonimizzazione documenti dentro l'interfaccia AGYUI.
+Tab di anonimizzazione documenti dentro l'interfaccia AgyCloud.
 
 Non reimplementa il rilevamento: usa il motore [Rizzo-PII](https://github.com/Rizzo-AI-Academy/rizzo-pii)
 gia' installato sulla macchina (container condiviso su `127.0.0.1:5005`, offline).

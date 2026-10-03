@@ -1,5 +1,5 @@
 /**
- * AGYUI Plugin: agy-flow — motore decisionale tipizzato con probabilità reali.
+ * AgyCloud Plugin: agy-flow — motore decisionale tipizzato con probabilità reali.
  *
  * Design ispirato a Rizzo Flow (Rizzo AI Academy): ogni domanda diventa una
  * scelta a lettere (A, B, C…) e si leggono le probabilità (logprobs) dell'unico

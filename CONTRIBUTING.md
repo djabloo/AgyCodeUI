@@ -1,6 +1,6 @@
 # 🪐 Guida ai Contributi (Contributing Guide)
 
-Grazie per l'interesse a contribuire ad **AgyCodeUI / AGYUI**!  
+Grazie per l'interesse a contribuire ad **AgyCodeUI / AgyCloud**!  
 Questo progetto è open source e accoglie contributi dalla community: correzioni di bug, nuove funzionalità, miglioramenti all'interfaccia mobile/PWA, nuove skills e server MCP per Google Antigravity (`agy`).
 
 ---

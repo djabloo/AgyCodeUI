@@ -13,7 +13,7 @@ const services = require("./pluginServices");
 const DEFAULT_INSTALLED = (process.env.AGY_DEFAULT_PLUGINS || "agyui-plugin-terminal")
     .split(",").map(s => s.trim()).filter(Boolean);
 
-// Plugin distribuiti con AGYUI: disinstallarli li spegne soltanto, i file restano
+// Plugin distribuiti con AgyCloud: disinstallarli li spegne soltanto, i file restano
 // (fanno parte dell'immagine/repo e servono per reinstallarli con un clic).
 // Plugin consentiti dal piano AgyCloud (es. piano PII: solo PII). Vuoto = tutti.
 // E' solo per mostrare il lucchetto nel catalogo: il blocco vero sta sul gateway.

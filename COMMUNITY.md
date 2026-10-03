@@ -1,6 +1,6 @@
-# 🪐 Benvenuto nella Community di AgyCodeUI / AGYUI
+# 🪐 Benvenuto nella Community di AgyCodeUI / AgyCloud
 
-Benvenuto nella community ufficiale di **AgyCodeUI** (Antigravity Code UI) e **AGYUI.ai**!  
+Benvenuto nella community ufficiale di **AgyCodeUI** (Antigravity Code UI) e **agycloud.ai**!  
 Questo progetto nasce per offrire agli sviluppatori un'interfaccia moderna, reattiva e orientata alla massima sicurezza per orchestrare **Google Antigravity CLI (`agy`)**, terminali interattivi PTY e agenti di frontiera.
 
 Che tu stia costruendo estensioni MCP, creando custom skills per `agy`, integrando nuovi modelli o contribuendo al codice sorgente, sei nel posto giusto!
@@ -13,7 +13,7 @@ Che tu stia costruendo estensioni MCP, creando custom skills per `agy`, integran
 | :--- | :--- | :--- |
 | 💬 **GitHub Discussions** | Q&A tecnici, proposte di architettura (RFC), showcase di progetti e idee | [Partecipa su GitHub Discussions](https://github.com/djabloo/AgyCodeUI/discussions) |
 | 🐛 **GitHub Issues** | Segnalazione di bug verificabili e tracciamento task | [Apri una Issue](https://github.com/djabloo/AgyCodeUI/issues) |
-| 🚀 **Live Web App / Demo** | Istanza pubblica e ambiente operativo di test | [agycloud.ai](https://agycloud.ai) / [agyui.ai](https://agyui.ai) |
+| 🚀 **Live Web App / Demo** | Istanza pubblica e ambiente operativo di test | [agycloud.ai](https://agycloud.ai) |
 | 💬 **Discord Server** | Chat real-time, pair programming, annunci veloci e supporto | [Entra nel Discord](https://discord.gg/agyui) *(in arrivo)* |
 
 ---

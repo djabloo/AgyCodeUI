@@ -224,7 +224,7 @@ class AgyApp {
                 if (saasSection) saasSection.classList.remove('hidden');
                 if (pinSection) pinSection.classList.add('hidden');
                 const titleEl = document.getElementById('auth-modal-title');
-                if (titleEl) titleEl.textContent = 'Accedi ad AGYUI Cloud';
+                if (titleEl) titleEl.textContent = 'Accedi ad AgyCloud';
                 const emailInput = document.getElementById('saas-email-input');
                 if (emailInput) emailInput.focus();
             } else {
@@ -363,7 +363,7 @@ class AgyApp {
 
         if (this.isRegisterMode) {
             if (nameGroup) nameGroup.classList.remove('hidden');
-            if (titleEl) titleEl.textContent = 'Crea Account AGYUI';
+            if (titleEl) titleEl.textContent = 'Crea Account AgyCloud';
             if (submitBtn) submitBtn.textContent = 'Registrati e Avvia';
             if (toggleLabel) toggleLabel.textContent = 'Hai già un account?';
             if (toggleLink) toggleLink.textContent = 'Accedi';
@@ -371,7 +371,7 @@ class AgyApp {
             if (githubLabel) githubLabel.textContent = 'Registrati con GitHub';
         } else {
             if (nameGroup) nameGroup.classList.add('hidden');
-            if (titleEl) titleEl.textContent = 'Accedi ad AGYUI Cloud';
+            if (titleEl) titleEl.textContent = 'Accedi ad AgyCloud';
             if (submitBtn) submitBtn.textContent = 'Accedi';
             if (toggleLabel) toggleLabel.textContent = 'Non hai ancora un account?';
             if (toggleLink) toggleLink.textContent = 'Registrati';
@@ -430,7 +430,7 @@ class AgyApp {
                         errorEl.textContent += ' Per un nuovo link vai alla pagina principale: ';
                         const a = document.createElement('a');
                         a.href = '/?forgot=1';
-                        a.textContent = 'agyui';
+                        a.textContent = 'agycloud.ai';
                         a.style.color = '#58a6ff';
                         errorEl.appendChild(a);
                     }
@@ -802,7 +802,7 @@ function agyBootApp() {
     window.agyApp.init();
 }
 
-// Cloudflare Rocket Loader (attivo su agycloud.ai) riscrive gli attributi "type"
+// Cloudflare Rocket Loader (se attivo sul dominio) riscrive gli attributi "type"
 // dei tag <script> e li esegue col proprio motore in un momento imprecisato,
 // dove fidarsi di document.readyState o di un solo listener "DOMContentLoaded"
 // si è rivelato inaffidabile (l'evento risulta già passato, o readyState mente):

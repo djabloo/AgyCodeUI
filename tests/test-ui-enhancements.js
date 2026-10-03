@@ -15,7 +15,7 @@ const createAgentsRouter = require('../server/api/agents');
 const createWorkflowsRouter = require('../server/api/workflows');
 
 async function runTests() {
-    console.log('🧪 Starting AGYUI UI Enhancements & API Test Suite...\n');
+    console.log('🧪 Starting AgyCloud UI Enhancements & API Test Suite...\n');
     let passed = 0;
 
     // Setup mock server

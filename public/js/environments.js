@@ -1,5 +1,5 @@
 /**
- * AGYUI - Environments, Wizards & Shared Setup Controller
+ * AgyCloud - Environments, Wizards & Shared Setup Controller
  * - Environments Dashboard & Quota
  * - 3-Step Create Environment Wizard (Blank / GitHub Clone, Slug, Tools)
  * - 2-Step Onboarding Setup Wizard (Git config, Agent connections)
@@ -471,8 +471,8 @@ class AgyEnvironments {
                 const data = await res.json();
                 const nameInput = document.getElementById('onboard-git-name');
                 const emailInput = document.getElementById('onboard-git-email');
-                if (nameInput) nameInput.value = data.name || 'AgyCloud';
-                if (emailInput) emailInput.value = data.email || 'you@example.com';
+                if (nameInput) nameInput.value = data.name || '';
+                if (emailInput) emailInput.value = data.email || '';
             }
         } catch (e) {}
 
@@ -688,7 +688,7 @@ class AgyEnvironments {
                 const cmdEl = document.getElementById('ssh-command-code');
                 const titleEl = document.getElementById('ssh-modal-env-title');
                 if (titleEl) titleEl.textContent = `SSH: ${envName}`;
-                if (cmdEl) cmdEl.textContent = data.command || 'ssh tino@agycloud.ai';
+                if (cmdEl) cmdEl.textContent = data.command || `ssh ${location.hostname}`;
             }
         } catch (e) {
             console.error('[SSH] Error:', e);
@@ -1026,13 +1026,13 @@ class AgyEnvironments {
 
                         <div class="form-group">
                             <label class="form-label font-mono text-xs"><i data-lucide="user"></i> <span data-i18n="onboardGitName">Nome Git *</span></label>
-                            <input type="text" id="onboard-git-name" placeholder="AgyCloud" class="form-input">
+                            <input type="text" id="onboard-git-name" placeholder="Mario Rossi" class="form-input">
                             <span class="input-hint font-mono text-[11px] text-muted">Saved as 'git config --global user.name'</span>
                         </div>
 
                         <div class="form-group" style="margin-top: 14px;">
                             <label class="form-label font-mono text-xs"><i data-lucide="mail"></i> <span data-i18n="onboardGitEmail">Email Git *</span></label>
-                            <input type="email" id="onboard-git-email" placeholder="you@example.com" class="form-input">
+                            <input type="email" id="onboard-git-email" placeholder="tu@esempio.com" class="form-input">
                             <span class="input-hint font-mono text-[11px] text-muted">Saved as 'git config --global user.email'</span>
                         </div>
                     </div>
@@ -1104,7 +1104,7 @@ class AgyEnvironments {
                     <p class="text-muted text-xs" data-i18n="sshModalDesc">Connettiti direttamente tramite il terminale dal tuo computer o apri la web console:</p>
 
                     <div class="ssh-code-box">
-                        <pre><code id="ssh-command-code">ssh tino@agycloud.ai -p 22</code></pre>
+                        <pre><code id="ssh-command-code">ssh …</code></pre>
                     </div>
 
                     <div class="modal-footer" style="display:flex; justify-content:space-between; width:100%;">

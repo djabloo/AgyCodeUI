@@ -1,5 +1,5 @@
 /**
- * Google Drive Connector for AgyCodeUI and AGYUI SaaS
+ * Google Drive Connector for AgyCodeUI and AgyCloud SaaS
  * 
  * Simple, security-hardened connector using Google Identity Services (GIS)
  * and Google Picker API with the minimal least-privilege scope:
@@ -7,8 +7,8 @@
  * 
  * Works seamlessly in:
  * 1. AgyCodeUI Chat (attaches files to chat and uploads to <workspace>/agy_uploads/)
- * 2. AGYUI Notebook (adds files to <workspace>/.agy-notebook/<id>/sources/)
- * 3. AGYUI Multi-tenant SaaS (/opt/agyui-server)
+ * 2. AgyCloud Notebook (adds files to <workspace>/.agy-notebook/<id>/sources/)
+ * 3. AgyCloud Multi-tenant SaaS (/opt/agycloud)
  */
 
 class GoogleDriveConnector {

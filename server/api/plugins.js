@@ -200,7 +200,7 @@ function createPluginsRouter(pluginManager, requireAuth) {
         const p = pluginManager.getPlugin(name);
         if (!p) return res.status(404).json({ error: "Plugin non trovato" });
 
-        // Plugin distribuiti con AGYUI: si spengono, i file restano nel catalogo
+        // Plugin distribuiti con AgyCloud: si spengono, i file restano nel catalogo
         if (p.bundled) {
             try {
                 await pluginManager.setEnabled(name, false);

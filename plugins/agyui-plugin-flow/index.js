@@ -1,5 +1,5 @@
 /**
- * AGYUI Plugin: agy-flow
+ * AgyCloud Plugin: agy-flow
  *
  * Playground per decisioni tipizzate (boolean, choice, score, numeric) con
  * probabilità reali lette dai logprobs di un modello su OpenRouter (chiave

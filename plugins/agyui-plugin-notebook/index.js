@@ -1,5 +1,5 @@
 /**
- * AGYUI Notebook — frontend. Parla con il server del plugin via RPC
+ * AgyCloud Notebook — frontend. Parla con il server del plugin via RPC
  * (/api/plugins/agyui-plugin-notebook/rpc/*) passando sempre il workspace
  * corrente (letto da /api/status, la stessa fonte usata dal resto della IDE),
  * cosi' segue automaticamente lo switch ambiente invece di restare fisso.
@@ -262,7 +262,7 @@ function setMsg(kind, text) {
 // esattamente come si aspetta server.js (che legge searchParams solo per GET).
 async function call(method, path, body) {
   // Il parametro si chiama "wspath" e non "workspace" di proposito: nel SaaS
-  // ogni richiesta passa anche dal gateway (agyui-server), che usa GIA' un
+  // ogni richiesta passa anche dal gateway AgyCloud, che usa GIA' un
   // parametro/query "workspace" per instradare al container giusto (uno slug
   // tipo "default", non un percorso). Chiamandolo uguale, il gateway lo
   // intercettava prima ancora di arrivare qui e provava a instradare verso uno

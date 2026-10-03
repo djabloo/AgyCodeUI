@@ -1,5 +1,5 @@
 /**
- * AGYUI - Modern Sidebar & Drawer Controller
+ * AgyCloud - Modern Sidebar & Drawer Controller
  * Features:
  * - 4 Segmented Tabs: [Projects], [Conversations], [Metrics], [Storage]
  * - Live Search for Projects & Conversations

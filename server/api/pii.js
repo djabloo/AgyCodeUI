@@ -159,11 +159,11 @@ function createPiiRouter(ptyManager) {
         }
     });
 
-    // ── Passthrough verso il motore rizzo-pii (usato dal plugin AGYUI PII) ──
+    // ── Passthrough verso il motore rizzo-pii (usato dal plugin AgyCloud PII) ──
     // Whitelist esplicita: il servizio e' condiviso, quindi POST /settings e
     // /config restano fuori (cambierebbero le preferenze per tutti). Le stesse
     // opzioni viaggiano per-richiesta con exclude_tags / include_mapping.
-    // Gemello di questo blocco nel gateway SaaS: /opt/agyui-server/gateway/index.js
+    // Gemello di questo blocco nel gateway SaaS: /opt/agycloud/gateway/index.js
     const ENGINE_ROUTES = [
         { method: 'GET', re: /^health$/ },
         { method: 'GET', re: /^settings$/ },

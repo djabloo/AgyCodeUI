@@ -2,7 +2,7 @@
 
 ## Il Nostro Impegno
 
-Noi, in qualità di membri, contributori e coordinatori della community di **AgyCodeUI / AGYUI**, ci impegniamo a rendere la partecipazione al nostro progetto e alla nostra community un'esperienza aperta, accessibile e priva di molestie per chiunque, indipendentemente da età, dimensione corporea, disabilità visibile o invisibile, etnia, caratteristiche sessuali, identità ed espressione di genere, livello di esperienza, educazione, stato socio-economico, nazionalità, aspetto personale, razza, casta, colore della pelle, religione o identità e orientamento sessuale.
+Noi, in qualità di membri, contributori e coordinatori della community di **AgyCodeUI / AgyCloud**, ci impegniamo a rendere la partecipazione al nostro progetto e alla nostra community un'esperienza aperta, accessibile e priva di molestie per chiunque, indipendentemente da età, dimensione corporea, disabilità visibile o invisibile, etnia, caratteristiche sessuali, identità ed espressione di genere, livello di esperienza, educazione, stato socio-economico, nazionalità, aspetto personale, razza, casta, colore della pelle, religione o identità e orientamento sessuale.
 
 Ci impegniamo ad agire e interagire in modi che contribuiscano a una community aperta, accogliente, inclusiva, salutare e stimolante.
 
