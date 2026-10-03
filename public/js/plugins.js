@@ -234,15 +234,16 @@ class AgyPlugins {
         }
 
         // Installati prima, poi il resto del catalogo
-        const sorted = [...plugins].sort((a, b) => (b.enabled - a.enabled) || a.displayName.localeCompare(b.displayName));
+        const sorted = [...plugins].sort((a, b) => (!!b.installed - !!a.installed) || (!!b.active - !!a.active) || a.displayName.localeCompare(b.displayName));
         return sorted.map(p => {
             const svc = p.serviceState ? p.serviceState.state : null;
             const isRunning = p.status === "running" || (p.enabled && !p.server);
             let statusLabel, statusClass;
-            if (!p.enabled) { statusLabel = "NON INSTALLATO"; statusClass = "status-disabled"; }
+            if (!p.installed) { statusLabel = "NON INSTALLATO"; statusClass = "status-disabled"; }
+            else if (!p.active) { statusLabel = "SPENTO"; statusClass = "status-disabled"; }
             else if (svc === "installing") { statusLabel = "INSTALLAZIONE..."; statusClass = "status-stopped"; }
             else if (svc === "error") { statusLabel = "ERRORE"; statusClass = "status-stopped"; }
-            else { statusLabel = isRunning ? "INSTALLATO" : "ARRESTATO"; statusClass = isRunning ? "status-running" : "status-stopped"; }
+            else { statusLabel = isRunning ? "ATTIVO" : "ARRESTATO"; statusClass = isRunning ? "status-running" : "status-stopped"; }
             const iconMarkup = p.name.includes("terminal")
                 ? '<i data-lucide="terminal"></i>'
                 : (p.name.includes("pii")
@@ -253,17 +254,22 @@ class AgyPlugins {
             let note = "";
             if (svc === "installing") note = "Download del motore in corso: puo' richiedere qualche minuto, puoi continuare a lavorare.";
             else if (svc === "error") note = `Installazione non riuscita: ${p.serviceState.error || "errore sconosciuto"}. Riprova disinstallando e reinstallando.`;
-            else if (!p.enabled && p.serviceManaged) note = "Alla prima installazione scarica un motore aggiuntivo (alcuni GB); si spegne da solo quando non lo usi.";
+            else if (!p.installed && p.serviceManaged) note = "Alla prima installazione scarica un motore aggiuntivo (alcuni GB); si spegne da solo quando non lo usi.";
 
-            const actions = (p.locked && !p.enabled)
+            // Installato: interruttore acceso/spento (libera memoria e menu) + disinstalla (libera disco)
+            const actions = (p.locked && !p.installed)
                 ? `<a class="btn btn-sm" href="/dashboard#subscription" target="_blank" rel="noopener" title="Non incluso nel tuo piano">Da Hobby in su</a>`
-                : p.enabled
-                ? `${p.server ? `<button class="plugin-action-icon-btn" title="Riavvia" onclick="window.agyPlugins.restartPlugin('${p.name}')"><i data-lucide="refresh-cw"></i></button>` : ""}
+                : p.installed
+                ? `<label class="switch" title="${p.active ? "Spegni: sparisce dal menu e libera memoria" : "Accendi"}">
+                       <input type="checkbox" ${p.active ? "checked" : ""} onchange="window.agyPlugins.setPluginActive('${p.name}', this.checked)" />
+                       <span class="slider"></span>
+                   </label>
+                   ${p.server && p.active ? `<button class="plugin-action-icon-btn" title="Riavvia" onclick="window.agyPlugins.restartPlugin('${p.name}')"><i data-lucide="refresh-cw"></i></button>` : ""}
                    <button class="btn btn-sm" onclick="window.agyPlugins.uninstallPlugin('${p.name}', ${p.bundled ? "true" : "false"})">Disinstalla</button>`
                 : `<button class="btn btn-primary btn-sm" onclick="window.agyPlugins.installPlugin('${p.name}')">Installa</button>`;
 
             return `
-                <div class="plugin-card-full ${p.enabled ? "active-border" : ""}">
+                <div class="plugin-card-full ${p.active ? "active-border" : ""}">
                     <div class="plugin-card-left-icon">
                         ${iconMarkup}
                     </div>
@@ -310,7 +316,32 @@ class AgyPlugins {
         if (window.agyApp && window.agyApp.activeTab === `plugin-tab-${name}`) {
             window.agyApp.switchTab("chat-tab");
         }
-        await this.togglePlugin(name, false);
+        // Chiudere la scheda spegne il plugin (resta installato)
+        await this.setPluginActive(name, false);
+    }
+
+    async setPluginActive(name, active) {
+        const token = localStorage.getItem("agy_pin") || "";
+        try {
+            const res = await fetch(`/api/plugins/${encodeURIComponent(name)}/active`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", "Authorization": token },
+                body: JSON.stringify({ active })
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                alert(data.error || `Operazione non riuscita (HTTP ${res.status})`);
+            }
+        } catch (e) {
+            alert("Errore di rete: " + e.message);
+        }
+        // Se si spegne la scheda aperta, torna alla Chat (niente pannello orfano)
+        if (!active && window.agyApp && window.agyApp.activeTab === `plugin-tab-${name}`) {
+            window.agyApp.switchTab("chat-tab");
+        }
+        await this.loadPlugins();
+        this.renderNavTabs();
+        this.renderSettingsView();
     }
 
     async togglePlugin(name, enabled) {

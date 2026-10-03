@@ -66,10 +66,16 @@ async function uninstall(service) {
     return call('POST', `/uninstall/${checkName(service)}`, 60000);
 }
 
+/** Ferma il servizio tenendo l'immagine: riaccenderlo non riscarica nulla. */
+async function stop(service) {
+    if (!enabled()) return { state: 'external' };
+    return call('POST', `/stop/${checkName(service)}`, 60000);
+}
+
 /** Garantisce il servizio acceso e pronto prima di usarlo (avvio a freddo: fino a ~2 min). */
 async function ensureRunning(service) {
     if (!enabled()) return { state: 'external' };
     return call('POST', `/ensure/${checkName(service)}`, 180000);
 }
 
-module.exports = { enabled, status, install, uninstall, ensureRunning };
+module.exports = { enabled, status, install, uninstall, stop, ensureRunning };

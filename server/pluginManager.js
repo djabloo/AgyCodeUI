@@ -97,9 +97,14 @@ class PluginManager {
             try {
                 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
                 const name = manifest.name || entry.name;
+                // Due livelli: "installato" (config.enabled, nome storico del campo) e
+                // "acceso" (config.active, assente = acceso). Spento = resta installato,
+                // ma niente scheda nel menu e niente processo/servizio in memoria.
                 // Un plugin escluso dal piano risulta spento anche se era installato
                 // (es. passaggio da Hobby al piano PII): niente schede che non funzionano.
-                const enabled = !lockedByPlan(name) && (config[name] !== undefined ? !!config[name].enabled : DEFAULT_INSTALLED.includes(name));
+                const installed = !lockedByPlan(name) && (config[name] !== undefined ? !!config[name].enabled : DEFAULT_INSTALLED.includes(name));
+                const active = installed && !(config[name] && config[name].active === false);
+                const enabled = active;
                 const service = typeof manifest.service === "string" ? manifest.service : null;
 
                 // Cerca info repo git se presenti
@@ -133,13 +138,14 @@ class PluginManager {
                     server: manifest.server || null,
                     repo: repo || (name === "agyui-plugin-terminal" || name === "web-terminal" ? "agyui/agyui-plugin-terminal" : (name === "agyui-plugin-starter" || name === "project-stats" ? "agyui/agyui-plugin-starter" : "")),
                     enabled,
-                    installed: enabled,
+                    installed,
+                    active,
                     bundled: isBundled(name),
                     locked: lockedByPlan(name),
                     service,
                     serviceState: service ? (this.serviceStates.get(service) || null) : null,
                     serviceManaged: !!service && services.enabled(),
-                    status: running ? "running" : (enabled ? (manifest.server ? "stopped" : "ready") : "disabled"),
+                    status: running ? "running" : (active ? (manifest.server ? "stopped" : "ready") : (installed ? "off" : "disabled")),
                     port: running ? running.port : null,
                     manifest,
                     dir
@@ -283,7 +289,8 @@ class PluginManager {
             throw new Error("Plugin non incluso nel tuo piano: disponibile da Hobby in su.");
         }
         const config = this.getConfig();
-        config[name] = { ...config[name], enabled: !!enabled };
+        // Installare accende sempre il plugin
+        config[name] = { ...config[name], enabled: !!enabled, active: true };
         this.saveConfig(config);
 
         const p = this.getPlugin(name);
@@ -314,10 +321,40 @@ class PluginManager {
         return { success: true, enabled: !!enabled };
     }
 
+    /**
+     * Accende/spegne un plugin installato senza disinstallarlo: da spento sparisce
+     * dal menu e libera la memoria (processo del plugin e servizio esterno fermi),
+     * ma file e immagine restano, quindi riaccenderlo e' immediato.
+     */
+    async setActive(name, active) {
+        const p = this.getPlugin(name);
+        if (!p) throw new Error("Plugin non trovato");
+        if (!p.installed) throw new Error("Plugin non installato");
+        const config = this.getConfig();
+        config[p.name] = { ...config[p.name], enabled: true, active: !!active };
+        this.saveConfig(config);
+
+        if (!active) {
+            this.stopPluginServer(p.name);
+            if (p.service && services.enabled()) {
+                try {
+                    this.serviceStates.set(p.service, await services.stop(p.service));
+                } catch (e) {
+                    // Agente senza "stop" (nodi creati prima): si spegne comunque da solo per inattivita'
+                    console.warn(`[PluginManager] Arresto servizio ${p.service} non riuscito: ${e.message}`);
+                }
+            }
+        } else {
+            if (p.server) await this.startPluginServer(p.name, p.dir, p.server);
+            // Il servizio esterno si riaccende al primo utilizzo (ensureRunning): niente attese qui
+        }
+        return { success: true, active: !!active };
+    }
+
     /** Aggiorna lo stato dei servizi dei plugin installati (no-op senza agente plugin). */
     async refreshServiceStates() {
         if (!services.enabled()) return;
-        const wanted = new Set(this.scanPlugins().filter(p => p.enabled && p.service).map(p => p.service));
+        const wanted = new Set(this.scanPlugins().filter(p => p.installed && p.service).map(p => p.service));
         await Promise.all([...wanted].map(async (svc) => {
             try {
                 this.serviceStates.set(svc, await services.status(svc));

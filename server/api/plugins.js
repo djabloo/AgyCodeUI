@@ -129,6 +129,16 @@ function createPluginsRouter(pluginManager, requireAuth) {
         }
     });
 
+    // Accendi / spegni un plugin installato (resta installato, libera memoria e menu)
+    router.put("/:name/active", authMw, async (req, res) => {
+        try {
+            const result = await pluginManager.setActive(req.params.name, !!(req.body && req.body.active));
+            res.json(result);
+        } catch (e) {
+            res.status(400).json({ error: e.message });
+        }
+    });
+
     // Riavvia server del plugin
     router.post("/:name/restart", authMw, async (req, res) => {
         try {
