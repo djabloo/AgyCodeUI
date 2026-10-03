@@ -993,7 +993,7 @@ class AgyEnvironments {
             <div id="onboarding-setup-modal" class="modal hidden">
                 <div class="modal-card modal-onboarding">
                     <div class="onboarding-top-bar">
-                        <span class="onboarding-brand font-display">AGY UI</span>
+                        <span class="onboarding-brand font-display">AgyCloud</span>
                         <button class="icon-btn close-modal-btn" onclick="window.agyEnvironments.closeOnboardingModal()">
                             <i data-lucide="x"></i>
                         </button>

@@ -1,0 +1,12 @@
+{
+  "name": "agycloud-plugin-browser",
+  "displayName": "Browser",
+  "version": "1.0.0",
+  "description": "Fai navigare agy sul web: apri pagine, leggi e riassumi contenuti, controlla siti e compila moduli con il sotto-agente browser di Google Antigravity. Usa Chromium del tuo ambiente.",
+  "author": "AgyCloud",
+  "icon": "icon.svg",
+  "type": "module",
+  "slot": "tab",
+  "entry": "index.js",
+  "permissions": []
+}

@@ -1,107 +1,3 @@
-// Tab "Browser" nella barra in alto: non e' un plugin (nessun manifest.json,
-// nessun processo server dedicato), e' solo una scorciatoia verso il subagent
-// /browser gia' esistente in chat. Visibile/nascosta tramite il toggle in
-// Impostazioni > Browser Settings (persistito server-side in
-// data/browser-settings.json, campo "enabled"). Usa classi CSS proprie
-// (non "plugin-nav-tab") perche' AgyPlugins.renderNavTabs() ripulisce quella
-// classe ad ogni suo render: condividerla avrebbe fatto sparire anche questo
-// tab ogni volta che un plugin viene abilitato/disabilitato.
-class AgyBrowserTab {
-    constructor() {
-        this.enabled = false;
-    }
-
-    async init() {
-        await this.refresh();
-    }
-
-    async refresh() {
-        try {
-            const token = localStorage.getItem('agy_pin') || '';
-            const res = await fetch('/api/settings/browser/status', {
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                this.enabled = !!data.enabled;
-            }
-        } catch (e) {
-            console.error('[BrowserTab] Errore verifica stato:', e);
-        }
-        this.render();
-    }
-
-    render() {
-        const nav = document.querySelector('.nav-tabs');
-        if (!nav) return;
-
-        document.getElementById('browser-nav-tab')?.remove();
-        document.getElementById('browser-nav-divider')?.remove();
-        if (!this.enabled) return;
-
-        if (!nav.querySelector('.nav-tab-divider')) {
-            const divider = document.createElement('div');
-            divider.id = 'browser-nav-divider';
-            divider.className = 'nav-tab-divider';
-            nav.appendChild(divider);
-        }
-
-        const tabBtn = document.createElement('button');
-        tabBtn.id = 'browser-nav-tab';
-        tabBtn.className = 'nav-tab';
-        tabBtn.title = 'Browser (/browser)';
-        tabBtn.setAttribute('aria-label', 'Browser');
-        tabBtn.onclick = () => this.open();
-
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = '<i><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></i>';
-        const iconEl = tempDiv.firstElementChild;
-
-        const labelSpan = document.createElement('span');
-        labelSpan.textContent = 'Browser';
-
-        const closeBtn = document.createElement('span');
-        closeBtn.className = 'nav-tab-close';
-        closeBtn.title = 'Disattiva Browser';
-        closeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-        closeBtn.onclick = (ev) => {
-            ev.stopPropagation();
-            this.disable();
-        };
-
-        tabBtn.appendChild(iconEl);
-        tabBtn.appendChild(labelSpan);
-        tabBtn.appendChild(closeBtn);
-        nav.appendChild(tabBtn);
-
-        if (window.lucide) window.lucide.createIcons();
-    }
-
-    open() {
-        if (window.agyApp) window.agyApp.switchTab('chat-tab');
-        if (window.agyChat && typeof window.agyChat.sendPrompt === 'function') {
-            window.agyChat.sendPrompt('/browser ');
-        }
-    }
-
-    async disable() {
-        this.enabled = false;
-        this.render();
-        const toggle = document.getElementById('browser-enabled-toggle');
-        if (toggle) toggle.checked = false;
-        try {
-            const token = localStorage.getItem('agy_pin') || '';
-            await fetch('/api/settings/browser/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' },
-                body: JSON.stringify({ enabled: false })
-            });
-        } catch (e) {
-            console.error('[BrowserTab] Errore disattivazione:', e);
-        }
-    }
-}
-
 class AgyApp {
     constructor() {
         this.socket = null;
@@ -126,10 +22,6 @@ class AgyApp {
 
         if (window.agyPlugins) {
             window.agyPlugins.init();
-        }
-
-        if (window.agyBrowserTab) {
-            window.agyBrowserTab.init();
         }
 
         const navTabs = document.querySelector('.nav-tabs');
@@ -797,7 +689,6 @@ class AgyApp {
 
 function agyBootApp() {
     if (window.agyApp) return; // idempotente: evita doppia inizializzazione
-    window.agyBrowserTab = new AgyBrowserTab();
     window.agyApp = new AgyApp();
     window.agyApp.init();
 }

@@ -896,10 +896,6 @@
                                 <i data-lucide="palette"></i>
                                 <span data-i18n="settingsTabAppearance">Aspetto</span>
                             </button>
-                            <button class="settings-sub-tab" data-subtab="browser" onclick="window.agySettings.switchSubTab('browser')">
-                                <i data-lucide="globe"></i>
-                                <span data-i18n="settingsTabBrowser">Browser Subagent</span>
-                            </button>
                             <button class="settings-sub-tab" data-subtab="mcp" onclick="window.agySettings.switchSubTab('mcp')">
                                 <i data-lucide="server"></i>
                                 <span>Server MCP</span>
@@ -1458,77 +1454,6 @@
                                 </div>
                             </div>
 
-                            <!-- Section: Browser Settings -->
-                            <div class="settings-section" id="settings-section-browser">
-                                <div class="section-header">
-                                    <div class="section-header-title">
-                                        <h3 data-i18n="browserSettingsTitle">Browser Settings</h3>
-                                        <p data-i18n="browserSettingsSubtitle">Configure the browser subagent. It requires Google Chrome to be installed. The browser subagent can be invoked by typing /browser in the conversation input box.</p>
-                                    </div>
-                                </div>
-
-                                <!-- Browser Status Card -->
-                                <div class="settings-card usage-card" id="browser-status-card">
-                                    <div class="usage-row-flex">
-                                        <div>
-                                            <div class="usage-card-title">
-                                                <span id="browser-status-badge" class="badge-status-pill badge-success">✓ Google Chrome / Chromium Rilevato</span>
-                                            </div>
-                                            <div class="usage-card-desc" id="browser-status-version" style="font-family: var(--font-mono); font-size: 0.8rem; margin-top: 4px;">
-                                                Chromium 151.0.7922.173 snap (/snap/bin/chromium)
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <button type="button" class="btn btn-outline btn-sm" onclick="window.agySettings.loadBrowserStatus(true)">
-                                                <i data-lucide="refresh-cw"></i> Ricontrolla
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="toggle-row" style="margin-top: 14px;">
-                                        <div class="toggle-info">
-                                            <span class="toggle-label">Mostra il tab "Browser" in alto</span>
-                                            <span class="toggle-desc">Quando attivo, un tab dedicato compare nella barra in alto insieme ai plugin, per avviare rapidamente il subagent browser (/browser).</span>
-                                        </div>
-                                        <label class="switch">
-                                            <input type="checkbox" id="browser-enabled-toggle" onchange="window.agySettings.toggleBrowserEnabled(this.checked)" />
-                                            <span class="slider"></span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <!-- Section: General -->
-                                <div class="usage-group-title" data-i18n="browserGeneralTitle">General</div>
-                                <div class="settings-card usage-card">
-                                    <div class="usage-row-flex">
-                                        <div style="max-width: 70%;">
-                                            <div class="usage-card-title" data-i18n="jsPolicyTitle">Browser Javascript Execution Policy</div>
-                                            <div class="usage-card-desc" data-i18n="jsPolicyDesc">Controls whether the agent can run custom JavaScript to automate complex browser actions.</div>
-                                        </div>
-                                        <div>
-                                            <select id="browser-js-policy-select" class="form-select form-select-modern" onchange="window.agySettings.saveBrowserPolicy(this.value)">
-                                                <option value="request_review" data-i18n="policyReview">Request Review</option>
-                                                <option value="allow_always" data-i18n="policyAllow">Allow Always</option>
-                                                <option value="disallow" data-i18n="policyDisallow">Disallow</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Section: Actuation Permissions -->
-                                <div class="usage-group-title" data-i18n="actuationPermissionsTitle">Actuation Permissions</div>
-                                <div class="settings-card usage-card">
-                                    <div class="usage-row-flex">
-                                        <div style="max-width: 80%;">
-                                            <div class="usage-card-title" data-i18n="actuationRulesTitle">Browser Actuation Rules</div>
-                                            <div class="usage-card-desc" data-i18n="actuationRulesDesc">Configure allowed and denied URLs for browser actuation.</div>
-                                        </div>
-                                        <div>
-                                            <button type="button" class="btn btn-outline" onclick="window.agySettings.openActuationRulesModal()" data-i18n="editBtn">Edit</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Section: Google Drive -->
                             <div class="settings-section" id="settings-section-gdrive">
                                 <div class="section-header">
@@ -1578,36 +1503,6 @@
                 </section>
 
             </main>
-    <!-- Modal Regole Browser Actuation -->
-    <div id="browser-rules-modal" class="modal hidden">
-        <div class="modal-backdrop" onclick="window.agySettings.closeActuationRulesModal()"></div>
-        <div class="modal-dialog modal-md">
-            <div class="modal-header">
-                <h3 data-i18n="actuationRulesModalTitle">Regole Attuazione Browser (URL Rules)</h3>
-                <button class="icon-btn close-modal-btn" onclick="window.agySettings.closeActuationRulesModal()">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="modal-desc" data-i18n="actuationRulesModalDesc">Definisci quali URL o domini il subagent browser è autorizzato a navigare o attuare.</p>
-                <div class="rules-form-row">
-                    <select id="rule-type-input" class="form-select" style="max-width: 110px;">
-                        <option value="allow">ALLOW</option>
-                        <option value="deny">DENY</option>
-                    </select>
-                    <input type="text" id="rule-pattern-input" class="form-input" placeholder="e.g. https://*.google.com/*" style="flex:1;">
-                    <button type="button" class="btn btn-primary" onclick="window.agySettings.addActuationRule()">Aggiungi</button>
-                </div>
-                <div class="rules-list-box" id="actuation-rules-list">
-                    <!-- Popolato da settings.js -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline" onclick="window.agySettings.closeActuationRulesModal()" data-i18n="modalClose">Chiudi</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Google Drive Configuration Modal -->
     <div id="gdrive-config-modal" class="modal hidden">
         <div class="modal-backdrop" onclick="window.agyGoogleDrive.closeConfigModal()"></div>

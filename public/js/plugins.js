@@ -63,6 +63,8 @@ class AgyPlugins {
 
             if (p.name.includes("terminal")) {
                 iconMarkup = '<i data-lucide="terminal"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-terminal"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" x2="20" y1="19" y2="19"></line></svg></i>';
+            } else if (p.name.includes("browser")) {
+                iconMarkup = '<i data-lucide="globe"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></i>';
             } else if (p.name.includes("flow")) {
                 iconMarkup = '<i data-lucide="git-fork"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-git-fork"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="12" r="3"></circle><path d="M9 6h4a5 5 0 0 1 5 5"></path><path d="M9 18h4a5 5 0 0 0 5-5"></path></svg></i>';
             } else if (p.name.includes("pii")) {
@@ -246,9 +248,11 @@ class AgyPlugins {
             else { statusLabel = isRunning ? "ATTIVO" : "ARRESTATO"; statusClass = isRunning ? "status-running" : "status-stopped"; }
             const iconMarkup = p.name.includes("terminal")
                 ? '<i data-lucide="terminal"></i>'
+                : (p.name.includes("browser")
+                    ? '<i data-lucide="globe"></i>'
                 : (p.name.includes("pii")
                     ? '<i data-lucide="shield-check"></i>'
-                    : ((p.name.includes("stats") || p.name.includes("starter")) ? '<i data-lucide="bar-chart-2"></i>' : '<i data-lucide="package"></i>'));
+                    : ((p.name.includes("stats") || p.name.includes("starter")) ? '<i data-lucide="bar-chart-2"></i>' : '<i data-lucide="package"></i>')));
 
             // Nota sotto la descrizione: download del motore aggiuntivo (solo dove lo gestisce l'agente)
             let note = "";

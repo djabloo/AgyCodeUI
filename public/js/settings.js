@@ -16,7 +16,6 @@ class AgySettings {
         await Promise.all([
             this.loadInfo(),
             this.loadModelsUsage(),
-            this.loadBrowserStatus(),
             this.loadMcp(),
             this.loadSkills(),
             this.loadPlugins()
@@ -35,7 +34,6 @@ class AgySettings {
         if (targetSection) targetSection.classList.add('active');
 
         if (tabName === 'models-usage') this.loadModelsUsage();
-        if (tabName === 'browser') this.loadBrowserStatus();
         if (tabName === 'appearance') this.renderAppearanceSection();
         if (tabName === 'mcp') this.loadMcp();
         if (tabName === 'skills') this.loadSkills();
@@ -1346,170 +1344,6 @@ class AgySettings {
                 }
             }
         });
-    }
-
-    // ==========================================
-    // 8. Browser Subagent Settings
-    // ==========================================
-    async loadBrowserStatus(force = false) {
-        const token = localStorage.getItem('agy_pin') || '';
-        try {
-            const res = await fetch('/api/settings/browser/status', {
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                this.browserSettings = data;
-
-                const badgeEl = document.getElementById('browser-status-badge');
-                const versionEl = document.getElementById('browser-status-version');
-                if (badgeEl) {
-                    if (data.installed) {
-                        badgeEl.className = 'badge-status-pill badge-success';
-                        badgeEl.innerHTML = '✓ Google Chrome / Chromium Rilevato';
-                    } else {
-                        badgeEl.className = 'badge-status-pill badge-danger';
-                        badgeEl.innerHTML = '✕ Google Chrome / Chromium Non Rilevato';
-                    }
-                }
-                if (versionEl) {
-                    versionEl.textContent = data.installed
-                        ? `${data.version || 'Chromium'} (${data.path || '/snap/bin/chromium'})`
-                        : 'Installa Google Chrome o Chromium sul server per abilitare il subagent browser.';
-                }
-
-                const policySelect = document.getElementById('browser-js-policy-select');
-                if (policySelect && data.executionPolicy) {
-                    policySelect.value = data.executionPolicy;
-                }
-
-                const enabledToggle = document.getElementById('browser-enabled-toggle');
-                if (enabledToggle) enabledToggle.checked = !!data.enabled;
-
-                this.actuationRules = data.actuationRules || [];
-                this.renderActuationRulesList();
-            }
-        } catch (e) {
-            console.error('[Settings] Errore caricamento browser status:', e);
-        }
-    }
-
-    async saveBrowserPolicy(policy) {
-        const token = localStorage.getItem('agy_pin') || '';
-        try {
-            await fetch('/api/settings/browser/settings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
-                body: JSON.stringify({
-                    executionPolicy: policy,
-                    actuationRules: this.actuationRules || []
-                })
-            });
-        } catch (e) {
-            console.error('[Settings] Errore salvataggio policy browser:', e);
-        }
-    }
-
-    async toggleBrowserEnabled(enabled) {
-        const token = localStorage.getItem('agy_pin') || '';
-        try {
-            await fetch('/api/settings/browser/settings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
-                body: JSON.stringify({ enabled })
-            });
-            if (window.agyBrowserTab) window.agyBrowserTab.refresh();
-        } catch (e) {
-            console.error('[Settings] Errore salvataggio stato browser:', e);
-        }
-    }
-
-    openActuationRulesModal() {
-        const modal = document.getElementById('browser-rules-modal');
-        if (modal) {
-            modal.classList.remove('hidden');
-            this.renderActuationRulesList();
-        }
-    }
-
-    closeActuationRulesModal() {
-        const modal = document.getElementById('browser-rules-modal');
-        if (modal) modal.classList.add('hidden');
-    }
-
-    renderActuationRulesList() {
-        const container = document.getElementById('actuation-rules-list');
-        if (!container) return;
-
-        if (!this.actuationRules || this.actuationRules.length === 0) {
-            container.innerHTML = '<div class="empty-rules-msg">Nessuna regola configurata. Tutti gli URL richiedono approvazione esplicita.</div>';
-            return;
-        }
-
-        container.innerHTML = this.actuationRules.map(rule => `
-            <div class="rule-item-row">
-                <span class="rule-type-badge ${rule.type === 'allow' ? 'badge-allow' : 'badge-deny'}">${(rule.type || 'allow').toUpperCase()}</span>
-                <code class="rule-pattern-text">${this.escapeHtml(rule.pattern)}</code>
-                <button type="button" class="icon-btn-danger" title="Elimina Regola" onclick="window.agySettings.deleteActuationRule('${rule.id}')">
-                    <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-                </button>
-            </div>
-        `).join('');
-
-        if (window.lucide) window.lucide.createIcons();
-    }
-
-    async addActuationRule() {
-        const typeSelect = document.getElementById('rule-type-input');
-        const patternInput = document.getElementById('rule-pattern-input');
-        if (!patternInput || !patternInput.value.trim()) return;
-
-        const newRule = {
-            id: 'rule-' + Date.now(),
-            type: typeSelect ? typeSelect.value : 'allow',
-            pattern: patternInput.value.trim()
-        };
-
-        if (!this.actuationRules) this.actuationRules = [];
-        this.actuationRules.push(newRule);
-        patternInput.value = '';
-
-        this.renderActuationRulesList();
-        await this.syncBrowserSettings();
-    }
-
-    async deleteActuationRule(ruleId) {
-        if (!this.actuationRules) return;
-        this.actuationRules = this.actuationRules.filter(r => r.id !== ruleId);
-        this.renderActuationRulesList();
-        await this.syncBrowserSettings();
-    }
-
-    async syncBrowserSettings() {
-        const token = localStorage.getItem('agy_pin') || '';
-        const policySelect = document.getElementById('browser-js-policy-select');
-        const policy = policySelect ? policySelect.value : 'request_review';
-        try {
-            await fetch('/api/settings/browser/settings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
-                body: JSON.stringify({
-                    executionPolicy: policy,
-                    actuationRules: this.actuationRules || []
-                })
-            });
-        } catch (e) {
-            console.error('[Settings] Errore sync browser settings:', e);
-        }
     }
 
     escapeHtml(str) {
