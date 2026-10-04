@@ -1,4 +1,8 @@
 require('dotenv').config();
+// Impostazioni modificabili dall'IDE (modello, ragionamento, chiavi): nella SaaS
+// stanno in un file della cartella dati persistente (AGY_ENV_FILE), perche' il
+// .env dentro l'immagine del container si perde a ogni ricreazione.
+if (process.env.AGY_ENV_FILE) require('dotenv').config({ path: process.env.AGY_ENV_FILE, override: true });
 const express = require('express');
 const http = require('http');
 const path = require('path');

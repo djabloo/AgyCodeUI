@@ -7,6 +7,7 @@ const AGY_TRANSLATIONS = {
     it: {
         // App Header & Global
         appTitle: 'AgyCloud — Antigravity Code UI',
+        activeSessionTitle: 'Nuova sessione',
         connected: 'Connesso ad AGY',
         disconnected: 'Disconnesso',
         authRequired: 'Autenticazione Richiesta',
@@ -279,6 +280,7 @@ const AGY_TRANSLATIONS = {
     en: {
         // App Header & Global
         appTitle: 'AgyCloud — Antigravity Code UI',
+        activeSessionTitle: 'New session',
         connected: 'Connected to AGY',
         disconnected: 'Disconnected',
         authRequired: 'Authentication Required',
@@ -551,6 +553,7 @@ const AGY_TRANSLATIONS = {
     de: {
         // App Header & Global
         appTitle: 'AgyCloud — Antigravity Code UI',
+        activeSessionTitle: 'Neue Sitzung',
         connected: 'Mit AGY verbunden',
         disconnected: 'Getrennt',
         authRequired: 'Authentifizierung erforderlich',

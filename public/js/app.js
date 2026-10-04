@@ -545,6 +545,12 @@ class AgyApp {
     }
 
     switchTab(tabId) {
+        // Su telefono il menu laterale copre la pagina: cambiando scheda dal menu
+        // (Prompt, Impostazioni, ...) si chiude da solo per mostrare la scheda
+        if (window.innerWidth <= 768 && window.agyChat && typeof window.agyChat.closeSidebar === 'function') {
+            const sb = document.getElementById('sessions-sidebar');
+            if (sb && sb.classList.contains('open')) window.agyChat.closeSidebar();
+        }
         // Normalizza alias comuni per prevenire schermata vuota (es. 'chat' -> 'chat-tab')
         if (tabId === 'chat') tabId = 'chat-tab';
         else if (tabId === 'terminal') tabId = 'terminal-tab';

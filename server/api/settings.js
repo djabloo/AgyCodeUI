@@ -9,7 +9,7 @@ const auth = require('../auth');
 
 module.exports = function createSettingsRouter(sessionManager, ptyManager) {
     const router = express.Router();
-    const envPath = path.join(__dirname, '..', '..', '.env');
+    const envPath = process.env.AGY_ENV_FILE || path.join(__dirname, '..', '..', '.env');
     const dataDir = path.resolve(__dirname, '../data');
     const sharedSetupFile = path.join(dataDir, 'shared-setup.json');
     const onboardingFile = path.join(dataDir, 'onboarding.json');

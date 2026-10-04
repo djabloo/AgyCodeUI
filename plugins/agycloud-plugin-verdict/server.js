@@ -29,7 +29,7 @@ const AGY_TIMEOUT_MS = parseInt(process.env.VERDICT_AGY_TIMEOUT_MS || process.en
 
 const apiKey = () => {
   try {
-    const envPath = path.resolve(__dirname, '../../.env');
+    const envPath = process.env.AGY_ENV_FILE || path.resolve(__dirname, '../../.env');
     if (fs.existsSync(envPath)) {
       const content = fs.readFileSync(envPath, 'utf8');
       const m = content.match(/^OPENROUTER_API_KEY=(.*)$/m);

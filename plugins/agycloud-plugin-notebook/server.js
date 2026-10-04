@@ -221,7 +221,7 @@ async function writeSettings(s) {
 // plugin era gia' acceso (il suo process.env e' quello del momento dell'avvio).
 function envFileKey() {
   try {
-    const content = fs.readFileSync(path.resolve(__dirname, '../../.env'), 'utf8');
+    const content = fs.readFileSync(process.env.AGY_ENV_FILE || path.resolve(__dirname, '../../.env'), 'utf8');
     const m = content.match(/^ELEVENLABS_API_KEY=(.*)$/m);
     return m ? m[1].trim().replace(/^['"]|['"]$/g, '') : '';
   } catch (e) {

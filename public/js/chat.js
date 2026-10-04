@@ -368,6 +368,12 @@ class AgyChat {
         this.activeModelId = modelId;
         const found = (this.modelsList || []).find(m => m.id === modelId);
         if (found) this.activeModelName = found.name;
+        // Gli id di agy includono il ragionamento (es. gemini-3.8-flash-medium):
+        // l'effort inviato deve coincidere, altrimenti vale quello vecchio
+        const eff = (modelId.match(/-(low|medium|high)$/) || [])[1];
+        if (eff) this.activeEffort = eff;
+        const heroName = document.getElementById('hero-selected-model-name');
+        if (heroName && this.activeModelName) heroName.textContent = this.activeModelName;
 
         this.updateModelPillUI();
         this.closeModelPopover();
@@ -602,7 +608,8 @@ class AgyChat {
 
     updateActiveSessionHeader() {
         if (!this.activeSessionTitleEl) return;
-        const fallback = window.agyI18n ? window.agyI18n.t('activeSessionTitle') : 'Nuova Sessione';
+        const tr = window.agyI18n ? window.agyI18n.t('activeSessionTitle') : '';
+        const fallback = tr && tr !== 'activeSessionTitle' ? tr : 'Nuova sessione';
         this.activeSessionTitleEl.textContent = this.currentSession ? (this.currentSession.title || fallback) : fallback;
     }
 
@@ -646,24 +653,12 @@ class AgyChat {
     }
 
     async selectWelcomeModel(modelId, modelName) {
+        // Stesso percorso del selettore nella barra: prima cambiava solo il nome
+        // mostrato e la chat partiva col modello precedente.
         const menu = document.getElementById('welcome-model-menu');
         if (menu) menu.classList.add('hidden');
-        const token = localStorage.getItem('agy_pin') || '';
-        try {
-            const res = await fetch('/api/settings/permissions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                body: JSON.stringify({ model: modelId })
-            });
-            if (res.ok) {
-                this.activeModelName = modelName;
-                this.updateModelPillUI();
-                const heroName = document.getElementById('hero-selected-model-name');
-                if (heroName) heroName.textContent = modelName;
-            }
-        } catch (e) {
-            console.error('[Chat] Errore cambio modello:', e);
-        }
+        if (modelName) this.activeModelName = modelName;
+        await this.quickSelectModel(modelId);
     }
 
     renderSessionsList() {
