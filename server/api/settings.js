@@ -1184,51 +1184,87 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
     // 📊 MODELS & USAGE QUOTA TELEMETRY
     // ==========================================
 
-    router.get('/models-usage', async (req, res) => {
-        try {
-            const usageFile = path.join(dataDir, 'models-usage.json');
-            let stored = {
-                plan: 'Google AI Pro',
-                planSubtitle: 'You can upgrade to a Google AI Ultra plan to receive higher rate limits.',
-                creditOverages: false,
-                gemini: {
-                    weeklyLimitRemaining: 85,
-                    weeklyRefreshText: 'You have used some of your weekly limit, it will fully refresh in 4 days, 8 hours.',
-                    fiveHourLimitRemaining: 79,
-                    fiveHourRefreshText: 'You have used some of your 5-hour limit, it will fully refresh in 2 hours, 18 minutes.'
-                },
-                claudeGpt: {
-                    weeklyLimitRemaining: 100,
-                    weeklyRefreshText: 'You have not used any of your weekly limit.'
-                }
-            };
+    // Quota e crediti VERI, letti da agy (/usage e /credits, gli stessi dati
+    // dell'app Antigravity ufficiale per l'account con cui agy e' collegato).
+    // Ogni chiamata ad agy richiede qualche secondo: cache breve.
+    let usageCache = { at: 0, data: null };
+    const USAGE_CACHE_MS = 2 * 60 * 1000;
 
-            if (fs.existsSync(usageFile)) {
-                try {
-                    const parsed = JSON.parse(fs.readFileSync(usageFile, 'utf8'));
-                    stored = { ...stored, ...parsed };
-                } catch (e) {}
-            }
+    function agyEnv() {
+        const home = require('os').homedir();
+        const extra = [path.join(home, '.local', 'bin'), path.join(home, '.gemini', 'antigravity-cli', 'bin')];
+        return { ...process.env, PATH: [...extra, process.env.PATH || ''].join(':'), NO_COLOR: '1', TERM: 'dumb' };
+    }
 
-            res.json({ success: true, ...stored });
-        } catch (e) {
-            res.status(500).json({ error: e.message });
+    async function runAgySlash(command) {
+        const cli = process.env.CLI_COMMAND || 'agy';
+        const { stdout } = await execFileAsync(cli, [`-p=${command}`], {
+            cwd: process.env.WORKSPACE_DIR || require('os').homedir(),
+            env: agyEnv(),
+            timeout: 60000,
+            maxBuffer: 1024 * 1024
+        });
+        return String(stdout || '');
+    }
+
+    function refreshText(iso, percent) {
+        if (percent >= 100) return 'Limite non ancora usato.';
+        const t = Date.parse(iso);
+        if (!t) return 'Limite in parte usato.';
+        let mins = Math.max(0, Math.round((t - Date.now()) / 60000));
+        const d = Math.floor(mins / 1440); mins -= d * 1440;
+        const h = Math.floor(mins / 60); const m = mins - h * 60;
+        const parts = [];
+        if (d) parts.push(`${d} ${d === 1 ? 'giorno' : 'giorni'}`);
+        if (h) parts.push(`${h} ${h === 1 ? 'ora' : 'ore'}`);
+        if (!d && m) parts.push(`${m} min`);
+        return `Limite in parte usato: torna pieno tra ${parts.join(' e ') || 'pochi minuti'}.`;
+    }
+
+    // Righe "Gruppo<TAB>Etichetta<TAB>87%<TAB>2026-10-10T07:46:16Z"
+    function parseUsage(text) {
+        const groups = [];
+        for (const line of text.split('\n')) {
+            const cols = line.split('\t').map((c) => c.trim());
+            if (cols.length < 3) continue;
+            const pct = parseInt(cols[2], 10);
+            if (!Number.isFinite(pct)) continue;
+            let g = groups.find((x) => x.name === cols[0]);
+            if (!g) { g = { name: cols[0], limits: [] }; groups.push(g); }
+            g.limits.push({ label: cols[1], remaining: pct, resetAt: cols[3] || null, text: refreshText(cols[3], pct) });
         }
-    });
+        return groups;
+    }
 
-    router.post('/models-usage/overages', (req, res) => {
+    function parseCredits(text) {
+        const out = { remaining: null, upgradeUrl: null };
+        for (const line of text.split('\n')) {
+            const [k, v] = line.split('\t').map((c) => (c || '').trim());
+            if (/remaining credits/i.test(k || '')) out.remaining = parseInt(v, 10);
+            if (/^upgrade$/i.test(k || '') && /^https:\/\//.test(v || '')) out.upgradeUrl = v;
+        }
+        return out;
+    }
+
+    router.get('/models-usage', async (req, res) => {
+        const force = req.query.refresh === '1';
+        if (!force && usageCache.data && Date.now() - usageCache.at < USAGE_CACHE_MS) {
+            return res.json(usageCache.data);
+        }
         try {
-            const { enabled } = req.body || {};
-            const usageFile = path.join(dataDir, 'models-usage.json');
-            let stored = {};
-            if (fs.existsSync(usageFile)) {
-                try { stored = JSON.parse(fs.readFileSync(usageFile, 'utf8')); } catch (e) {}
+            const [usageOut, creditsOut] = await Promise.all([runAgySlash('/usage'), runAgySlash('/credits')]);
+            const groups = parseUsage(usageOut);
+            if (!groups.length) {
+                return res.json({ success: false, error: 'agy non ha restituito la quota: controlla di aver fatto il login di Antigravity nel Terminale.' });
             }
-            stored.creditOverages = !!enabled;
-            fs.writeFileSync(usageFile, JSON.stringify(stored, null, 2), 'utf8');
-            res.json({ success: true, creditOverages: stored.creditOverages });
+            const data = { success: true, groups, credits: parseCredits(creditsOut), updatedAt: new Date().toISOString() };
+            usageCache = { at: Date.now(), data };
+            res.json(data);
         } catch (e) {
-            res.status(500).json({ error: e.message });
+            const msg = /not logged|login|auth/i.test(String(e.stderr || e.message))
+                ? 'agy non e\' collegato al tuo account: fai il login di Antigravity nel Terminale.'
+                : 'Impossibile leggere la quota da agy in questo momento.';
+            res.json({ success: false, error: msg });
         }
     });
 

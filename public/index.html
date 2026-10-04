@@ -1363,98 +1363,21 @@
                                     <p data-i18n="modelsUsageSubtitle">Manage your model quota and credits.</p>
                                 </div>
 
-                                <!-- Section: Plan -->
-                                <div class="usage-group-title" data-i18n="planSectionTitle">Plan</div>
+                                <!-- Crediti AI (valori reali da agy /credits) -->
+                                <div class="usage-group-title">Crediti AI</div>
                                 <div class="settings-card usage-card">
                                     <div class="usage-row-flex">
                                         <div>
-                                            <div class="usage-card-title" id="usage-plan-name">Your Plan: Google AI Pro</div>
-                                            <div class="usage-card-desc" id="usage-plan-subtitle">You can upgrade to a Google AI Ultra plan to receive higher rate limits.</div>
+                                            <div class="usage-card-title" id="usage-credits-value">Crediti AI disponibili: …</div>
+                                            <div class="usage-card-desc">Quando finisce la quota dei modelli, Antigravity può usare i crediti AI. L'uso dei crediti oltre la quota si attiva dall'app Antigravity ufficiale (Impostazioni → Models).</div>
                                         </div>
-                                        <div>
-                                            <button type="button" class="btn btn-primary" onclick="window.agySettings.openUpgradeModal()" data-i18n="upgradeBtn">Upgrade</button>
-                                        </div>
+                                        <a class="btn btn-primary hidden" style="text-decoration:none; white-space:nowrap;" id="usage-credits-buy" href="https://antigravity.google/g1-upgrade" target="_blank" rel="noopener">Ottieni crediti AI</a>
                                     </div>
                                 </div>
 
-                                <!-- Section: Model Credits -->
-                                <div class="usage-group-title" data-i18n="modelCreditsTitle">Model Credits</div>
-                                <div class="settings-card usage-card">
-                                    <div class="usage-row-flex">
-                                        <div style="max-width: 80%;">
-                                            <div class="usage-card-title" data-i18n="enableOveragesTitle">Enable AI Credit Overages</div>
-                                            <div class="usage-card-desc" data-i18n="enableOveragesDesc">When toggled on, Antigravity will use your AI credits to fulfill model requests once you're out of model quota. Antigravity will always use your model quota first before using AI credits.</div>
-                                        </div>
-                                        <div>
-                                            <label class="switch-toggle">
-                                                <input type="checkbox" id="ai-credit-overages-switch" onchange="window.agySettings.toggleCreditOverages(this.checked)">
-                                                <span class="switch-slider"></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Section: Gemini Models -->
-                                <div class="usage-group-title">
-                                    <span data-i18n="geminiModelsTitle">Gemini Models</span>
-                                    <i data-lucide="info" class="info-icon" title="Limiti e frequenza di refresh per Google Gemini"></i>
-                                </div>
-                                <div class="settings-card usage-list-card">
-                                    <div class="usage-metric-row">
-                                        <div class="usage-metric-info">
-                                            <div class="usage-metric-title" data-i18n="weeklyLimitTitle">Weekly Limit Remaining</div>
-                                            <div class="usage-metric-sub" id="gemini-weekly-text">You have used some of your weekly limit, it will fully refresh in 4 days, 8 hours.</div>
-                                        </div>
-                                        <div class="usage-metric-gauge">
-                                            <span class="usage-percent-val" id="gemini-weekly-val">85%</span>
-                                            <div class="usage-ring-container" id="gemini-weekly-ring">
-                                                <svg class="usage-ring" width="34" height="34" viewBox="0 0 34 34">
-                                                    <circle class="usage-ring-bg" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" />
-                                                    <circle class="usage-ring-fill" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" stroke-dasharray="94.24" stroke-dashoffset="14.13" transform="rotate(-90 17 17)" stroke-linecap="round" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="usage-divider"></div>
-                                    <div class="usage-metric-row">
-                                        <div class="usage-metric-info">
-                                            <div class="usage-metric-title" data-i18n="fiveHourLimitTitle">Five Hour Limit Remaining</div>
-                                            <div class="usage-metric-sub" id="gemini-5hour-text">You have used some of your 5-hour limit, it will fully refresh in 2 hours, 18 minutes.</div>
-                                        </div>
-                                        <div class="usage-metric-gauge">
-                                            <span class="usage-percent-val" id="gemini-5hour-val">79%</span>
-                                            <div class="usage-ring-container" id="gemini-5hour-ring">
-                                                <svg class="usage-ring" width="34" height="34" viewBox="0 0 34 34">
-                                                    <circle class="usage-ring-bg" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" />
-                                                    <circle class="usage-ring-fill" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" stroke-dasharray="94.24" stroke-dashoffset="19.79" transform="rotate(-90 17 17)" stroke-linecap="round" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Section: Claude and GPT models -->
-                                <div class="usage-group-title">
-                                    <span data-i18n="claudeGptModelsTitle">Claude and GPT models</span>
-                                    <i data-lucide="info" class="info-icon" title="Limiti per Claude Sonnet e OpenAI GPT"></i>
-                                </div>
-                                <div class="settings-card usage-list-card">
-                                    <div class="usage-metric-row">
-                                        <div class="usage-metric-info">
-                                            <div class="usage-metric-title" data-i18n="weeklyLimitTitle">Weekly Limit Remaining</div>
-                                            <div class="usage-metric-sub" id="claude-weekly-text">You have not used any of your weekly limit.</div>
-                                        </div>
-                                        <div class="usage-metric-gauge">
-                                            <span class="usage-percent-val" id="claude-weekly-val">100%</span>
-                                            <div class="usage-ring-container" id="claude-weekly-ring">
-                                                <svg class="usage-ring" width="34" height="34" viewBox="0 0 34 34">
-                                                    <circle class="usage-ring-bg" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" />
-                                                    <circle class="usage-ring-fill" cx="17" cy="17" r="15" stroke-width="3.5" fill="none" stroke-dasharray="94.24" stroke-dashoffset="0" transform="rotate(-90 17 17)" stroke-linecap="round" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <!-- Limiti dei modelli (valori reali da agy /usage) -->
+                                <div id="usage-status" class="usage-card-desc" style="margin: 8px 0 4px;"></div>
+                                <div id="usage-groups"></div>
                             </div>
 
                             <!-- Section: Appearance (Theme Day / Night) -->

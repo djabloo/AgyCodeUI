@@ -15,7 +15,6 @@ class AgySettings {
     async loadAll() {
         await Promise.all([
             this.loadInfo(),
-            this.loadModelsUsage(),
             this.loadMcp(),
             this.loadSkills(),
             this.loadPlugins()
@@ -1440,78 +1439,64 @@ class AgySettings {
     async loadModelsUsage(forceRefresh = false) {
         const token = localStorage.getItem('agy_pin') || '';
         const refreshIcon = document.getElementById('models-usage-refresh-icon');
-        if (refreshIcon && forceRefresh) refreshIcon.classList.add('spin-animation');
+        const statusEl = document.getElementById('usage-status');
+        const groupsEl = document.getElementById('usage-groups');
+        const creditsEl = document.getElementById('usage-credits-value');
+        const buyEl = document.getElementById('usage-credits-buy');
+        if (refreshIcon) refreshIcon.classList.add('spin-animation');
+        if (statusEl && !this.modelsUsage) statusEl.textContent = 'Lettura della quota da agy…';
+
+        const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const labelIt = (l) => ({ 'Weekly Limit Remaining': 'Limite settimanale rimasto', 'Five Hour Limit Remaining': 'Limite di 5 ore rimasto' }[l] || l);
 
         try {
-            const res = await fetch('/api/settings/models-usage', {
+            const res = await fetch('/api/settings/models-usage' + (forceRefresh ? '?refresh=1' : ''), {
                 headers: { 'Authorization': token ? `Bearer ${token}` : '' }
             });
-            if (res.ok) {
-                const data = await res.json();
-                this.modelsUsage = data;
+            const data = res.ok ? await res.json() : { success: false, error: `Errore HTTP ${res.status}` };
+            if (!data.success) {
+                if (statusEl) statusEl.textContent = data.error || 'Quota non disponibile.';
+                return;
+            }
+            this.modelsUsage = data;
 
-                const planNameEl = document.getElementById('usage-plan-name');
-                const planSubEl = document.getElementById('usage-plan-subtitle');
-                if (planNameEl) planNameEl.textContent = `Your Plan: ${data.plan || 'Google AI Pro'}`;
-                if (planSubEl && data.planSubtitle) planSubEl.textContent = data.planSubtitle;
+            const c = data.credits || {};
+            if (creditsEl) creditsEl.textContent = `Crediti AI disponibili: ${Number.isFinite(c.remaining) ? c.remaining : '—'}`;
+            if (buyEl) {
+                if (c.upgradeUrl) buyEl.href = c.upgradeUrl;
+                buyEl.classList.remove('hidden');
+            }
 
-                const overagesSwitch = document.getElementById('ai-credit-overages-switch');
-                if (overagesSwitch) overagesSwitch.checked = !!data.creditOverages;
-
-                // Gemini weekly
-                const gw = data.gemini?.weeklyLimitRemaining ?? 85;
-                const gwVal = document.getElementById('gemini-weekly-val');
-                const gwRing = document.getElementById('gemini-weekly-ring');
-                const gwText = document.getElementById('gemini-weekly-text');
-                if (gwVal) gwVal.textContent = `${gw}%`;
-                if (gwRing) gwRing.innerHTML = this.renderGaugeRing(gw);
-                if (gwText && data.gemini?.weeklyRefreshText) gwText.textContent = data.gemini.weeklyRefreshText;
-
-                // Gemini 5-hour
-                const g5 = data.gemini?.fiveHourLimitRemaining ?? 79;
-                const g5Val = document.getElementById('gemini-5hour-val');
-                const g5Ring = document.getElementById('gemini-5hour-ring');
-                const g5Text = document.getElementById('gemini-5hour-text');
-                if (g5Val) g5Val.textContent = `${g5}%`;
-                if (g5Ring) g5Ring.innerHTML = this.renderGaugeRing(g5);
-                if (g5Text && data.gemini?.fiveHourRefreshText) g5Text.textContent = data.gemini.fiveHourRefreshText;
-
-                // Claude & GPT
-                const cw = data.claudeGpt?.weeklyLimitRemaining ?? 100;
-                const cwVal = document.getElementById('claude-weekly-val');
-                const cwRing = document.getElementById('claude-weekly-ring');
-                const cwText = document.getElementById('claude-weekly-text');
-                if (cwVal) cwVal.textContent = `${cw}%`;
-                if (cwRing) cwRing.innerHTML = this.renderGaugeRing(cw);
-                if (cwText && data.claudeGpt?.weeklyRefreshText) cwText.textContent = data.claudeGpt.weeklyRefreshText;
+            if (groupsEl) {
+                groupsEl.innerHTML = (data.groups || []).map((g) => `
+                    <div class="usage-group-title"><span>${esc(g.name)}</span></div>
+                    <div class="settings-card usage-list-card">
+                        ${g.limits.map((l, idx) => `
+                            ${idx ? '<div class="usage-divider"></div>' : ''}
+                            <div class="usage-metric-row">
+                                <div class="usage-metric-info">
+                                    <div class="usage-metric-title">${esc(labelIt(l.label))}</div>
+                                    <div class="usage-metric-sub">${esc(l.text)}</div>
+                                </div>
+                                <div class="usage-metric-gauge">
+                                    <span class="usage-percent-val">${esc(l.remaining)}%</span>
+                                    <div class="usage-ring-container">${this.renderGaugeRing(l.remaining)}</div>
+                                </div>
+                            </div>`).join('')}
+                    </div>`).join('');
+            }
+            if (statusEl) {
+                const t = data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : '';
+                statusEl.textContent = `Valori reali del tuo account Antigravity${t ? ' · aggiornati alle ' + t : ''}.`;
             }
         } catch (e) {
             console.error('[Settings] Errore caricamento models-usage:', e);
+            if (statusEl) statusEl.textContent = 'Quota non disponibile in questo momento.';
         } finally {
             if (refreshIcon) {
                 setTimeout(() => refreshIcon.classList.remove('spin-animation'), 600);
             }
         }
-    }
-
-    async toggleCreditOverages(enabled) {
-        const token = localStorage.getItem('agy_pin') || '';
-        try {
-            await fetch('/api/settings/models-usage/overages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
-                body: JSON.stringify({ enabled })
-            });
-        } catch (e) {
-            console.error('[Settings] Errore toggle overages:', e);
-        }
-    }
-
-    openUpgradeModal() {
-        alert("Passaggio a Google AI Ultra:\n\nI rate limits di Google AI Ultra garantiscono una quota 5x su modelli ad alto ragionamento e subagenti concorrenti. Contatta l'amministratore o attiva i crediti overages.");
     }
 
     // ==========================================
