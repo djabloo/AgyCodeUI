@@ -194,7 +194,9 @@ function readSettings() {
   try { s = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8')); } catch (e) { /* prima volta */ }
   const el = s.elevenlabs || {};
   return {
-    provider: s.provider === 'elevenlabs' ? 'elevenlabs' : 'edge',
+    // Motore scelto nel pannello Voci; se non e' mai stato scelto e c'e' una
+    // chiave ElevenLabs (pannello, Chiavi API o .env), si usa ElevenLabs.
+    provider: s.provider === 'elevenlabs' || s.provider === 'edge' ? s.provider : null,
     elevenlabs: {
       apiKey: el.apiKey || '',
       model: ELEVEN_MODELS.includes(el.model) ? el.model : 'eleven_multilingual_v2',
@@ -214,16 +216,38 @@ async function writeSettings(s) {
 
 // Chiave effettiva: quella salvata dall'utente, altrimenti ELEVENLABS_API_KEY
 // dell'ambiente (utile in self-hosted, impostata nel .env).
+// La chiave salvata da Impostazioni → Chiavi API dell'IDE (self-hosted) finisce
+// nel .env di agycodeui: si rilegge ogni volta, cosi' vale subito anche se il
+// plugin era gia' acceso (il suo process.env e' quello del momento dell'avvio).
+function envFileKey() {
+  try {
+    const content = fs.readFileSync(path.resolve(__dirname, '../../.env'), 'utf8');
+    const m = content.match(/^ELEVENLABS_API_KEY=(.*)$/m);
+    return m ? m[1].trim().replace(/^['"]|['"]$/g, '') : '';
+  } catch (e) {
+    return '';
+  }
+}
+
 function elevenKey(s) {
   if (s.elevenlabs.apiKey) return { key: s.elevenlabs.apiKey, source: 'settings' };
+  const fromFile = envFileKey();
+  if (fromFile) return { key: fromFile, source: 'env' };
   if (process.env.ELEVENLABS_API_KEY) return { key: process.env.ELEVENLABS_API_KEY, source: 'env' };
   return { key: '', source: null };
+}
+
+// Motore effettivo: quello scelto, oppure ElevenLabs se c'e' una chiave, altrimenti Edge
+function effectiveProvider(s) {
+  if (s.provider) return s.provider;
+  return elevenKey(s).key ? 'elevenlabs' : 'edge';
 }
 
 function publicSettings(s) {
   const { key, source } = elevenKey(s);
   return {
-    provider: s.provider,
+    provider: effectiveProvider(s),
+    providerChosen: !!s.provider,
     elevenlabs: {
       hasKey: !!key,
       keySource: source,
@@ -261,7 +285,7 @@ async function elevenFetch(key, apiPath) {
 // Ambiente del processo python per la sintesi: provider scelto + chiave/voci.
 function ttsEnv(requested) {
   const s = readSettings();
-  const provider = requested === 'elevenlabs' || requested === 'edge' ? requested : s.provider;
+  const provider = requested === 'elevenlabs' || requested === 'edge' ? requested : effectiveProvider(s);
   const env = { ...process.env, NOTEBOOK_TTS_PROVIDER: provider };
   if (provider === 'elevenlabs') {
     const { key } = elevenKey(s);

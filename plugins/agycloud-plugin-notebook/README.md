@@ -36,7 +36,7 @@ Tutto quello che crei resta nel tuo workspace, nella cartella `.agy-notebook/`.
 
 1. **Impostazioni → Plugin → Notebook → Installa**: compare la scheda in alto.
 2. Crea un notebook, aggiungi le fonti, poi usa Chat o Studio.
-3. Clicca su **Voci** nello Studio o nella barra laterale per configurare il motore vocale: puoi usare **Edge** (gratuito) oppure **ElevenLabs** inserendo la tua API Key e scegliendo le tue voci preferite.
+3. Clicca su **Voci** nello Studio o nella barra laterale per configurare il motore vocale: puoi usare **Edge** (gratuito) oppure **ElevenLabs** inserendo la tua API Key e scegliendo le tue voci preferite. Se hai già una chiave ElevenLabs nelle Chiavi API (Impostazioni o Dashboard) e non hai scelto un motore, il Notebook usa ElevenLabs in automatico.
 4. Non ti serve per un po'? **Spegnilo** con l'interruttore: la scheda sparisce
    dal menu e il plugin non occupa memoria. Riaccenderlo è immediato.
    **Disinstalla** solo se vuoi toglierlo del tutto.
