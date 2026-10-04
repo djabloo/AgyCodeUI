@@ -187,6 +187,7 @@ module.exports = function createSettingsRouter(sessionManager, ptyManager) {
         { id: 'voyage', name: 'Voyage AI', envVar: 'VOYAGE_API_KEY', placeholder: 'pa-...' },
         { id: 'tavily', name: 'Tavily Search', envVar: 'TAVILY_API_KEY', placeholder: 'tvly-...' },
         { id: 'serpapi', name: 'SerpAPI', envVar: 'SERPAPI_API_KEY', placeholder: '...' },
+        { id: 'github', name: 'GitHub (repository privati, push, backup del second brain)', envVar: 'GITHUB_TOKEN', placeholder: 'github_pat_...' },
         { id: 'custom', name: 'Altro / Personalizzato (Custom)', envVar: '', placeholder: 'Incolla la chiave API segreta' }
     ];
 
