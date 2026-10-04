@@ -80,11 +80,11 @@ function createWorkspacesRouter(sessionManager, ptyManager, io) {
         if (!sessionManager || typeof sessionManager.getSessions !== 'function') return 0;
         const sessions = sessionManager.getSessions();
         if (!sessions || !Array.isArray(sessions)) return 0;
+        // Le sessioni salvano la cartella nel campo "workspace" (prima si leggeva
+        // "workspaceDir", che non esiste: il contatore era sempre 0)
         return sessions.filter(s => {
-            if (s.workspaceDir) {
-                return path.resolve(s.workspaceDir) === path.resolve(wsPath);
-            }
-            return false;
+            const dir = s.workspace || s.workspaceDir;
+            return !!dir && path.resolve(dir) === path.resolve(wsPath);
         }).length;
     }
 
